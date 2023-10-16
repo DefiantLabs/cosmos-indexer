@@ -1,0 +1,58 @@
+basePath: /
+definitions:
+  main.TaxableEventsCSVRequest:
+    properties:
+      addresses:
+        type: string
+      chain:
+        type: string
+      endDate:
+        description: can be null
+        type: string
+      format:
+        type: string
+      startDate:
+        description: can be null
+        type: string
+    type: object
+info:
+  contact:
+    email: info@defiantlabs.net
+    name: Defiant Labs
+    url: https://defiantlabs.net/
+  description: An API to interact with the Cosmos Tax CLI backend.
+  title: Cosmos Tax CLI
+  version: "1.0"
+paths:
+  /events.csv:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: The options for the POST body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/main.TaxableEventsCSVRequest'
+      produces:
+      - text/csv
+      responses: {}
+  /events.json:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: The options for the POST body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/main.TaxableEventsCSVRequest'
+      produces:
+      - application/json
+      responses: {}
+  /gcphealth:
+    get:
+      responses: {}
+swagger: "2.0"

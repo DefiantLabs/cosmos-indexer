@@ -1,0 +1,85 @@
+The following are message types as reported by Spew library which prints unknown go structs etc.
+
+(map[string]interface {}) (len=4) {
+ (string) (len=10) "to_address": (string) (len=43) "juno1m2hg5t7n8f6kzh8kmh98phenk8a4xp5wyuz34y",
+ (string) (len=6) "amount": ([]interface {}) (len=1 cap=1) {
+  (map[string]interface {}) (len=2) {
+   (string) (len=6) "amount": (string) (len=5) "80085",
+   (string) (len=5) "denom": (string) (len=6) "ustake"
+  }
+ },
+ (string) (len=5) "@type": (string) (len=28) "/cosmos.bank.v1beta1.MsgSend",
+ (string) (len=12) "from_address": (string) (len=43) "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y"
+}
+
+...
+
+(map[string]interface {}) (len=4) {
+ (string) (len=5) "@type": (string) (len=35) "/cosmos.staking.v1beta1.MsgDelegate",
+ (string) (len=17) "delegator_address": (string) (len=43) "juno1m2hg5t7n8f6kzh8kmh98phenk8a4xp5wyuz34y",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta",
+ (string) (len=6) "amount": (map[string]interface {}) (len=2) {
+  (string) (len=6) "amount": (string) (len=5) "50000",
+  (string) (len=5) "denom": (string) (len=6) "ustake"
+ }
+}
+
+...
+
+(map[string]interface {}) (len=4) {
+ (string) (len=6) "amount": (map[string]interface {}) (len=2) {
+  (string) (len=5) "denom": (string) (len=6) "ustake",
+  (string) (len=6) "amount": (string) (len=2) "85"
+ },
+ (string) (len=5) "@type": (string) (len=35) "/cosmos.staking.v1beta1.MsgDelegate",
+ (string) (len=17) "delegator_address": (string) (len=43) "juno1m2hg5t7n8f6kzh8kmh98phenk8a4xp5wyuz34y",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+(map[string]interface {}) (len=3) {
+ (string) (len=5) "@type": (string) (len=55) "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+ (string) (len=17) "delegator_address": (string) (len=43) "juno128taw6wkhfq29u83lmh5qyfv8nff6h0w577vsy",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+(map[string]interface {}) (len=2) {
+ (string) (len=5) "@type": (string) (len=59) "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+(map[string]interface {}) (len=3) {
+ (string) (len=5) "@type": (string) (len=55) "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+ (string) (len=17) "delegator_address": (string) (len=43) "juno128taw6wkhfq29u83lmh5qyfv8nff6h0w577vsy",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+(map[string]interface {}) (len=2) {
+ (string) (len=5) "@type": (string) (len=59) "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+
+(map[string]interface {}) (len=3) {
+ (string) (len=5) "@type": (string) (len=55) "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+ (string) (len=17) "delegator_address": (string) (len=43) "juno128taw6wkhfq29u83lmh5qyfv8nff6h0w577vsy",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
+
+(map[string]interface {}) (len=2) {
+ (string) (len=5) "@type": (string) (len=59) "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission",
+ (string) (len=17) "validator_address": (string) (len=50) "junovaloper128taw6wkhfq29u83lmh5qyfv8nff6h0wtrgrta"
+}
+
+...
