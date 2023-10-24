@@ -15,8 +15,6 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/staking"
 	"github.com/DefiantLabs/cosmos-indexer/csv/parsers"
 	"github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/gamm"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/poolmanager"
 )
 
 var unsupportedCoins = []string{
@@ -69,14 +67,6 @@ func (p *Parser) ProcessTaxableTx(address string, taxableTxs []db.TaxableTransac
 		}
 	}
 
-	// Parse all the TXs found in the Parsing Groups
-	for _, txParsingGroup := range p.ParsingGroups {
-		err := txParsingGroup.ParseGroup(ParseGroup)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Handle fees on all taxableTxs at once, we don't do this in the regular parser or in the parsing groups
 	// This requires HandleFees to process the fees into unique mappings of tx -> fees (since we gather Taxable Messages in the taxableTxs)
 	// If we move it into the ParseTx function or into the ParseGroup function, we may be able to reduce the logic in the HandleFees func
@@ -105,7 +95,6 @@ func (p *Parser) ProcessTaxableEvent(taxableEvents []db.TaxableEvent) error {
 }
 
 func (p *Parser) InitializeParsingGroups() {
-	p.ParsingGroups = append(p.ParsingGroups, parsers.GetOsmosisTxParsingGroups()...)
 }
 
 func (p *Parser) GetRows(address string, startDate, endDate *time.Time) ([]parsers.CsvRow, error) {
@@ -312,10 +301,6 @@ func ParseTx(address string, events []db.TaxableTransaction) (rows []parsers.Csv
 			newRow, err = ParseMsgWithdrawDelegatorReward(address, event)
 		case staking.MsgBeginRedelegate:
 			newRow, err = ParseMsgWithdrawDelegatorReward(address, event)
-		case gamm.MsgSwapExactAmountIn:
-			newRow, err = ParseMsgSwapExactAmountIn(event)
-		case gamm.MsgSwapExactAmountOut:
-			newRow, err = ParseMsgSwapExactAmountOut(event)
 		case ibc.MsgTransfer:
 			newRow, err = ParseMsgTransfer(address, event)
 		case gov.MsgSubmitProposal:
@@ -326,8 +311,6 @@ func ParseTx(address string, events []db.TaxableTransaction) (rows []parsers.Csv
 			newRow, err = ParseMsgTransfer(address, event)
 		case ibc.MsgRecvPacket:
 			newRow, err = ParseMsgTransfer(address, event)
-		case poolmanager.MsgSplitRouteSwapExactAmountIn, poolmanager.MsgSwapExactAmountIn, poolmanager.MsgSwapExactAmountOut:
-			newRow, err = ParsePoolManagerSwap(event)
 		default:
 			config.Log.Errorf("no parser for message type '%v'", event.Message.MessageType.MessageType)
 			continue

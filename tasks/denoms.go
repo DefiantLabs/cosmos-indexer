@@ -9,7 +9,6 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/juno"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis"
 	"github.com/DefiantLabs/cosmos-indexer/rest"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 
@@ -34,14 +33,10 @@ type DenomUnit struct {
 }
 
 var ChainSpecificDenomUpsertFunctions = map[string]func(db *gorm.DB, retryMaxAttempts int64, retryMaxWaitSeconds uint64){
-	osmosis.ChainID: UpsertOsmosisDenoms,
-	juno.ChainID:    UpsertJunoDenoms,
+	juno.ChainID: UpsertJunoDenoms,
 }
 
 func DoChainSpecificUpsertDenoms(db *gorm.DB, chain string, retryMaxAttempts int64, retryMaxWaitSeconds uint64) {
-	if chain == osmosis.ChainID {
-		UpsertOsmosisDenoms(db, retryMaxAttempts, retryMaxWaitSeconds)
-	}
 
 	if chain == juno.ChainID {
 		UpsertJunoDenoms(db, retryMaxAttempts, retryMaxWaitSeconds)
