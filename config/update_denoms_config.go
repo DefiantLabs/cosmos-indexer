@@ -4,7 +4,7 @@ import "github.com/spf13/cobra"
 
 type UpdateDenomsConfig struct {
 	Database Database
-	Lens     lens
+	Probe    probe
 	Log      log
 	Base     updateDenomsBase
 }
@@ -26,15 +26,15 @@ func (conf *UpdateDenomsConfig) Validate() error {
 		return err
 	}
 
-	lensConf := conf.Lens
+	probeConf := conf.Probe
 
-	lensConf, err = validateLensConf(lensConf)
+	probeConf, err = validateProbeConf(probeConf)
 
 	if err != nil {
 		return err
 	}
 
-	conf.Lens = lensConf
+	conf.Probe = probeConf
 
 	return nil
 }
@@ -44,7 +44,7 @@ func CheckSuperfluousUpdateDenomsKeys(keys []string) []string {
 
 	addDatabaseConfigKeys(validKeys)
 	addLogConfigKeys(validKeys)
-	addLensConfigKeys(validKeys)
+	addProbeConfigKeys(validKeys)
 
 	// add base keys
 	for _, key := range getValidConfigKeys(updateDenomsBase{}, "base") {

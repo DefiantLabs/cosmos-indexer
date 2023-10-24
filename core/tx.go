@@ -24,12 +24,12 @@ import (
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/tendermint/modules/liquidity"
 	"github.com/DefiantLabs/cosmos-indexer/util"
-	"github.com/DefiantLabs/lens/client"
+	"github.com/DefiantLabs/probe/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	cosmosTx "github.com/cosmos/cosmos-sdk/types/tx"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gorm.io/gorm"
 )
 

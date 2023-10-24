@@ -79,9 +79,9 @@ The Database section defines the settings needed to connect to the database serv
 
 The Base section contains the core settings for the tool, such as API endpoints, block ranges, indexing behavior, and more.
 
-#### Lens
+#### Probe
 
-The probe section configures [lens](https://github.com/DefiantLabs/lens) used by the tool to read data from the blockchain. This is built into the application and doesn't need to be installed separately.
+The probe section configures [probe](https://github.com/DefiantLabs/probe) used by the tool to read data from the blockchain. This is built into the application and doesn't need to be installed separately.
 
 For detailed descriptions of each setting in these sections, please refer to the [Detailed Config Explanation](#detailed-config-explanation) section below.
 

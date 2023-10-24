@@ -8,7 +8,7 @@ import (
 
 type UpdateEpochsConfig struct {
 	Database Database
-	Lens     lens
+	Probe    probe
 	Base     updateEpochsBase
 	Log      log
 }
@@ -28,15 +28,15 @@ func (conf *UpdateEpochsConfig) Validate() error {
 		return err
 	}
 
-	lensConf := conf.Lens
+	probeConf := conf.Probe
 
-	lensConf, err = validateLensConf(lensConf)
+	probeConf, err = validateProbeConf(probeConf)
 
 	if err != nil {
 		return err
 	}
 
-	conf.Lens = lensConf
+	conf.Probe = probeConf
 
 	err = validateThrottlingConf(conf.Base.throttlingBase)
 
@@ -56,7 +56,7 @@ func CheckSuperfluousUpdateEpochsKeys(keys []string) []string {
 
 	addDatabaseConfigKeys(validKeys)
 	addLogConfigKeys(validKeys)
-	addLensConfigKeys(validKeys)
+	addProbeConfigKeys(validKeys)
 
 	// add base keys
 	for _, key := range getValidConfigKeys(updateEpochsBase{}, "base") {

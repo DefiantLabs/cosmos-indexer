@@ -1,6 +1,6 @@
 package denoms
 
-import transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+import transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 
 type Pagination struct {
 	NextKey string `json:"next_key"`

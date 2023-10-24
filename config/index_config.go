@@ -13,7 +13,7 @@ type IndexConfig struct {
 	ConfigFileLocation string
 	Base               indexBase
 	Log                log
-	Lens               lens
+	Probe              probe
 	Client             client
 }
 
@@ -79,15 +79,15 @@ func (conf *IndexConfig) Validate() error {
 		return err
 	}
 
-	lensConf := conf.Lens
+	probeConf := conf.Probe
 
-	lensConf, err = validateLensConf(lensConf)
+	probeConf, err = validateProbeConf(probeConf)
 
 	if err != nil {
 		return err
 	}
 
-	conf.Lens = lensConf
+	conf.Probe = probeConf
 
 	err = validateThrottlingConf(conf.Base.throttlingBase)
 
@@ -151,7 +151,7 @@ func CheckSuperfluousIndexKeys(keys []string) []string {
 
 	addDatabaseConfigKeys(validKeys)
 	addLogConfigKeys(validKeys)
-	addLensConfigKeys(validKeys)
+	addProbeConfigKeys(validKeys)
 
 	// add base keys
 	for _, key := range getValidConfigKeys(indexBase{}, "base") {
