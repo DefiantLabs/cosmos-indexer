@@ -3,6 +3,7 @@ package ibc
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
 	parsingTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules"
 	txModule "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
 	"github.com/DefiantLabs/cosmos-indexer/util"
@@ -55,7 +56,7 @@ type WrapperMsgRecvPacket struct {
 	Sequence        uint64
 	SenderAddress   string
 	ReceiverAddress string
-	Amount          stdTypes.Int
+	Amount          math.Int
 	Denom           string
 }
 
@@ -126,7 +127,7 @@ type WrapperMsgAcknowledgement struct {
 	Sequence           uint64
 	SenderAddress      string
 	ReceiverAddress    string
-	Amount             stdTypes.Int
+	Amount             math.Int
 	Denom              string
 	AckType            int
 	AckResult          int

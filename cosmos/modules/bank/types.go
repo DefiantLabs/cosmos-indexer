@@ -8,6 +8,7 @@ import (
 	txModule "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -58,7 +59,7 @@ func (sf *WrapperMsgMultiSend) HandleMsg(msgType string, msg sdk.Msg, log *txMod
 
 	// Make sure the that the total amount sent matches the total amount received for each coin
 	// sum up input coins
-	sentMap := make(map[string]sdk.Int)
+	sentMap := make(map[string]math.Int)
 	for _, input := range sf.CosmosMsgMultiSend.Inputs {
 		for _, coin := range input.Coins {
 			if currentTotal, ok := sentMap[coin.Denom]; ok {
@@ -70,7 +71,7 @@ func (sf *WrapperMsgMultiSend) HandleMsg(msgType string, msg sdk.Msg, log *txMod
 	}
 
 	// sum up output coins
-	recievedMap := make(map[string]sdk.Int)
+	recievedMap := make(map[string]math.Int)
 	for _, output := range sf.CosmosMsgMultiSend.Outputs {
 		for _, coin := range output.Coins {
 			if currentTotal, ok := recievedMap[coin.Denom]; ok {

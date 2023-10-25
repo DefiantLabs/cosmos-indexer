@@ -392,14 +392,6 @@ type blockEventsDBData struct {
 	blockHeight         int64
 }
 
-type epochEventsDBData struct {
-	blockRelevantEvents []eventTypes.EventRelevantInformation
-	blockTime           time.Time
-	blockHeight         int64
-	epochIdentifier     string
-	epochNumber         uint
-}
-
 func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData) {
 	defer close(blockEventsDataChan)
 	defer wg.Done()

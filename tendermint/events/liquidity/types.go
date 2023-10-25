@@ -62,23 +62,23 @@ func (sf *WrapperBlockEventDepositToPool) HandleEvent(_ string, event abciTypes.
 	var poolCoinAmount string
 	var poolCoinDenom string
 	for _, attribute := range event.Attributes {
-		switch string(attribute.Key) {
+		switch attribute.Key {
 		case "depositor":
-			sf.Address = string(attribute.Value)
+			sf.Address = attribute.Value
 		case "accepted_coins":
-			acceptedCoins, err := sdk.ParseCoinsNormalized(string(attribute.Value))
+			acceptedCoins, err := sdk.ParseCoinsNormalized(attribute.Value)
 			if err != nil {
 				return err
 			}
 			sf.AcceptedCoins = acceptedCoins
 		case EventAttributeSuccess:
-			sf.Success = string(attribute.Value)
+			sf.Success = attribute.Value
 		case EventAttributePoolID:
-			sf.PoolID = string(attribute.Value)
+			sf.PoolID = attribute.Value
 		case "pool_coin_amount":
-			poolCoinAmount = string(attribute.Value)
+			poolCoinAmount = attribute.Value
 		case "pool_coin_denom":
-			poolCoinDenom = string(attribute.Value)
+			poolCoinDenom = attribute.Value
 		}
 	}
 
@@ -106,25 +106,25 @@ func (sf *WrapperBlockEventSwapTransacted) HandleEvent(eventType string, event a
 	var demandCoinFeeAmount string
 
 	for _, attribute := range event.Attributes {
-		switch string(attribute.Key) {
+		switch attribute.Key {
 		case "swap_requester":
-			sf.Address = string(attribute.Value)
+			sf.Address = attribute.Value
 		case "exchanged_offer_coin_amount":
-			offerCoinAmount = string(attribute.Value)
+			offerCoinAmount = attribute.Value
 		case "offer_coin_denom":
-			offerCoinDenom = string(attribute.Value)
+			offerCoinDenom = attribute.Value
 		case "exchanged_demand_coin_amount":
-			demandCoinAmount = string(attribute.Value)
+			demandCoinAmount = attribute.Value
 		case "demand_coin_denom":
-			demandCoinDenom = string(attribute.Value)
+			demandCoinDenom = attribute.Value
 		case "offer_coin_fee_amount":
-			offerCoinFeeAmount = string(attribute.Value)
+			offerCoinFeeAmount = attribute.Value
 		case "exchanged_coin_fee_amount":
-			demandCoinFeeAmount = string(attribute.Value)
+			demandCoinFeeAmount = attribute.Value
 		case EventAttributeSuccess:
-			sf.Success = string(attribute.Value)
+			sf.Success = attribute.Value
 		case EventAttributePoolID:
-			sf.PoolID = string(attribute.Value)
+			sf.PoolID = attribute.Value
 		}
 	}
 
@@ -174,21 +174,21 @@ func (sf *WrapperBlockWithdrawFromPool) HandleEvent(eventType string, event abci
 	var withdrawFeesString string
 
 	for _, attribute := range event.Attributes {
-		switch string(attribute.Key) {
+		switch attribute.Key {
 		case "withdrawer":
-			sf.Address = string(attribute.Value)
+			sf.Address = attribute.Value
 		case "pool_coin_amount":
-			poolCoinAmount = string(attribute.Value)
+			poolCoinAmount = attribute.Value
 		case "pool_coin_denom":
-			poolCoinDenom = string(attribute.Value)
+			poolCoinDenom = attribute.Value
 		case "withdraw_coins":
-			withdrawCoinsString = string(attribute.Value)
+			withdrawCoinsString = attribute.Value
 		case "withdraw_fee_coins":
-			withdrawFeesString = string(attribute.Value)
+			withdrawFeesString = attribute.Value
 		case EventAttributePoolID:
-			sf.PoolID = string(attribute.Value)
+			sf.PoolID = attribute.Value
 		case EventAttributeSuccess:
-			sf.Success = string(attribute.Value)
+			sf.Success = attribute.Value
 		}
 	}
 

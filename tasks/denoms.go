@@ -37,7 +37,6 @@ var ChainSpecificDenomUpsertFunctions = map[string]func(db *gorm.DB, retryMaxAtt
 }
 
 func DoChainSpecificUpsertDenoms(db *gorm.DB, chain string, retryMaxAttempts int64, retryMaxWaitSeconds uint64) {
-
 	if chain == juno.ChainID {
 		UpsertJunoDenoms(db, retryMaxAttempts, retryMaxWaitSeconds)
 	}
