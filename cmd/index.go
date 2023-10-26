@@ -8,14 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DefiantLabs/lens/client"
+	"github.com/DefiantLabs/probe/client"
 	"github.com/go-co-op/gocron"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/tasks"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ func init() {
 	indexer.cfg = &config.IndexConfig{}
 	config.SetupLogFlags(&indexer.cfg.Log, indexCmd)
 	config.SetupDatabaseFlags(&indexer.cfg.Database, indexCmd)
-	config.SetupLensFlags(&indexer.cfg.Lens, indexCmd)
+	config.SetupProbeFlags(&indexer.cfg.Probe, indexCmd)
 	config.SetupThrottlingFlag(&indexer.cfg.Base.Throttling, indexCmd)
 	config.SetupIndexSpecificFlags(indexer.cfg, indexCmd)
 
@@ -99,14 +98,13 @@ func setupIndexer() *Indexer {
 	var err error
 
 	// Setup chain specific stuff
-	core.SetupAddressRegex(indexer.cfg.Lens.AccountPrefix + "(valoper)?1[a-z0-9]{38}")
-	core.SetupAddressPrefix(indexer.cfg.Lens.AccountPrefix)
-	core.ChainSpecificMessageTypeHandlerBootstrap(indexer.cfg.Lens.ChainID)
-	core.ChainSpecificBeginBlockerEventTypeHandlerBootstrap(indexer.cfg.Lens.ChainID)
-	core.ChainSpecificEndBlockerEventTypeHandlerBootstrap(indexer.cfg.Lens.ChainID)
-	core.ChainSpecificEpochIdentifierEventTypeHandlersBootstrap(indexer.cfg.Lens.ChainID)
+	core.SetupAddressRegex(indexer.cfg.Probe.AccountPrefix + "(valoper)?1[a-z0-9]{38}")
+	core.SetupAddressPrefix(indexer.cfg.Probe.AccountPrefix)
+	core.ChainSpecificMessageTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
+	core.ChainSpecificBeginBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
+	core.ChainSpecificEndBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
 
-	config.SetChainConfig(indexer.cfg.Lens.AccountPrefix)
+	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
 	// Setup scheduler to periodically update denoms
 	if indexer.cfg.Base.API != "" {
@@ -119,8 +117,8 @@ func setupIndexer() *Indexer {
 	}
 
 	// Some chains do not have the denom metadata URL available on chain, so we do chain specific downloads instead.
-	tasks.DoChainSpecificUpsertDenoms(indexer.db, indexer.cfg.Lens.ChainID, indexer.cfg.Base.RequestRetryAttempts, indexer.cfg.Base.RequestRetryMaxWait)
-	indexer.cl = config.GetLensClient(indexer.cfg.Lens)
+	tasks.DoChainSpecificUpsertDenoms(indexer.db, indexer.cfg.Probe.ChainID, indexer.cfg.Base.RequestRetryAttempts, indexer.cfg.Base.RequestRetryMaxWait)
+	indexer.cl = config.GetProbeClient(indexer.cfg.Probe)
 
 	// Depending on the app configuration, wait for the chain to catch up
 	chainCatchingUp, err := rpc.IsCatchingUp(indexer.cl)
@@ -140,13 +138,6 @@ func setupIndexer() *Indexer {
 	}
 	if err != nil {
 		config.Log.Fatal("Error querying chain status.", err)
-	}
-
-	if indexer.cfg.Lens.ChainID == osmosis.ChainID && indexer.cfg.Base.EpochEventIndexingEnabled {
-		err := osmosis.SetupOsmosisEpochIndexer(indexer.cl, indexer.cfg.Base.EpochIndexingIdentifier)
-		if err != nil {
-			config.Log.Fatal("Error setting up Osmosis Epoch Indexer.", err)
-		}
 	}
 
 	return &indexer
@@ -209,27 +200,18 @@ func index(cmd *cobra.Command, args []string) {
 	}
 
 	chain := dbTypes.Chain{
-		ChainID: idxr.cfg.Lens.ChainID,
-		Name:    idxr.cfg.Lens.ChainName,
+		ChainID: idxr.cfg.Probe.ChainID,
+		Name:    idxr.cfg.Probe.ChainName,
 	}
 	dbChainID, err := dbTypes.GetDBChainID(idxr.db, chain)
 	if err != nil {
 		config.Log.Fatal("Failed to add/create chain in DB", err)
 	}
 
-	// Epoch BeginBlocker and EndBlocker indexing requirements. Indexes block events that took place in the BeginBlock and EndBlock state transitions of Epochs
-	epochEventsDataChan := make(chan *epochEventsDBData, 4*rpcQueryThreads)
-	if idxr.cfg.Base.EpochEventIndexingEnabled {
-		wg.Add(1)
-		go idxr.indexEpochEvents(&wg, core.HandleFailedBlock, epochEventsDataChan, dbChainID)
-	} else {
-		close(epochEventsDataChan)
-	}
-
 	// Start a thread to index the data queried from the chain.
 	if idxr.cfg.Base.ChainIndexingEnabled || idxr.cfg.Base.BlockEventIndexingEnabled || idxr.cfg.Base.EpochEventIndexingEnabled {
 		wg.Add(1)
-		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, epochEventsDataChan, dbChainID)
+		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
 	}
 
 	// Add jobs to the queue to be processed
@@ -313,7 +295,7 @@ func (idxr *Indexer) queryRPC(blockChan chan int64, dbDataChan chan *dbData, fai
 		err := processBlock(idxr.cl, idxr.db, failedBlockHandler, dbDataChan, blockToProcess)
 		if err != nil {
 			config.Log.Error(fmt.Sprintf("Failed to process block %v. Will add to failed blocks table", blockToProcess))
-			err := dbTypes.UpsertFailedBlock(idxr.db, blockToProcess, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
+			err := dbTypes.UpsertFailedBlock(idxr.db, blockToProcess, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 			if err != nil {
 				config.Log.Fatal(fmt.Sprintf("Failed to store that block %v failed. Not safe to continue.", blockToProcess), err)
 			}
@@ -410,14 +392,6 @@ type blockEventsDBData struct {
 	blockHeight         int64
 }
 
-type epochEventsDBData struct {
-	blockRelevantEvents []eventTypes.EventRelevantInformation
-	blockTime           time.Time
-	blockHeight         int64
-	epochIdentifier     string
-	epochNumber         uint
-}
-
 func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData) {
 	defer close(blockEventsDataChan)
 	defer wg.Done()
@@ -426,7 +400,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 	endHeight := idxr.cfg.Base.BlockEventsEndBlock
 
 	if startHeight <= 0 {
-		dbLastIndexedBlockEvent := GetBlockEventsStartIndexHeight(idxr.db, idxr.cfg.Lens.ChainID)
+		dbLastIndexedBlockEvent := GetBlockEventsStartIndexHeight(idxr.db, idxr.cfg.Probe.ChainID)
 		if dbLastIndexedBlockEvent > 0 {
 			startHeight = dbLastIndexedBlockEvent + 1
 		}
@@ -457,7 +431,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 			config.Log.Error(fmt.Sprintf("Error receiving block result for block %d", currentHeight), err)
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
+			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 			if err != nil {
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
@@ -474,7 +448,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 		switch {
 		case err != nil:
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
+			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 			if err != nil {
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
@@ -483,7 +457,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 			if err != nil {
 				failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
-				err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
+				err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 				if err != nil {
 					config.Log.Fatal("Failed to insert failed block event", err)
 				}
@@ -527,109 +501,6 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 	}
 }
 
-func (idxr *Indexer) indexEpochEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, epochEventsDataChan chan *epochEventsDBData, chainID uint) {
-	defer close(epochEventsDataChan)
-	defer wg.Done()
-
-	startEpochNumber := idxr.cfg.Base.EpochEventsStartEpoch
-	endEpochNumber := idxr.cfg.Base.EpochEventsEndEpoch
-	epochIdentifier := idxr.cfg.Base.EpochIndexingIdentifier
-
-	config.Log.Infof("Checking for latest epochs before running indexer")
-	var chain dbTypes.Chain
-	chain.ChainID = idxr.cl.Config.ChainID
-	chain.Name = idxr.cfg.Lens.ChainName
-	res := idxr.db.FirstOrCreate(&chain)
-
-	if res.Error != nil {
-		config.Log.Fatalf("Error setting up Chain model. Err: %v", res.Error)
-	}
-
-	latestHeight, err := rpc.GetLatestBlockHeight(idxr.cl)
-	if err != nil {
-		config.Log.Fatalf("Error getting latest block height. Err: %v", err)
-	}
-
-	indexEpochsAtStartingHeight(idxr.db, idxr.cl, latestHeight, chain, epochIdentifier, idxr.cfg.Base.Throttling)
-
-	// Get epochs for identifier between start and end epoch that have not been indexed
-	epochsBetween, err := GetUnindexedEpochsAtIdentifierBetweenStartAndEnd(idxr.db, chainID, epochIdentifier, startEpochNumber, endEpochNumber)
-	if err != nil {
-		config.Log.Fatalf("Error getting epochs between %d and %d for identifier %s. %s", startEpochNumber, endEpochNumber, epochIdentifier, err)
-	}
-
-	if len(epochsBetween) == 0 {
-		config.Log.Infof("No unindexed epochs found in database between start %d and end %d for epoch identifier %s", startEpochNumber, endEpochNumber, epochIdentifier)
-		return
-	}
-
-	config.Log.Infof("Indexing epoch events from epoch: %v to %v", epochsBetween[0].EpochNumber, epochsBetween[len(epochsBetween)-1].EpochNumber)
-
-	rpcClient := rpc.URIClient{
-		Address: idxr.cl.Config.RPCAddr,
-		Client:  &http.Client{},
-	}
-
-	for _, epoch := range epochsBetween {
-		config.Log.Infof("Indexing epoch events for epoch %v at height %d", epoch.EpochNumber, epoch.StartHeight)
-
-		bresults, err := rpc.GetBlockResultWithRetry(rpcClient, int64(epoch.StartHeight), idxr.cfg.Base.RequestRetryAttempts, idxr.cfg.Base.RequestRetryMaxWait)
-		if err != nil {
-			config.Log.Error(fmt.Sprintf("Error receiving block result for block %d", epoch.StartHeight), err)
-			failedBlockHandler(int64(epoch.StartHeight), core.FailedBlockEventHandling, err)
-
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, int64(epoch.StartHeight), idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
-			if err != nil {
-				config.Log.Fatal("Failed to insert failed block event", err)
-			}
-
-			if idxr.cfg.Base.Throttling != 0 {
-				time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
-			}
-			continue
-		}
-
-		blockRelevantEvents, err := core.ProcessRPCEpochEvents(bresults, epochIdentifier)
-
-		if err != nil {
-			failedBlockHandler(int64(epoch.StartHeight), core.FailedBlockEventHandling, err)
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, int64(epoch.StartHeight), idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
-			if err != nil {
-				config.Log.Fatal("Failed to insert failed block event", err)
-			}
-		} else {
-			if len(blockRelevantEvents) == 0 {
-				config.Log.Infof("Block %d has no relevant block events", bresults.Height)
-			}
-
-			result, err := rpc.GetBlock(idxr.cl, bresults.Height)
-			if err != nil {
-				failedBlockHandler(int64(epoch.StartHeight), core.FailedBlockEventHandling, err)
-
-				err := dbTypes.UpsertFailedEventBlock(idxr.db, int64(epoch.StartHeight), idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
-				if err != nil {
-					config.Log.Fatal("Failed to insert failed block event", err)
-				}
-			} else {
-				epochEventsDataChan <- &epochEventsDBData{
-					blockHeight:         bresults.Height,
-					blockTime:           result.Block.Time,
-					blockRelevantEvents: blockRelevantEvents,
-					epochIdentifier:     epochIdentifier,
-					epochNumber:         epoch.EpochNumber,
-				}
-			}
-		}
-
-		if idxr.cfg.Base.Throttling != 0 {
-			time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
-		}
-
-	}
-
-	config.Log.Infof("Finished gathering epoch events for epochs %d to %d in identifier %s", startEpochNumber, endEpochNumber, epochIdentifier)
-}
-
 func GetUnindexedEpochsAtIdentifierBetweenStartAndEnd(db *gorm.DB, chainID uint, identifier string, startEpochNumber int64, endEpochNumber int64) ([]dbTypes.Epoch, error) {
 	var epochsBetween []dbTypes.Epoch
 	var err error
@@ -649,7 +520,7 @@ func GetUnindexedEpochsAtIdentifierBetweenStartAndEnd(db *gorm.DB, chainID uint,
 // if this is a dry run, we will simply empty the channel and track progress
 // otherwise we will index the data in the DB.
 // it will also read rewars data and index that.
-func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, blockEventsDataChan chan *blockEventsDBData, epochEventsDataChan chan *epochEventsDBData, dbChainID uint) {
+func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, blockEventsDataChan chan *blockEventsDBData, dbChainID uint) {
 	blocksProcessed := 0
 	dbWrites := 0
 	dbReattempts := 0
@@ -658,7 +529,7 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 
 	for {
 		// break out of loop once all channels are fully consumed
-		if txDataChan == nil && blockEventsDataChan == nil && epochEventsDataChan == nil {
+		if txDataChan == nil && blockEventsDataChan == nil {
 			config.Log.Info("DB updates complete")
 			break
 		}
@@ -709,39 +580,14 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", len(eventData.blockRelevantEvents), eventData.blockHeight))
 			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockHeight)
 
-			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName, identifierLoggingString)
+			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
 			if err != nil {
 				// Do a single reattempt on failure
 				dbReattempts++
-				err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName, identifierLoggingString)
+				err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
 				if err != nil {
 					config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
 				}
-			}
-		case epochEventData, ok := <-epochEventsDataChan:
-
-			if !ok {
-				epochEventsDataChan = nil
-				continue
-			}
-			dbWrites++
-			identifierLoggingString := fmt.Sprintf("epoch %d in epoch identifier %s", epochEventData.epochNumber, epochEventData.epochIdentifier)
-			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d for %s", len(epochEventData.blockRelevantEvents), epochEventData.blockHeight, identifierLoggingString))
-
-			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, epochEventData.blockHeight, epochEventData.blockTime, epochEventData.blockRelevantEvents, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName, identifierLoggingString)
-			if err != nil {
-				// Do a single reattempt on failure
-				dbReattempts++
-				err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, epochEventData.blockHeight, epochEventData.blockTime, epochEventData.blockRelevantEvents, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName, identifierLoggingString)
-				if err != nil {
-					config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
-				}
-			}
-
-			err = dbTypes.UpdateEpochIndexingStatus(idxr.db, idxr.dryRun, epochEventData.epochNumber, epochEventData.epochIdentifier, idxr.cfg.Lens.ChainID, idxr.cfg.Lens.ChainName)
-
-			if err != nil {
-				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s. Could not mark Epoch indexed.", identifierLoggingString), err)
 			}
 		}
 	}

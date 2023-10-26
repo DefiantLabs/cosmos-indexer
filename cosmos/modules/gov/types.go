@@ -9,7 +9,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	stdTypes "github.com/cosmos/cosmos-sdk/types"
 	bankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	govTypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govTypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 const (

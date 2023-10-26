@@ -26,7 +26,7 @@ type Database struct {
 	LogLevel string `mapstructure:"log-level"`
 }
 
-type lens struct {
+type probe struct {
 	RPC           string
 	AccountPrefix string `mapstructure:"account-prefix"`
 	ChainID       string `mapstructure:"chain-id"`
@@ -57,11 +57,11 @@ func SetupDatabaseFlags(databaseConf *Database, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&databaseConf.LogLevel, "database.log-level", "", "database loglevel")
 }
 
-func SetupLensFlags(lensConf *lens, cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVar(&lensConf.RPC, "lens.rpc", "", "node rpc endpoint")
-	cmd.PersistentFlags().StringVar(&lensConf.AccountPrefix, "lens.account-prefix", "", "lens account prefix")
-	cmd.PersistentFlags().StringVar(&lensConf.ChainID, "lens.chain-id", "", "lens chain ID")
-	cmd.PersistentFlags().StringVar(&lensConf.ChainName, "lens.chain-name", "", "lens chain name")
+func SetupProbeFlags(probeConf *probe, cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVar(&probeConf.RPC, "probe.rpc", "", "node rpc endpoint")
+	cmd.PersistentFlags().StringVar(&probeConf.AccountPrefix, "probe.account-prefix", "", "probe account prefix")
+	cmd.PersistentFlags().StringVar(&probeConf.ChainID, "probe.chain-id", "", "probe chain ID")
+	cmd.PersistentFlags().StringVar(&probeConf.ChainName, "probe.chain-name", "", "probe chain name")
 }
 
 func SetupThrottlingFlag(throttlingValue *float64, cmd *cobra.Command) {
@@ -88,29 +88,29 @@ func validateDatabaseConf(dbConf Database) error {
 	return nil
 }
 
-func validateLensConf(lensConf lens) (lens, error) {
-	if util.StrNotSet(lensConf.RPC) {
-		return lensConf, errors.New("lens rpc must be set")
+func validateProbeConf(probeConf probe) (probe, error) {
+	if util.StrNotSet(probeConf.RPC) {
+		return probeConf, errors.New("probe rpc must be set")
 	}
 	// add port if not set
-	if strings.Count(lensConf.RPC, ":") != 2 {
-		if strings.HasPrefix(lensConf.RPC, "https:") {
-			lensConf.RPC = fmt.Sprintf("%s:443", lensConf.RPC)
-		} else if strings.HasPrefix(lensConf.RPC, "http:") {
-			lensConf.RPC = fmt.Sprintf("%s:80", lensConf.RPC)
+	if strings.Count(probeConf.RPC, ":") != 2 {
+		if strings.HasPrefix(probeConf.RPC, "https:") {
+			probeConf.RPC = fmt.Sprintf("%s:443", probeConf.RPC)
+		} else if strings.HasPrefix(probeConf.RPC, "http:") {
+			probeConf.RPC = fmt.Sprintf("%s:80", probeConf.RPC)
 		}
 	}
 
-	if util.StrNotSet(lensConf.AccountPrefix) {
-		return lensConf, errors.New("lens account-prefix must be set")
+	if util.StrNotSet(probeConf.AccountPrefix) {
+		return probeConf, errors.New("probe account-prefix must be set")
 	}
-	if util.StrNotSet(lensConf.ChainID) {
-		return lensConf, errors.New("lens chain-id must be set")
+	if util.StrNotSet(probeConf.ChainID) {
+		return probeConf, errors.New("probe chain-id must be set")
 	}
-	if util.StrNotSet(lensConf.ChainName) {
-		return lensConf, errors.New("lens chain-name must be set")
+	if util.StrNotSet(probeConf.ChainName) {
+		return probeConf, errors.New("probe chain-name must be set")
 	}
-	return lensConf, nil
+	return probeConf, nil
 }
 
 func validateThrottlingConf(throttlingConf throttlingBase) error {
@@ -158,8 +158,8 @@ func addLogConfigKeys(validKeys map[string]struct{}) {
 	}
 }
 
-func addLensConfigKeys(validKeys map[string]struct{}) {
-	for _, key := range getValidConfigKeys(lens{}, "") {
+func addProbeConfigKeys(validKeys map[string]struct{}) {
+	for _, key := range getValidConfigKeys(probe{}, "") {
 		validKeys[key] = struct{}{}
 	}
 }

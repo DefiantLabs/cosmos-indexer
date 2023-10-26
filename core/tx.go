@@ -22,20 +22,14 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/vesting"
 	"github.com/DefiantLabs/cosmos-indexer/cosmwasm/modules/wasm"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/gamm"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/incentives"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/lockup"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/superfluid"
-	"github.com/DefiantLabs/cosmos-indexer/osmosis/modules/valsetpref"
 	"github.com/DefiantLabs/cosmos-indexer/tendermint/modules/liquidity"
 	"github.com/DefiantLabs/cosmos-indexer/util"
-	"github.com/DefiantLabs/lens/client"
+	"github.com/DefiantLabs/probe/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	cosmosTx "github.com/cosmos/cosmos-sdk/types/tx"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gorm.io/gorm"
 )
 
@@ -68,7 +62,6 @@ var messageTypeIgnorer = map[string]interface{}{
 	// Making a config change is not taxable
 	distribution.MsgSetWithdrawAddress: nil,
 	// Making a stableswap config change is not taxable
-	gamm.MsgStableSwapAdjustScalingFactors: nil,
 	// Voting is not taxable
 	gov.MsgVote:         nil,
 	gov.MsgVoteWeighted: nil,
@@ -88,35 +81,12 @@ var messageTypeIgnorer = map[string]interface{}{
 	ibc.MsgChannelOpenAck:        nil,
 	ibc.MsgChannelCloseConfirm:   nil,
 	ibc.MsgChannelCloseInit:      nil,
-	// Creating and modifying gauges does not create taxable events
-	incentives.MsgCreateGauge: nil,
-	incentives.MsgAddToGauge:  nil,
-	// Locking/unlocking is not taxable
-	lockup.MsgBeginUnlocking:    nil,
-	lockup.MsgLockTokens:        nil,
-	lockup.MsgBeginUnlockingAll: nil,
-	lockup.MsgUnlockPeriodLock:  nil,
-	lockup.MsgUnlockTokens:      nil,
 	// Unjailing and updating params is not taxable
 	slashing.MsgUnjail:       nil,
 	slashing.MsgUpdateParams: nil,
 	// Creating and editing validator is not taxable
 	staking.MsgCreateValidator: nil,
 	staking.MsgEditValidator:   nil,
-	// Delegating and Locking are not taxable
-	superfluid.MsgSuperfluidDelegate:                                    nil,
-	superfluid.MsgSuperfluidUndelegate:                                  nil,
-	superfluid.MsgSuperfluidUnbondLock:                                  nil,
-	superfluid.MsgLockAndSuperfluidDelegate:                             nil,
-	superfluid.MsgUnPoolWhitelistedPool:                                 nil,
-	superfluid.MsgUnlockAndMigrateSharesToFullRangeConcentratedPosition: nil,
-	superfluid.MsgSuperfluidUndelegateAndUnbondLock:                     nil,
-	superfluid.MsgCreateFullRangePositionAndSuperfluidDelegate:          nil,
-	superfluid.MsgAddToConcentratedLiquiditySuperfluidPosition:          nil,
-	superfluid.MsgUnbondConvertAndStake:                                 nil,
-
-	// Setting validator pref is not taxable
-	valsetpref.MsgSetValidatorSetPreference: nil,
 
 	// Create account is not taxable
 	vesting.MsgCreateVestingAccount: nil,
@@ -154,9 +124,6 @@ var messageTypeIgnorer = map[string]interface{}{
 // Chain specific handlers will be registered BEFORE any generic handlers.
 func ChainSpecificMessageTypeHandlerBootstrap(chainID string) {
 	var chainSpecificMessageTpeHandler map[string][]func() txtypes.CosmosMessage
-	if chainID == osmosis.ChainID {
-		chainSpecificMessageTpeHandler = osmosis.MessageTypeHandler
-	}
 	for key, value := range chainSpecificMessageTpeHandler {
 		if list, ok := messageTypeHandler[key]; ok {
 			messageTypeHandler[key] = append(value, list...)
@@ -386,34 +353,6 @@ func ProcessRPCTXs(db *gorm.DB, txEventResp *cosmosTx.GetTxsEventResponse) ([]db
 	return currTxDbWrappers, blockTime, nil
 }
 
-var allSwaps = []gamm.ArbitrageTx{}
-
-func AnalyzeSwaps() {
-	earliestTime := time.Now()
-	latestTime := time.Now()
-	profit := 0.0
-	fmt.Printf("%d total uosmo arbitrage swaps\n", len(allSwaps))
-
-	for _, swap := range allSwaps {
-		if swap.TokenOut.Denom == "uosmo" && swap.TokenIn.Denom == "uosmo" {
-			amount := swap.TokenOut.Amount.Sub(swap.TokenIn.Amount)
-			if amount.GT(types.ZeroInt()) {
-				txProfit := amount.ToDec().Quo(types.NewDec(1000000)).MustFloat64()
-				profit += txProfit
-			}
-
-			if swap.BlockTime.Before(earliestTime) {
-				earliestTime = swap.BlockTime
-			}
-			if swap.BlockTime.After(latestTime) {
-				latestTime = swap.BlockTime
-			}
-		}
-	}
-
-	fmt.Printf("Profit (OSMO): %.10f, days: %f\n", profit, latestTime.Sub(earliestTime).Hours()/24)
-}
-
 func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
 	txTime, err = time.Parse(time.RFC3339, tx.TxResponse.TimeStamp)
 	if err != nil {
@@ -511,10 +450,6 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 				}
 			}
 
-			if msgSwapExactIn, ok := cosmosMessage.(*gamm.WrapperMsgSwapExactAmountIn); ok {
-				newSwap := gamm.ArbitrageTx{TokenIn: msgSwapExactIn.TokenIn, TokenOut: msgSwapExactIn.TokenOut, BlockTime: txTime}
-				allSwaps = append(allSwaps, newSwap)
-			}
 			messages = append(messages, currMessageDBWrapper)
 		}
 	}

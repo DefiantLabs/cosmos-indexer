@@ -6,7 +6,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 	"github.com/DefiantLabs/cosmos-indexer/cosmoshub"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
 var (

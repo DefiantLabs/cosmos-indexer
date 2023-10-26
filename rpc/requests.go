@@ -3,19 +3,17 @@ package rpc
 import (
 	"time"
 
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
-	lensClient "github.com/DefiantLabs/lens/client"
-	lensQuery "github.com/DefiantLabs/lens/client/query"
-	lensEpochsTypes "github.com/DefiantLabs/lens/osmosis/x/epochs/types"
-	lensProtorevTypes "github.com/DefiantLabs/lens/osmosis/x/protorev/types"
+	probeClient "github.com/DefiantLabs/probe/client"
+	probeQuery "github.com/DefiantLabs/probe/query"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 var apiEndpoints = map[string]string{
-	"blocks_endpoint":              "/cosmos/base/tendermint/v1beta1/blocks/%d",
+	"blocks_endpoint":              "/cosmos/base/cometbft/v1beta1/blocks/%d",
 	"latest_block_endpoint":        "/blocks/latest",
 	"txs_by_block_height_endpoint": "/cosmos/tx/v1beta1/txs?events=tx.height=%d&pagination.limit=100&order_by=ORDER_BY_UNSPECIFIED",
 	"denoms_metadata":              "/cosmos/bank/v1beta1/denoms_metadata",
@@ -26,9 +24,9 @@ func GetEndpoint(key string) string {
 }
 
 // GetBlockByHeight makes a request to the Cosmos RPC API and returns all the transactions for a specific block
-func GetBlockByHeight(cl *lensClient.ChainClient, height int64) (*coretypes.ResultBlockResults, error) {
-	options := lensQuery.QueryOptions{Height: height}
-	query := lensQuery.Query{Client: cl, Options: &options}
+func GetBlockByHeight(cl *probeClient.ChainClient, height int64) (*coretypes.ResultBlockResults, error) {
+	options := probeQuery.QueryOptions{Height: height}
+	query := probeQuery.Query{Client: cl, Options: &options}
 	resp, err := query.BlockResults()
 	if err != nil {
 		return nil, err
@@ -38,9 +36,9 @@ func GetBlockByHeight(cl *lensClient.ChainClient, height int64) (*coretypes.Resu
 }
 
 // GetBlockTimestamp
-func GetBlock(cl *lensClient.ChainClient, height int64) (*coretypes.ResultBlock, error) {
-	options := lensQuery.QueryOptions{Height: height}
-	query := lensQuery.Query{Client: cl, Options: &options}
+func GetBlock(cl *probeClient.ChainClient, height int64) (*coretypes.ResultBlock, error) {
+	options := probeQuery.QueryOptions{Height: height}
+	query := probeQuery.Query{Client: cl, Options: &options}
 	resp, err := query.Block()
 	if err != nil {
 		return nil, err
@@ -50,10 +48,10 @@ func GetBlock(cl *lensClient.ChainClient, height int64) (*coretypes.ResultBlock,
 }
 
 // GetTxsByBlockHeight makes a request to the Cosmos RPC API and returns all the transactions for a specific block
-func GetTxsByBlockHeight(cl *lensClient.ChainClient, height int64) (*txTypes.GetTxsEventResponse, error) {
+func GetTxsByBlockHeight(cl *probeClient.ChainClient, height int64) (*txTypes.GetTxsEventResponse, error) {
 	pg := query.PageRequest{Limit: 100}
-	options := lensQuery.QueryOptions{Height: height, Pagination: &pg}
-	query := lensQuery.Query{Client: cl, Options: &options}
+	options := probeQuery.QueryOptions{Height: height, Pagination: &pg}
+	query := probeQuery.Query{Client: cl, Options: &options}
 	resp, err := query.TxByHeight(cl.Codec)
 	if err != nil {
 		return nil, err
@@ -77,8 +75,8 @@ func GetTxsByBlockHeight(cl *lensClient.ChainClient, height int64) (*txTypes.Get
 }
 
 // IsCatchingUp true if the node is catching up to the chain, false otherwise
-func IsCatchingUp(cl *lensClient.ChainClient) (bool, error) {
-	query := lensQuery.Query{Client: cl, Options: &lensQuery.QueryOptions{}}
+func IsCatchingUp(cl *probeClient.ChainClient) (bool, error) {
+	query := probeQuery.Query{Client: cl, Options: &probeQuery.QueryOptions{}}
 	ctx, cancel := query.GetQueryContext()
 	defer cancel()
 
@@ -89,8 +87,8 @@ func IsCatchingUp(cl *lensClient.ChainClient) (bool, error) {
 	return resStatus.SyncInfo.CatchingUp, nil
 }
 
-func GetLatestBlockHeight(cl *lensClient.ChainClient) (int64, error) {
-	query := lensQuery.Query{Client: cl, Options: &lensQuery.QueryOptions{}}
+func GetLatestBlockHeight(cl *probeClient.ChainClient) (int64, error) {
+	query := probeQuery.Query{Client: cl, Options: &probeQuery.QueryOptions{}}
 	ctx, cancel := query.GetQueryContext()
 	defer cancel()
 
@@ -101,7 +99,7 @@ func GetLatestBlockHeight(cl *lensClient.ChainClient) (int64, error) {
 	return resStatus.SyncInfo.LatestBlockHeight, nil
 }
 
-func GetLatestBlockHeightWithRetry(cl *lensClient.ChainClient, retryMaxAttempts int64, retryMaxWaitSeconds uint64) (int64, error) {
+func GetLatestBlockHeightWithRetry(cl *probeClient.ChainClient, retryMaxAttempts int64, retryMaxWaitSeconds uint64) (int64, error) {
 	if retryMaxAttempts == 0 {
 		return GetLatestBlockHeight(cl)
 	}
@@ -141,8 +139,8 @@ func GetLatestBlockHeightWithRetry(cl *lensClient.ChainClient, retryMaxAttempts 
 	}
 }
 
-func GetEarliestAndLatestBlockHeights(cl *lensClient.ChainClient) (int64, int64, error) {
-	query := lensQuery.Query{Client: cl, Options: &lensQuery.QueryOptions{}}
+func GetEarliestAndLatestBlockHeights(cl *probeClient.ChainClient) (int64, int64, error) {
+	query := probeQuery.Query{Client: cl, Options: &probeQuery.QueryOptions{}}
 	ctx, cancel := query.GetQueryContext()
 	defer cancel()
 
@@ -151,20 +149,4 @@ func GetEarliestAndLatestBlockHeights(cl *lensClient.ChainClient) (int64, int64,
 		return 0, 0, err
 	}
 	return resStatus.SyncInfo.EarliestBlockHeight, resStatus.SyncInfo.LatestBlockHeight, nil
-}
-
-// GetEpochsAtHeight makes a request to the Cosmos RPC API and returns the Epoch at a specific height
-func GetEpochsAtHeight(cl *lensClient.ChainClient, height int64) (*lensEpochsTypes.QueryEpochsInfoResponse, error) {
-	options := lensQuery.QueryOptions{}
-	query := lensQuery.Query{Client: cl, Options: &options}
-	resp, err := query.EpochsAtHeight(height)
-	return resp, err
-}
-
-// GetEpochsAtHeight makes a request to the Cosmos RPC API and returns the Epoch at a specific height
-func GetProtorevDeveloperAccount(cl *lensClient.ChainClient) (*lensProtorevTypes.QueryGetProtoRevDeveloperAccountResponse, error) {
-	options := lensQuery.QueryOptions{}
-	query := lensQuery.Query{Client: cl, Options: &options}
-	resp, err := query.ProtorevDeveloperAccount()
-	return resp, err
 }

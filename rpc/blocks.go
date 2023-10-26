@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
-	tmjson "github.com/tendermint/tendermint/libs/json"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	jsonrpc "github.com/tendermint/tendermint/rpc/jsonrpc/client"
-	types "github.com/tendermint/tendermint/rpc/jsonrpc/types"
+	tmjson "github.com/cometbft/cometbft/libs/json"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	jsonrpc "github.com/cometbft/cometbft/rpc/jsonrpc/client"
+	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 )
 
 func argsToURLValues(args map[string]interface{}) (url.Values, error) {

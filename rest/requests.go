@@ -12,7 +12,7 @@ import (
 )
 
 var apiEndpoints = map[string]string{
-	"blocks_endpoint":              "/cosmos/base/tendermint/v1beta1/blocks/%d",
+	"blocks_endpoint":              "/cosmos/base/cometbft/v1beta1/blocks/%d",
 	"latest_block_endpoint":        "/blocks/latest",
 	"txs_by_block_height_endpoint": "/cosmos/tx/v1beta1/txs?events=tx.height=%d&pagination.limit=100&order_by=ORDER_BY_UNSPECIFIED",
 	"denom-traces":                 "/ibc/apps/transfer/v1/denom_traces",

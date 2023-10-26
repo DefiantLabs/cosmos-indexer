@@ -13,8 +13,7 @@ type IndexConfig struct {
 	ConfigFileLocation string
 	Base               indexBase
 	Log                log
-	Lens               lens
-	Client             client
+	Probe              probe
 }
 
 type indexBase struct {
@@ -68,7 +67,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&conf.Base.WaitForChain, "base.wait-for-chain", false, "wait for chain to be in sync?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.WaitForChainDelay, "base.wait-for-chain-delay", 10, "seconds to wait between each check for node to catch up to the chain")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockTimer, "base.block-timer", 10000, "print out how long it takes to process this many blocks")
-	cmd.PersistentFlags().BoolVar(&conf.Base.ExitWhenCaughtUp, "base.exit-when-caught-up", true, "mainly used for Osmosis rewards indexing")
+	cmd.PersistentFlags().BoolVar(&conf.Base.ExitWhenCaughtUp, "base.exit-when-caught-up", false, "mainly used for Osmosis rewards indexing")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RequestRetryAttempts, "base.request-retry-attempts", 0, "number of RPC query retries to make")
 	cmd.PersistentFlags().Uint64Var(&conf.Base.RequestRetryMaxWait, "base.request-retry-max-wait", 30, "max retry incremental backoff wait time in seconds")
 }
@@ -79,15 +78,15 @@ func (conf *IndexConfig) Validate() error {
 		return err
 	}
 
-	lensConf := conf.Lens
+	probeConf := conf.Probe
 
-	lensConf, err = validateLensConf(lensConf)
+	probeConf, err = validateProbeConf(probeConf)
 
 	if err != nil {
 		return err
 	}
 
-	conf.Lens = lensConf
+	conf.Probe = probeConf
 
 	err = validateThrottlingConf(conf.Base.throttlingBase)
 
@@ -151,7 +150,7 @@ func CheckSuperfluousIndexKeys(keys []string) []string {
 
 	addDatabaseConfigKeys(validKeys)
 	addLogConfigKeys(validKeys)
-	addLensConfigKeys(validKeys)
+	addProbeConfigKeys(validKeys)
 
 	// add base keys
 	for _, key := range getValidConfigKeys(indexBase{}, "base") {

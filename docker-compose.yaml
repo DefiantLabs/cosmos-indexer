@@ -65,10 +65,10 @@ services:
       --base.reindex true \
       --base.prevent-reattempts true \
       --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --lens.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --lens.account-prefix osmo \
-      --lens.chain-id osmosis-1 \
-      --lens.chain-name osmosis \
+      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
+      --probe.account-prefix osmo \
+      --probe.chain-id osmosis-1 \
+      --probe.chain-name osmosis \
       --database.host postgres \
       --database.database postgres \
       --database.user taxuser \
@@ -85,10 +85,10 @@ services:
       --base.reindex true \
       --base.prevent-reattempts true \
       --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --lens.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --lens.account-prefix osmo \
-      --lens.chain-id osmosis-1 \
-      --lens.chain-name osmosis \
+      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
+      --probe.account-prefix osmo \
+      --probe.chain-id osmosis-1 \
+      --probe.chain-name osmosis \
       --database.host postgres \
       --database.database postgres \
       --database.user taxuser \
