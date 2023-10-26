@@ -34,16 +34,6 @@ RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ] ; then \
       GOOS=linux GOARCH=arm64 CGO_ENABLED=1 go install -ldflags ${LD_FLAGS} -tags ${BUILD_TAGS} ; \
     fi
 
-# Build a second app
-WORKDIR /go/src/app/client
-RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ] ; then \
-      GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go install -ldflags ${LD_FLAGS} -tags ${BUILD_TAGS} ; \
-    fi
-
-RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ] ; then \
-      GOOS=linux GOARCH=arm64 CGO_ENABLED=1 go install -ldflags ${LD_FLAGS} -tags ${BUILD_TAGS} ; \
-    fi
-
 # Use busybox to create a user
 FROM busybox:stable-musl AS busybox
 RUN addgroup --gid 1137 -S defiant && adduser --uid 1137 -S defiant -G defiant
