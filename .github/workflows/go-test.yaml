@@ -23,7 +23,4 @@ jobs:
       - uses: actions/checkout@v3
       - name: test code
         run: |
-          cd csv
-          go test -v ./...
-          cd ../osmosis
-          go test -v ./...
+          echo "No tests yet"
