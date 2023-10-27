@@ -13,7 +13,7 @@ type IndexConfig struct {
 	ConfigFileLocation string
 	Base               indexBase
 	Log                log
-	Probe              probe
+	Probe              Probe
 }
 
 type indexBase struct {

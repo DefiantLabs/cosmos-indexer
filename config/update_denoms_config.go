@@ -4,7 +4,7 @@ import "github.com/spf13/cobra"
 
 type UpdateDenomsConfig struct {
 	Database Database
-	Probe    probe
+	Probe    Probe
 	Log      log
 	Base     updateDenomsBase
 }

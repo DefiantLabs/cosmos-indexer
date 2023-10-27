@@ -15,6 +15,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/tasks"
 	"github.com/spf13/cobra"
@@ -118,7 +119,7 @@ func setupIndexer() *Indexer {
 
 	// Some chains do not have the denom metadata URL available on chain, so we do chain specific downloads instead.
 	tasks.DoChainSpecificUpsertDenoms(indexer.db, indexer.cfg.Probe.ChainID, indexer.cfg.Base.RequestRetryAttempts, indexer.cfg.Base.RequestRetryMaxWait)
-	indexer.cl = config.GetProbeClient(indexer.cfg.Probe)
+	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe)
 
 	// Depending on the app configuration, wait for the chain to catch up
 	chainCatchingUp, err := rpc.IsCatchingUp(indexer.cl)

@@ -8,7 +8,7 @@ import (
 
 type UpdateEpochsConfig struct {
 	Database Database
-	Probe    probe
+	Probe    Probe
 	Base     updateEpochsBase
 	Log      log
 }
