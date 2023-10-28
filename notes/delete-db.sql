@@ -15,4 +15,3 @@ drop table if exists simple_denoms cascade;
 drop table if exists denom_units cascade;
 drop table if exists denoms cascade;
 drop table if exists fees cascade;
-drop table if exists epoches cascade;
