@@ -26,7 +26,7 @@ type Database struct {
 	LogLevel string `mapstructure:"log-level"`
 }
 
-type probe struct {
+type Probe struct {
 	RPC           string
 	AccountPrefix string `mapstructure:"account-prefix"`
 	ChainID       string `mapstructure:"chain-id"`
@@ -57,7 +57,7 @@ func SetupDatabaseFlags(databaseConf *Database, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&databaseConf.LogLevel, "database.log-level", "", "database loglevel")
 }
 
-func SetupProbeFlags(probeConf *probe, cmd *cobra.Command) {
+func SetupProbeFlags(probeConf *Probe, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&probeConf.RPC, "probe.rpc", "", "node rpc endpoint")
 	cmd.PersistentFlags().StringVar(&probeConf.AccountPrefix, "probe.account-prefix", "", "probe account prefix")
 	cmd.PersistentFlags().StringVar(&probeConf.ChainID, "probe.chain-id", "", "probe chain ID")
@@ -88,7 +88,7 @@ func validateDatabaseConf(dbConf Database) error {
 	return nil
 }
 
-func validateProbeConf(probeConf probe) (probe, error) {
+func validateProbeConf(probeConf Probe) (Probe, error) {
 	if util.StrNotSet(probeConf.RPC) {
 		return probeConf, errors.New("probe rpc must be set")
 	}
@@ -159,7 +159,7 @@ func addLogConfigKeys(validKeys map[string]struct{}) {
 }
 
 func addProbeConfigKeys(validKeys map[string]struct{}) {
-	for _, key := range getValidConfigKeys(probe{}, "") {
+	for _, key := range getValidConfigKeys(Probe{}, "") {
 		validKeys[key] = struct{}{}
 	}
 }
