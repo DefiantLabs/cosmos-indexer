@@ -8,7 +8,6 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/juno"
 	"github.com/DefiantLabs/cosmos-indexer/rest"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 
@@ -32,14 +31,11 @@ type DenomUnit struct {
 	Aliases  []string
 }
 
-var ChainSpecificDenomUpsertFunctions = map[string]func(db *gorm.DB, retryMaxAttempts int64, retryMaxWaitSeconds uint64){
-	juno.ChainID: UpsertJunoDenoms,
-}
+var ChainSpecificDenomUpsertFunctions = map[string]func(db *gorm.DB, retryMaxAttempts int64, retryMaxWaitSeconds uint64){}
 
 func DoChainSpecificUpsertDenoms(db *gorm.DB, chain string, retryMaxAttempts int64, retryMaxWaitSeconds uint64) {
-	if chain == juno.ChainID {
-		UpsertJunoDenoms(db, retryMaxAttempts, retryMaxWaitSeconds)
-	}
+	// TODO: Do chain string -> chain registry denom parsing
+
 	// may want to move this elsewhere, or eliminate entirely
 	// I would prefer we just grab the denoms when needed always
 	// Current problem: we use the denom cache in various blocks later on

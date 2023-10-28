@@ -8,6 +8,6 @@ import (
 )
 
 func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime time.Time, blockEvents []events.EventRelevantInformation, dbChainID string, dbChainName string, identifierLoggingString string) error {
-	//TODO: Stub for when indexing block events is generalized
+	// TODO: Stub for when indexing block events is generalized
 	return nil
 }
