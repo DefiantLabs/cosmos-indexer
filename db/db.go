@@ -54,12 +54,9 @@ func MigrateModels(db *gorm.DB) error {
 		&Address{},
 		&MessageType{},
 		&Message{},
-		&TaxableTransaction{},
-		&TaxableEvent{},
 		&Denom{},
 		&DenomUnit{},
 		&IBCDenom{},
-		&Epoch{},
 	)
 }
 
@@ -108,6 +105,13 @@ func GetHighestIndexedBlock(db *gorm.DB, chainID uint) Block {
 	return block
 }
 
+func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (Block, error) {
+	var block Block
+	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
+	err := db.Table("blocks").Where("blockchain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
+	return block, err
+}
+
 func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		failedBlock := FailedBlock{Height: blockHeight, Chain: Chain{ChainID: chainID, Name: chainName}}
@@ -141,8 +145,6 @@ func UpsertFailedEventBlock(db *gorm.DB, blockHeight int64, chainID string, chai
 		return nil
 	})
 }
-
-var maxAddrLen = 100
 
 func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []TxDBWrapper, dbChainID uint) error {
 	// consider optimizing the transaction, but how? Ordering matters due to foreign key constraints
@@ -246,67 +248,8 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 					return err
 				}
 
-				for _, taxableTx := range message.TaxableTxs {
-					if len(taxableTx.SenderAddress.Address) > maxAddrLen || len(taxableTx.ReceiverAddress.Address) > maxAddrLen {
-						continue
-					}
-					taxableTxOnly := TaxableTransaction{
-						MessageID:      msgOnly.ID,
-						AmountSent:     taxableTx.TaxableTx.AmountSent,
-						AmountReceived: taxableTx.TaxableTx.AmountReceived,
-					}
-					if taxableTx.TaxableTx.DenominationSent.ID != 0 {
-						taxableTxOnly.DenominationSentID = &taxableTx.TaxableTx.DenominationSent.ID
-					}
-					if taxableTx.TaxableTx.DenominationReceived.ID != 0 {
-						taxableTxOnly.DenominationReceivedID = &taxableTx.TaxableTx.DenominationReceived.ID
-					}
-					if taxableTx.SenderAddress.Address != "" {
-						if err := dbTransaction.Where(&taxableTx.SenderAddress).FirstOrCreate(&taxableTx.SenderAddress).Error; err != nil {
-							config.Log.Error("Error getting/creating sender address.", err)
-							return err
-						}
-						// store created db model in sender address, creates foreign key relation
-						taxableTxOnly.SenderAddressID = &taxableTx.SenderAddress.ID
-					}
+				// TODO: Store message events
 
-					if taxableTx.ReceiverAddress.Address != "" {
-						if err := dbTransaction.Where(&taxableTx.ReceiverAddress).FirstOrCreate(&taxableTx.ReceiverAddress).Error; err != nil {
-							config.Log.Errorf("Error getting/creating receiver address for msg %v of tx hash %v. Err: %v", message.Message.MessageIndex, txOnly.Hash, err)
-							return err
-						}
-						// store created db model in receiver address, creates foreign key relation
-						taxableTxOnly.ReceiverAddressID = &taxableTx.ReceiverAddress.ID
-					}
-
-					// It is possible to have more than 1 taxable TX for a single msg. In most cases it should only be 1 or 2, but
-					// more is possible. Keying off of msg ID and amount may be sufficient....
-
-					var foundRecord TaxableTransaction
-					dbTransaction.
-						Where(TaxableTransaction{
-							MessageID:      taxableTxOnly.MessageID,
-							AmountSent:     taxableTxOnly.AmountSent,
-							AmountReceived: taxableTxOnly.AmountReceived,
-						}).Limit(1).Find(&foundRecord)
-
-					// If not found, do a create
-					if foundRecord.ID == 0 {
-						res := dbTransaction.Create(&taxableTxOnly)
-
-						if res.Error != nil {
-							config.Log.Error("Error creating taxable transaction.", res.Error)
-							return res.Error
-						}
-					} else {
-						// Force update with new data
-						res := dbTransaction.Model(&foundRecord).Updates(&taxableTxOnly)
-						if res.Error != nil {
-							config.Log.Error("Error updating taxable transaction.", res.Error)
-							return res.Error
-						}
-					}
-				}
 			}
 		}
 

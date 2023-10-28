@@ -13,6 +13,8 @@ type Block struct {
 	BlockchainID uint  `gorm:"uniqueIndex:chainheight"`
 	Chain        Chain `gorm:"foreignKey:BlockchainID"`
 	Indexed      bool
+	// TODO: Should block event indexing be split out or rolled up?
+	BlockEventsIndexed bool
 }
 
 type FailedBlock struct {
@@ -90,51 +92,6 @@ const (
 	OsmosisProtorevDeveloperRewardDistribution
 )
 
-// An event does not necessarily need to be part of a Transaction. For example, Osmosis rewards.
-// Events can happen on chain and generate tendermint ABCI events that do not show up in transactions.
-type TaxableEvent struct {
-	ID             uint
-	Source         uint            // This will indicate what type of event occurred on chain. Currently, only used for Osmosis rewards.
-	Amount         decimal.Decimal `gorm:"type:decimal(78,0);"` // 2^256 or 78 digits, cosmos Int can be up to this length
-	DenominationID uint
-	Denomination   Denom   `gorm:"foreignKey:DenominationID"`
-	AddressID      uint    `gorm:"index:idx_addr"`
-	EventAddress   Address `gorm:"foreignKey:AddressID"`
-	EventHash      string  `gorm:"uniqueIndex:idx_teevthash"`
-	BlockID        uint    `gorm:"index:idx_teblkid"`
-	Block          Block   `gorm:"foreignKey:BlockID"`
-}
-
-// type SimpleDenom struct {
-// 	ID     uint
-// 	Denom  string `gorm:"uniqueIndex:denom_idx"`
-// 	Symbol string `gorm:"uniqueIndex:denom_idx"`
-// }
-
-func (TaxableEvent) TableName() string {
-	return "taxable_event"
-}
-
-type TaxableTransaction struct {
-	ID                     uint
-	MessageID              uint            `gorm:"index:idx_msg"`
-	Message                Message         `gorm:"foreignKey:MessageID"`
-	AmountSent             decimal.Decimal `gorm:"type:decimal(78,0);"`
-	AmountReceived         decimal.Decimal `gorm:"type:decimal(78,0);"`
-	DenominationSentID     *uint
-	DenominationSent       Denom `gorm:"foreignKey:DenominationSentID"`
-	DenominationReceivedID *uint
-	DenominationReceived   Denom `gorm:"foreignKey:DenominationReceivedID"`
-	SenderAddressID        *uint `gorm:"index:idx_sender"`
-	SenderAddress          Address
-	ReceiverAddressID      *uint `gorm:"index:idx_receiver"`
-	ReceiverAddress        Address
-}
-
-func (TaxableTransaction) TableName() string {
-	return "taxable_tx" // Legacy
-}
-
 type Denom struct {
 	ID     uint
 	Base   string `gorm:"uniqueIndex"`
@@ -157,17 +114,8 @@ type TxDBWrapper struct {
 	Messages      []MessageDBWrapper
 }
 
-// Store messages with their taxable events for easy database creation
 type MessageDBWrapper struct {
-	Message    Message
-	TaxableTxs []TaxableTxDBWrapper
-}
-
-// Store taxable tx with their sender/receiver address for easy database creation
-type TaxableTxDBWrapper struct {
-	TaxableTx       TaxableTransaction
-	SenderAddress   Address
-	ReceiverAddress Address
+	Message Message
 }
 
 type DenomDBWrapper struct {
@@ -184,14 +132,4 @@ type IBCDenom struct {
 	Hash      string `gorm:"uniqueIndex"`
 	Path      string
 	BaseDenom string
-}
-
-type Epoch struct {
-	ID           uint
-	BlockchainID uint   `gorm:"uniqueIndex:chainepochidentifierheight"`
-	Chain        Chain  `gorm:"foreignKey:BlockchainID"`
-	StartHeight  uint   `gorm:"uniqueIndex:chainepochidentifierheight"`
-	Identifier   string `gorm:"uniqueIndex:chainepochidentifierheight"`
-	EpochNumber  uint
-	Indexed      bool `gorm:"default:false"`
 }

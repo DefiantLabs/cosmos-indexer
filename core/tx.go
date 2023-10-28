@@ -398,56 +398,6 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 				currMessageType.MessageType = cosmosMessage.GetType()
 				currMessage.MessageType = currMessageType
 				currMessageDBWrapper.Message = currMessage
-
-				relevantData := cosmosMessage.ParseRelevantData()
-
-				if len(relevantData) > 0 {
-					taxableTxs := make([]dbTypes.TaxableTxDBWrapper, len(relevantData))
-					for i, v := range relevantData {
-						if v.AmountSent != nil {
-							taxableTxs[i].TaxableTx.AmountSent = util.ToNumeric(v.AmountSent)
-						}
-						if v.AmountReceived != nil {
-							taxableTxs[i].TaxableTx.AmountReceived = util.ToNumeric(v.AmountReceived)
-						}
-
-						if v.DenominationSent != "" {
-							denomSent, err := getDenom(v.DenominationSent)
-							if err != nil {
-								// attempt to add missing denoms to the database
-								config.Log.Warnf("Denom lookup failed. Will be inserted as UNKNOWN. Denom Sent: %v. Err: %v", denomSent.Base, err)
-								denomSent, err = dbTypes.AddUnknownDenom(db, denomSent.Base)
-								if err != nil {
-									config.Log.Error(fmt.Sprintf("There was an error adding a missing denom. Denom sent: %v", denomSent.Base), err)
-									return txDBWapper, txTime, err
-								}
-							}
-
-							taxableTxs[i].TaxableTx.DenominationSent = denomSent
-						}
-
-						if v.DenominationReceived != "" {
-							denomReceived, err := getDenom(v.DenominationReceived)
-							if err != nil {
-								// attempt to add missing denoms to the database
-								config.Log.Warnf("Denom lookup failed. Will be inserted as UNKNOWN. Denom Received: %v. Err: %v", denomReceived.Base, err)
-								denomReceived, err = dbTypes.AddUnknownDenom(db, denomReceived.Base)
-								if err != nil {
-									config.Log.Error(fmt.Sprintf("There was an error adding a missing denom. Denom received: %v", denomReceived.Base), err)
-									return txDBWapper, txTime, err
-								}
-							}
-
-							taxableTxs[i].TaxableTx.DenominationReceived = denomReceived
-						}
-
-						taxableTxs[i].SenderAddress = dbTypes.Address{Address: strings.ToLower(v.SenderAddress)}
-						taxableTxs[i].ReceiverAddress = dbTypes.Address{Address: strings.ToLower(v.ReceiverAddress)}
-					}
-					currMessageDBWrapper.TaxableTxs = taxableTxs
-				} else {
-					currMessageDBWrapper.TaxableTxs = []dbTypes.TaxableTxDBWrapper{}
-				}
 			}
 
 			messages = append(messages, currMessageDBWrapper)

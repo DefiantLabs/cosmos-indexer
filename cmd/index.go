@@ -191,22 +191,23 @@ func index(cmd *cobra.Command, args []string) {
 
 	var wg sync.WaitGroup // This group is to ensure we are done processing transactions and events before returning
 
-	// Block BeginBlocker and EndBlocker indexing requirements. Indexes block events that took place in the BeginBlock and EndBlock state transitions
-	blockEventsDataChan := make(chan *blockEventsDBData, 4*rpcQueryThreads)
-	if idxr.cfg.Base.BlockEventIndexingEnabled {
-		wg.Add(1)
-		go idxr.indexBlockEvents(&wg, core.HandleFailedBlock, blockEventsDataChan)
-	} else {
-		close(blockEventsDataChan)
-	}
-
 	chain := dbTypes.Chain{
 		ChainID: idxr.cfg.Probe.ChainID,
 		Name:    idxr.cfg.Probe.ChainName,
 	}
+
 	dbChainID, err := dbTypes.GetDBChainID(idxr.db, chain)
 	if err != nil {
 		config.Log.Fatal("Failed to add/create chain in DB", err)
+	}
+
+	// Block BeginBlocker and EndBlocker indexing requirements. Indexes block events that took place in the BeginBlock and EndBlock state transitions
+	blockEventsDataChan := make(chan *blockEventsDBData, 4*rpcQueryThreads)
+	if idxr.cfg.Base.BlockEventIndexingEnabled {
+		wg.Add(1)
+		go idxr.indexBlockEvents(&wg, core.HandleFailedBlock, blockEventsDataChan, dbChainID)
+	} else {
+		close(blockEventsDataChan)
 	}
 
 	// Start a thread to index the data queried from the chain.
@@ -235,8 +236,8 @@ func index(cmd *cobra.Command, args []string) {
 	wg.Wait()
 }
 
-func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID string) int64 {
-	block, err := dbTypes.GetHighestTaxableEventBlock(db, chainID)
+func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID uint) int64 {
+	block, err := dbTypes.GetHighestEventIndexedBlock(db, chainID)
 	if err != nil && err.Error() != "record not found" {
 		log.Fatalf("Cannot retrieve highest indexed block event. Err: %v", err)
 	}
@@ -393,7 +394,7 @@ type blockEventsDBData struct {
 	blockHeight         int64
 }
 
-func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData) {
+func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
 	defer close(blockEventsDataChan)
 	defer wg.Done()
 
@@ -401,7 +402,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 	endHeight := idxr.cfg.Base.BlockEventsEndBlock
 
 	if startHeight <= 0 {
-		dbLastIndexedBlockEvent := GetBlockEventsStartIndexHeight(idxr.db, idxr.cfg.Probe.ChainID)
+		dbLastIndexedBlockEvent := GetBlockEventsStartIndexHeight(idxr.db, chainID)
 		if dbLastIndexedBlockEvent > 0 {
 			startHeight = dbLastIndexedBlockEvent + 1
 		}
@@ -500,21 +501,6 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 			time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
 		}
 	}
-}
-
-func GetUnindexedEpochsAtIdentifierBetweenStartAndEnd(db *gorm.DB, chainID uint, identifier string, startEpochNumber int64, endEpochNumber int64) ([]dbTypes.Epoch, error) {
-	var epochsBetween []dbTypes.Epoch
-	var err error
-	if endEpochNumber >= 0 {
-		config.Log.Info("Epoch number start and end set, searching database between start and end epoch number")
-		dbResp := db.Where("epoch_number >= ? AND epoch_number <= ? AND identifier=? AND blockchain_id=? AND indexed=False", startEpochNumber, endEpochNumber, identifier, chainID).Order("epoch_number asc").Find(&epochsBetween)
-		err = dbResp.Error
-	} else {
-		config.Log.Info("End epoch number less than 0, searching database for epochs greater than start epoch number")
-		dbResp := db.Where("epoch_number >= ? AND identifier=? AND blockchain_id=? AND indexed=False", startEpochNumber, identifier, chainID).Order("epoch_number asc").Find(&epochsBetween)
-		err = dbResp.Error
-	}
-	return epochsBetween, err
 }
 
 // doDBUpdates will read the data out of the db data chan that had been processed by the workers
