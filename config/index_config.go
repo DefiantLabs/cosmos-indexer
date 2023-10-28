@@ -36,10 +36,6 @@ type indexBase struct {
 	Dry                       bool   `mapstructure:"dry"`
 	BlockEventsStartBlock     int64  `mapstructure:"block-events-start-block"`
 	BlockEventsEndBlock       int64  `mapstructure:"block-events-end-block"`
-	EpochEventIndexingEnabled bool   `mapstructure:"index-epoch-events"`
-	EpochIndexingIdentifier   string `mapstructure:"epoch-indexing-identifier"`
-	EpochEventsStartEpoch     int64  `mapstructure:"epoch-events-start-epoch"`
-	EpochEventsEndEpoch       int64  `mapstructure:"epoch-events-end-epoch"`
 }
 
 func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
@@ -55,11 +51,6 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&conf.Base.BlockEventIndexingEnabled, "base.index-block-events", false, "enable block beginblocker and endblocker event indexing?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockEventsStartBlock, "base.block-events-start-block", 0, "block to start indexing block events at")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockEventsEndBlock, "base.block-events-end-block", 0, "block to stop indexing block events at (use -1 to index indefinitely")
-	// epoch event indexing
-	cmd.PersistentFlags().BoolVar(&conf.Base.EpochEventIndexingEnabled, "base.index-epoch-events", false, "enable epoch beginblocker and endblocker event indexing?")
-	cmd.PersistentFlags().Int64Var(&conf.Base.EpochEventsStartEpoch, "base.epoch-events-start-epoch", 0, "epoch number to start indexing block events at")
-	cmd.PersistentFlags().Int64Var(&conf.Base.EpochEventsEndEpoch, "base.epoch-events-end-epoch", 0, "epoch number to stop indexing block events at")
-	cmd.PersistentFlags().StringVar(&conf.Base.EpochIndexingIdentifier, "base.epoch-indexing-identifier", "", "epoch identifier to index")
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
 	cmd.PersistentFlags().StringVar(&conf.Base.API, "base.api", "", "node api endpoint")
@@ -112,22 +103,6 @@ func (conf *IndexConfig) Validate() error {
 		}
 		if conf.Base.BlockEventsEndBlock < -1 {
 			return errors.New("base.block-events-end-block must be greater than 0 or -1 when index-block-events is enabled")
-		}
-	}
-
-	// Check for required configs when epoch event indexer is enabled
-	if conf.Base.EpochEventIndexingEnabled {
-		// If epoch event indexes are not valid, error
-		if conf.Base.EpochEventsStartEpoch < 0 {
-			return errors.New("base.epoch-events-start-epoch must be greater than 0 when index-epoch-events is enabled")
-		}
-
-		if conf.Base.EpochEventsEndEpoch < -1 {
-			return errors.New("base.epoch-events-end-epoch must be greater than 0 or -1 when index-epoch-events is enabled")
-		}
-
-		if conf.Base.EpochIndexingIdentifier == "" {
-			return errors.New("base.epoch-indexing-identifier must be set when index-epoch-events is enabled")
 		}
 	}
 

@@ -211,7 +211,7 @@ func index(cmd *cobra.Command, args []string) {
 	}
 
 	// Start a thread to index the data queried from the chain.
-	if idxr.cfg.Base.ChainIndexingEnabled || idxr.cfg.Base.BlockEventIndexingEnabled || idxr.cfg.Base.EpochEventIndexingEnabled {
+	if idxr.cfg.Base.ChainIndexingEnabled || idxr.cfg.Base.BlockEventIndexingEnabled {
 		wg.Add(1)
 		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
 	}
