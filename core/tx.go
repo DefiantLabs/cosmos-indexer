@@ -24,12 +24,14 @@ import (
 )
 
 // Unmarshal JSON to a particular type. There can be more than one handler for each type.
+// TODO: Remove this map and replace with a more generic solution
 var messageTypeHandler = map[string][]func() txtypes.CosmosMessage{}
 
 // var messageTypeIgnorer = map[string]interface{}{}
 
 // Merge the chain specific message type handlers into the core message type handler map.
 // Chain specific handlers will be registered BEFORE any generic handlers.
+// TODO: Remove this function and replace with a more generic solution
 func ChainSpecificMessageTypeHandlerBootstrap(chainID string) {
 	var chainSpecificMessageTpeHandler map[string][]func() txtypes.CosmosMessage
 	for key, value := range chainSpecificMessageTpeHandler {

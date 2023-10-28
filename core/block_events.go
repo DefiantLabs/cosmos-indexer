@@ -8,6 +8,7 @@ import (
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
+// TODO: This is a stub, for use when we have begin blocker events in generic manner
 var (
 	beginBlockerEventTypeHandlers = map[string][]func() eventTypes.CosmosEvent{}
 	endBlockerEventTypeHandlers   = map[string][]func() eventTypes.CosmosEvent{}
@@ -15,7 +16,6 @@ var (
 
 func ChainSpecificEndBlockerEventTypeHandlerBootstrap(chainID string) {
 	var chainSpecificEndBlockerEventTypeHandler map[string][]func() eventTypes.CosmosEvent
-
 	for key, value := range chainSpecificEndBlockerEventTypeHandler {
 		if list, ok := endBlockerEventTypeHandlers[key]; ok {
 			endBlockerEventTypeHandlers[key] = append(value, list...)
