@@ -11,18 +11,8 @@ import (
 	"unsafe"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/authz"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/bank"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/distribution"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/gov"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/ibc"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/slashing"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/staking"
 	txtypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
-	"github.com/DefiantLabs/cosmos-indexer/cosmos/modules/vesting"
-	"github.com/DefiantLabs/cosmos-indexer/cosmwasm/modules/wasm"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/tendermint/modules/liquidity"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -34,94 +24,14 @@ import (
 )
 
 // Unmarshal JSON to a particular type. There can be more than one handler for each type.
-var messageTypeHandler = map[string][]func() txtypes.CosmosMessage{
-	bank.MsgSend:                                {func() txtypes.CosmosMessage { return &bank.WrapperMsgSend{} }},
-	bank.MsgMultiSend:                           {func() txtypes.CosmosMessage { return &bank.WrapperMsgMultiSend{} }},
-	distribution.MsgWithdrawDelegatorReward:     {func() txtypes.CosmosMessage { return &distribution.WrapperMsgWithdrawDelegatorReward{} }},
-	distribution.MsgWithdrawValidatorCommission: {func() txtypes.CosmosMessage { return &distribution.WrapperMsgWithdrawValidatorCommission{} }},
-	distribution.MsgFundCommunityPool:           {func() txtypes.CosmosMessage { return &distribution.WrapperMsgFundCommunityPool{} }},
-	gov.MsgDeposit:                              {func() txtypes.CosmosMessage { return &gov.WrapperMsgDeposit{} }},
-	gov.MsgSubmitProposal:                       {func() txtypes.CosmosMessage { return &gov.WrapperMsgSubmitProposal{} }},
-	staking.MsgDelegate:                         {func() txtypes.CosmosMessage { return &staking.WrapperMsgDelegate{} }},
-	staking.MsgUndelegate:                       {func() txtypes.CosmosMessage { return &staking.WrapperMsgUndelegate{} }},
-	staking.MsgBeginRedelegate:                  {func() txtypes.CosmosMessage { return &staking.WrapperMsgBeginRedelegate{} }},
-	ibc.MsgRecvPacket:                           {func() txtypes.CosmosMessage { return &ibc.WrapperMsgRecvPacket{} }},
-	ibc.MsgAcknowledgement:                      {func() txtypes.CosmosMessage { return &ibc.WrapperMsgAcknowledgement{} }},
-}
+// TODO: Remove this map and replace with a more generic solution
+var messageTypeHandler = map[string][]func() txtypes.CosmosMessage{}
 
-// These messages are ignored for tax purposes.
-// Fees will still be tracked, there is just not need to parse the msg body.
-var messageTypeIgnorer = map[string]interface{}{
-	/////////////////////////////////
-	/////// Nontaxable Events ///////
-	/////////////////////////////////
-	// Authz module actions are not taxable
-	authz.MsgExec:   nil,
-	authz.MsgGrant:  nil,
-	authz.MsgRevoke: nil,
-	// Making a config change is not taxable
-	distribution.MsgSetWithdrawAddress: nil,
-	// Making a stableswap config change is not taxable
-	// Voting is not taxable
-	gov.MsgVote:         nil,
-	gov.MsgVoteWeighted: nil,
-	// The IBC msgs below do not create taxable events
-	ibc.MsgTransfer:              nil,
-	ibc.MsgUpdateClient:          nil,
-	ibc.MsgTimeout:               nil,
-	ibc.MsgTimeoutOnClose:        nil,
-	ibc.MsgCreateClient:          nil,
-	ibc.MsgConnectionOpenTry:     nil,
-	ibc.MsgConnectionOpenConfirm: nil,
-	ibc.MsgChannelOpenTry:        nil,
-	ibc.MsgChannelOpenConfirm:    nil,
-	ibc.MsgConnectionOpenInit:    nil,
-	ibc.MsgConnectionOpenAck:     nil,
-	ibc.MsgChannelOpenInit:       nil,
-	ibc.MsgChannelOpenAck:        nil,
-	ibc.MsgChannelCloseConfirm:   nil,
-	ibc.MsgChannelCloseInit:      nil,
-	// Unjailing and updating params is not taxable
-	slashing.MsgUnjail:       nil,
-	slashing.MsgUpdateParams: nil,
-	// Creating and editing validator is not taxable
-	staking.MsgCreateValidator: nil,
-	staking.MsgEditValidator:   nil,
-
-	// Create account is not taxable
-	vesting.MsgCreateVestingAccount: nil,
-
-	// Tendermint Liquidity messages are actually executed in batches during periodic EndBlocker events
-	// We ignore the Message types since the actual taxable events happen later, and the messages can fail/be refunded
-	liquidity.MsgCreatePool:          nil,
-	liquidity.MsgDepositWithinBatch:  nil,
-	liquidity.MsgWithdrawWithinBatch: nil,
-	liquidity.MsgSwapWithinBatch:     nil,
-
-	////////////////////////////////////////////////////
-	/////// Possible Taxable Events, future work ///////
-	////////////////////////////////////////////////////
-	// CosmWasm
-	wasm.MsgExecuteContract:                 nil,
-	wasm.MsgInstantiateContract:             nil,
-	wasm.MsgInstantiateContract2:            nil,
-	wasm.MsgStoreCode:                       nil,
-	wasm.MsgMigrateContract:                 nil,
-	wasm.MsgUpdateAdmin:                     nil,
-	wasm.MsgClearAdmin:                      nil,
-	wasm.MsgUpdateInstantiationAdmin:        nil,
-	wasm.MsgUpdateParams:                    nil,
-	wasm.MsgSudoContract:                    nil,
-	wasm.MsgPinCodes:                        nil,
-	wasm.MsgUnpinCodes:                      nil,
-	wasm.MsgStoreAndInstantiateContract:     nil,
-	wasm.MsgRemoveCodeUploadParamsAddresses: nil,
-	wasm.MsgAddCodeUploadParamsAddresses:    nil,
-	wasm.MsgStoreAndMigrateContract:         nil,
-}
+// var messageTypeIgnorer = map[string]interface{}{}
 
 // Merge the chain specific message type handlers into the core message type handler map.
 // Chain specific handlers will be registered BEFORE any generic handlers.
+// TODO: Remove this function and replace with a more generic solution
 func ChainSpecificMessageTypeHandlerBootstrap(chainID string) {
 	var chainSpecificMessageTpeHandler map[string][]func() txtypes.CosmosMessage
 	for key, value := range chainSpecificMessageTpeHandler {
@@ -131,38 +41,6 @@ func ChainSpecificMessageTypeHandlerBootstrap(chainID string) {
 			messageTypeHandler[key] = value
 		}
 	}
-}
-
-// ParseCosmosMessageJSON - Parse a SINGLE Cosmos Message into the appropriate type.
-func ParseCosmosMessage(message types.Msg, log txtypes.LogMessage) (txtypes.CosmosMessage, string, error) {
-	var ok bool
-	var err error
-	var msgHandler txtypes.CosmosMessage
-	var handlerList []func() txtypes.CosmosMessage
-
-	// Figure out what type of Message this is based on the '@type' field that is included
-	// in every Cosmos Message (can be seen in raw JSON for any cosmos transaction).
-	cosmosMessage := txtypes.Message{}
-	cosmosMessage.Type = types.MsgTypeURL(message)
-
-	// So far we only parsed the '@type' field. Now we get a struct for that specific type.
-	if handlerList, ok = messageTypeHandler[cosmosMessage.Type]; !ok {
-		return nil, cosmosMessage.Type, txtypes.ErrUnknownMessage
-	}
-
-	for _, handlerFunc := range handlerList {
-		// Unmarshal the rest of the JSON now that we know the specific type.
-		// Note that depending on the type, it may or may not care about logs.
-		msgHandler = handlerFunc()
-		err = msgHandler.HandleMsg(cosmosMessage.Type, message, &log)
-
-		// We're finished when a working handler is found
-		if err == nil {
-			break
-		}
-	}
-
-	return msgHandler, cosmosMessage.Type, err
 }
 
 func toAttributes(attrs []types.Attribute) []txtypes.Attribute {
@@ -373,82 +251,13 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 			// Get the message log that corresponds to the current message
 			var currMessageDBWrapper dbTypes.MessageDBWrapper
-			messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
-			cosmosMessage, msgType, err := ParseCosmosMessage(message, *messageLog)
-			if err != nil {
-				currMessageType.MessageType = msgType
-				currMessage.MessageType = currMessageType
-				currMessageDBWrapper.Message = currMessage
-				if err != txtypes.ErrUnknownMessage {
-					// What should we do here? This is an actual error during parsing
-					config.Log.Error(fmt.Sprintf("[Block: %v] ParseCosmosMessage failed for msg of type '%v'.", tx.TxResponse.Height, msgType), err)
-					config.Log.Error(fmt.Sprint(messageLog))
-					config.Log.Error(tx.TxResponse.TxHash)
-					config.Log.Error("Issue parsing a cosmos msg that we DO have a parser for! PLEASE INVESTIGATE")
-					return txDBWapper, txTime, fmt.Errorf("error parsing message we have a parser for: '%v'", msgType)
-				}
-				// if this msg isn't include in our list of those we are explicitly ignoring, do something about it.
-				// we have decided to throw the error back up the call stack, which will prevent any indexing from happening on this block and add this to the failed block table
-				if _, ok := messageTypeIgnorer[msgType]; !ok {
-					config.Log.Error(fmt.Sprintf("[Block: %v] ParseCosmosMessage failed for msg of type '%v'. Missing parser and ignore list entry.", tx.TxResponse.Height, msgType))
-					return txDBWapper, txTime, fmt.Errorf("missing parser and ignore list entry for msg type '%v'", msgType)
-				}
-			} else {
-				config.Log.Debug(fmt.Sprintf("[Block: %v] Cosmos message of known type: %s", tx.TxResponse.Height, cosmosMessage))
-				currMessageType.MessageType = cosmosMessage.GetType()
-				currMessage.MessageType = currMessageType
-				currMessageDBWrapper.Message = currMessage
+			// TODO: Parse log into event items
+			// messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
 
-				relevantData := cosmosMessage.ParseRelevantData()
-
-				if len(relevantData) > 0 {
-					taxableTxs := make([]dbTypes.TaxableTxDBWrapper, len(relevantData))
-					for i, v := range relevantData {
-						if v.AmountSent != nil {
-							taxableTxs[i].TaxableTx.AmountSent = util.ToNumeric(v.AmountSent)
-						}
-						if v.AmountReceived != nil {
-							taxableTxs[i].TaxableTx.AmountReceived = util.ToNumeric(v.AmountReceived)
-						}
-
-						if v.DenominationSent != "" {
-							denomSent, err := getDenom(v.DenominationSent)
-							if err != nil {
-								// attempt to add missing denoms to the database
-								config.Log.Warnf("Denom lookup failed. Will be inserted as UNKNOWN. Denom Sent: %v. Err: %v", denomSent.Base, err)
-								denomSent, err = dbTypes.AddUnknownDenom(db, denomSent.Base)
-								if err != nil {
-									config.Log.Error(fmt.Sprintf("There was an error adding a missing denom. Denom sent: %v", denomSent.Base), err)
-									return txDBWapper, txTime, err
-								}
-							}
-
-							taxableTxs[i].TaxableTx.DenominationSent = denomSent
-						}
-
-						if v.DenominationReceived != "" {
-							denomReceived, err := getDenom(v.DenominationReceived)
-							if err != nil {
-								// attempt to add missing denoms to the database
-								config.Log.Warnf("Denom lookup failed. Will be inserted as UNKNOWN. Denom Received: %v. Err: %v", denomReceived.Base, err)
-								denomReceived, err = dbTypes.AddUnknownDenom(db, denomReceived.Base)
-								if err != nil {
-									config.Log.Error(fmt.Sprintf("There was an error adding a missing denom. Denom received: %v", denomReceived.Base), err)
-									return txDBWapper, txTime, err
-								}
-							}
-
-							taxableTxs[i].TaxableTx.DenominationReceived = denomReceived
-						}
-
-						taxableTxs[i].SenderAddress = dbTypes.Address{Address: strings.ToLower(v.SenderAddress)}
-						taxableTxs[i].ReceiverAddress = dbTypes.Address{Address: strings.ToLower(v.ReceiverAddress)}
-					}
-					currMessageDBWrapper.TaxableTxs = taxableTxs
-				} else {
-					currMessageDBWrapper.TaxableTxs = []dbTypes.TaxableTxDBWrapper{}
-				}
-			}
+			currMessageType.MessageType = types.MsgTypeURL(message)
+			currMessage.MessageType = currMessageType
+			currMessageDBWrapper.Message = currMessage
+			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, currMessageType.MessageType))
 
 			messages = append(messages, currMessageDBWrapper)
 		}
@@ -523,34 +332,34 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAdd
 // getDenom handles denom processing for both IBC denoms and native denoms.
 // If the denom begins with ibc/ we know this is an IBC denom trace, and it's not guaranteed there is an entry in
 // the Denom table.
-func getDenom(denom string) (dbTypes.Denom, error) {
-	var (
-		denomSent dbTypes.Denom
-		err       error
-	)
+// func getDenom(denom string) (dbTypes.Denom, error) {
+// 	var (
+// 		denomSent dbTypes.Denom
+// 		err       error
+// 	)
 
-	// if this is an ibc denom trace, get the ibc denom then use the base denom to get the Denom from the db
-	if strings.HasPrefix(denom, "ibc/") {
-		ibcDenom, err := dbTypes.GetIBCDenom(denom)
-		if err != nil {
-			config.Log.Warnf("IBC Denom lookup failed for  %s, err: %v", denom, err)
-		} else {
-			denomSent, err = dbTypes.GetDenomForBase(ibcDenom.BaseDenom)
-			if err != nil {
-				config.Log.Warnf("Denom lookup failed for IBC base denom %s, err: %v", ibcDenom.BaseDenom, err)
-				return dbTypes.Denom{Base: ibcDenom.BaseDenom}, err
-			}
-		}
-	}
+// 	// if this is an ibc denom trace, get the ibc denom then use the base denom to get the Denom from the db
+// 	if strings.HasPrefix(denom, "ibc/") {
+// 		ibcDenom, err := dbTypes.GetIBCDenom(denom)
+// 		if err != nil {
+// 			config.Log.Warnf("IBC Denom lookup failed for  %s, err: %v", denom, err)
+// 		} else {
+// 			denomSent, err = dbTypes.GetDenomForBase(ibcDenom.BaseDenom)
+// 			if err != nil {
+// 				config.Log.Warnf("Denom lookup failed for IBC base denom %s, err: %v", ibcDenom.BaseDenom, err)
+// 				return dbTypes.Denom{Base: ibcDenom.BaseDenom}, err
+// 			}
+// 		}
+// 	}
 
-	// if this is not an ibc denom trace or there was an issue querying the ibc denom trace in the other table,
-	// attempt to look up this denom in the regular Denom table
-	if denomSent.Base == "" {
-		denomSent, err = dbTypes.GetDenomForBase(denom)
-		if err != nil {
-			return dbTypes.Denom{Base: denom}, err
-		}
-	}
+// 	// if this is not an ibc denom trace or there was an issue querying the ibc denom trace in the other table,
+// 	// attempt to look up this denom in the regular Denom table
+// 	if denomSent.Base == "" {
+// 		denomSent, err = dbTypes.GetDenomForBase(denom)
+// 		if err != nil {
+// 			return dbTypes.Denom{Base: denom}, err
+// 		}
+// 	}
 
-	return denomSent, nil
-}
+// 	return denomSent, nil
+// }

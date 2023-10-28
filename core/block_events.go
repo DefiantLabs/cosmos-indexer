@@ -5,10 +5,10 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
-	"github.com/DefiantLabs/cosmos-indexer/cosmoshub"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
+// TODO: This is a stub, for use when we have begin blocker events in generic manner
 var (
 	beginBlockerEventTypeHandlers = map[string][]func() eventTypes.CosmosEvent{}
 	endBlockerEventTypeHandlers   = map[string][]func() eventTypes.CosmosEvent{}
@@ -16,9 +16,6 @@ var (
 
 func ChainSpecificEndBlockerEventTypeHandlerBootstrap(chainID string) {
 	var chainSpecificEndBlockerEventTypeHandler map[string][]func() eventTypes.CosmosEvent
-	if chainID == cosmoshub.ChainID {
-		chainSpecificEndBlockerEventTypeHandler = cosmoshub.EndBlockerEventTypeHandlers
-	}
 	for key, value := range chainSpecificEndBlockerEventTypeHandler {
 		if list, ok := endBlockerEventTypeHandlers[key]; ok {
 			endBlockerEventTypeHandlers[key] = append(value, list...)

@@ -60,6 +60,8 @@ func setupUpdateDenoms(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// TODO: Completely rework this command to read the chain registry and update the denoms from there
+// This method has proven to be much more reliable than writing explicit code for each chain
 func updateDenoms(cmd *cobra.Command, args []string) {
 	cfg := updateDenomsConfig
 	db := updateDenomsDbConnection
