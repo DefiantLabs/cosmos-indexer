@@ -45,12 +45,15 @@ func PostgresDbConnectLogInfo(host string, port string, database string, user st
 
 // MigrateModels runs the gorm automigrations with all the db models. This will migrate as needed and do nothing if nothing has changed.
 func MigrateModels(db *gorm.DB) error {
+	if err := migrateChainModels(db); err != nil {
+		return err
+	}
+
 	if err := migrateBlockModels(db); err != nil {
 		return err
 	}
 
 	return db.AutoMigrate(
-		&models.Chain{},
 		&models.Tx{},
 		&models.Fee{},
 		&models.Address{},
@@ -61,6 +64,12 @@ func MigrateModels(db *gorm.DB) error {
 		&models.IBCDenom{},
 		&models.FailedTx{},
 		&models.FailedMessage{},
+	)
+}
+
+func migrateChainModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Chain{},
 	)
 }
 
@@ -78,7 +87,7 @@ func migrateBlockModels(db *gorm.DB) error {
 
 func GetFailedBlocks(db *gorm.DB, chainID uint) []models.FailedBlock {
 	var failedBlocks []models.FailedBlock
-	db.Table("failed_blocks").Where("blockchain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
+	db.Table("failed_blocks").Where("chain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
 	return failedBlocks
 }
 
@@ -94,7 +103,7 @@ func GetFirstMissingBlockInRange(db *gorm.DB, start, end int64, chainID uint) in
 	var firstMissingBlock int64
 	err := db.Raw(`SELECT s.i AS missing_blocks
 						FROM generate_series($1::int,$2::int) s(i)
-						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND blockchain_id = $3::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
+						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND chain_id = $3::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
 						ORDER BY s.i ASC LIMIT 1;`, start, end, chainID).Row().Scan(&firstMissingBlock)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no rows in result set") {
@@ -117,14 +126,14 @@ func GetDBChainID(db *gorm.DB, chain models.Chain) (uint, error) {
 func GetHighestIndexedBlock(db *gorm.DB, chainID uint) models.Block {
 	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
-	db.Table("blocks").Where("blockchain_id = ?::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block)
+	db.Table("blocks").Where("chain_id = ?::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block)
 	return block
 }
 
 func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error) {
 	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
-	err := db.Table("blocks").Where("blockchain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
+	err := db.Table("blocks").Where("chain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
 	return block, err
 }
 
@@ -169,7 +178,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		// remove from failed blocks if exists
 		if err := dbTransaction.
-			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
+			Exec("DELETE FROM failed_blocks WHERE height = ? AND chain_id = ?", blockHeight, dbChainID).
 			Error; err != nil {
 			config.Log.Error("Error updating failed block.", err)
 			return err

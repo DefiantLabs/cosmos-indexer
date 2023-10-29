@@ -249,7 +249,7 @@ func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID uint) int64 {
 // blockAlreadyIndexed will return true if the block is already in the DB
 func blockAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) bool {
 	var exists bool
-	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND blockchain_id = ?::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
+	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
 	if err != nil {
 		config.Log.Fatalf("Error checking DB for block. Err: %v", err)
 	}
