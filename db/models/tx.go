@@ -13,6 +13,13 @@ type Tx struct {
 	Fees            []Fee
 }
 
+type FailedTx struct {
+	ID      uint
+	Hash    string `gorm:"uniqueIndex"`
+	BlockID uint
+	Block   Block
+}
+
 type Fee struct {
 	ID             uint            `gorm:"primaryKey"`
 	TxID           uint            `gorm:"uniqueIndex:txDenomFee"`
@@ -35,4 +42,11 @@ type Message struct {
 	MessageTypeID uint `gorm:"foreignKey:MessageTypeID,index:idx_txid_typeid"`
 	MessageType   MessageType
 	MessageIndex  int
+}
+
+type FailedMessage struct {
+	ID           uint
+	MessageIndex int
+	TxID         uint
+	Tx           Tx
 }

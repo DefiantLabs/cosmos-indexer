@@ -45,10 +45,11 @@ func PostgresDbConnectLogInfo(host string, port string, database string, user st
 
 // MigrateModels runs the gorm automigrations with all the db models. This will migrate as needed and do nothing if nothing has changed.
 func MigrateModels(db *gorm.DB) error {
+	if err := migrateBlockModels(db); err != nil {
+		return err
+	}
+
 	return db.AutoMigrate(
-		&models.Block{},
-		&models.FailedBlock{},
-		&models.FailedEventBlock{},
 		&models.Chain{},
 		&models.Tx{},
 		&models.Fee{},
@@ -58,6 +59,20 @@ func MigrateModels(db *gorm.DB) error {
 		&models.Denom{},
 		&models.DenomUnit{},
 		&models.IBCDenom{},
+		&models.FailedTx{},
+		&models.FailedMessage{},
+	)
+}
+
+func migrateBlockModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Block{},
+		&models.BlockEvent{},
+		&models.BlockEventType{},
+		&models.BlockEventAttribute{},
+		&models.BlockEventAttributeKey{},
+		&models.FailedBlock{},
+		&models.FailedEventBlock{},
 	)
 }
 
@@ -161,10 +176,10 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 		}
 
 		// create block if it doesn't exist
-		blockOnly := models.Block{Height: blockHeight, TimeStamp: blockTime, Indexed: true, BlockchainID: dbChainID}
+		blockOnly := models.Block{Height: blockHeight, TimeStamp: blockTime, TxIndexed: true, ChainID: dbChainID}
 		if err := dbTransaction.
-			Where(models.Block{Height: blockHeight, BlockchainID: dbChainID}).
-			Assign(models.Block{Indexed: true, TimeStamp: blockTime}).
+			Where(models.Block{Height: blockHeight, ChainID: dbChainID}).
+			Assign(models.Block{TxIndexed: true, TimeStamp: blockTime}).
 			FirstOrCreate(&blockOnly).Error; err != nil {
 			config.Log.Error("Error getting/creating block DB object.", err)
 			return err

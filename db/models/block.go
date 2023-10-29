@@ -5,29 +5,56 @@ import (
 )
 
 type Block struct {
-	ID           uint
-	TimeStamp    time.Time
-	Height       int64 `gorm:"uniqueIndex:chainheight"`
-	BlockchainID uint  `gorm:"uniqueIndex:chainheight"`
-	Chain        Chain `gorm:"foreignKey:BlockchainID"`
-	Indexed      bool
+	ID        uint
+	TimeStamp time.Time
+	Height    int64 `gorm:"uniqueIndex:chainheight"`
+	ChainID   uint  `gorm:"uniqueIndex:chainheight"`
+	Chain     Chain `gorm:"foreignKey:BlockchainID"`
+	TxIndexed bool
 	// TODO: Should block event indexing be split out or rolled up?
 	BlockEventsIndexed bool
 }
 
-type BlockEventType int
+// Used to keep track of BeginBlock and EndBlock events
+type BlockLifecyclePosition int
 
 const (
-	BeginBlockEvent BlockEventType = iota
+	BeginBlockEvent BlockLifecyclePosition = iota
 	EndBlockEvent
 )
 
 type BlockEvent struct {
-	ID    uint
-	Key   string
-	Value string
-	Index uint64
-	Type  BlockEventType
+	ID uint
+	// These fields uniquely identify every block event
+	// Index refers to the position of the event in the block event lifecycle array
+	// Position refers to whether the event is a BeginBlock or EndBlock event
+	Index            uint64                 `gorm:"uniqueIndex:eventBlockPositionIndex,priority:3"`
+	Position         BlockLifecyclePosition `gorm:"uniqueIndex:eventBlockPositionIndex,priority:2"`
+	BlockID          uint                   `gorm:"uniqueIndex:eventBlockPositionIndex,priority:1"`
+	Block            Block
+	BlockEventTypeID uint
+	BlockEventType   BlockEventType
+}
+
+type BlockEventType struct {
+	ID   uint
+	Type string `gorm:"uniqueIndex"`
+}
+
+type BlockEventAttribute struct {
+	ID           uint
+	BlockEvent   BlockEvent
+	BlockEventID uint
+	Value        string
+	// Keys are limited to a smallish subset of string values set by the Cosmos SDK and external modules
+	// Save DB space by storing the key as a foreign key
+	BlockEventAttributeKeyID uint
+	BlockEventAttributeKey   BlockEventAttributeKey
+}
+
+type BlockEventAttributeKey struct {
+	ID  uint
+	Key string `gorm:"uniqueIndex"`
 }
 
 type FailedBlock struct {
