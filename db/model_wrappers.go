@@ -15,6 +15,17 @@ const (
 	OsmosisProtorevDeveloperRewardDistribution
 )
 
+type BlockDBWrapper struct {
+	Block            models.Block
+	BeginBlockEvents []BlockEventDBWrapper
+	EndBlockEvents   []BlockEventDBWrapper
+}
+
+type BlockEventDBWrapper struct {
+	BlockEvent models.BlockEvent
+	Attributes []models.BlockEventAttribute
+}
+
 // Store transactions with their messages for easy database creation
 type TxDBWrapper struct {
 	Tx            models.Tx

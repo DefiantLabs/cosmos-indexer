@@ -1,97 +1,88 @@
 package core
 
 import (
-	"fmt"
+	"encoding/base64"
 
-	"github.com/DefiantLabs/cosmos-indexer/config"
-	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
+	abci "github.com/cometbft/cometbft/abci/types"
+
+	"github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
 // TODO: This is a stub, for use when we have begin blocker events in generic manner
-var (
-	beginBlockerEventTypeHandlers = map[string][]func() eventTypes.CosmosEvent{}
-	endBlockerEventTypeHandlers   = map[string][]func() eventTypes.CosmosEvent{}
-)
+// var (
+// 	beginBlockerEventTypeHandlers = map[string][]func() eventTypes.CosmosEvent{}
+// 	endBlockerEventTypeHandlers   = map[string][]func() eventTypes.CosmosEvent{}
+// )
 
 func ChainSpecificEndBlockerEventTypeHandlerBootstrap(chainID string) {
-	var chainSpecificEndBlockerEventTypeHandler map[string][]func() eventTypes.CosmosEvent
-	for key, value := range chainSpecificEndBlockerEventTypeHandler {
-		if list, ok := endBlockerEventTypeHandlers[key]; ok {
-			endBlockerEventTypeHandlers[key] = append(value, list...)
-		} else {
-			endBlockerEventTypeHandlers[key] = value
-		}
-	}
+	// Stub, for use when we have begin blocker events
 }
 
 func ChainSpecificBeginBlockerEventTypeHandlerBootstrap(chainID string) {
 	// Stub, for use when we have begin blocker events
 }
 
-func ProcessRPCBlockEvents(blockResults *ctypes.ResultBlockResults) ([]eventTypes.EventRelevantInformation, error) {
-	var taxableEvents []eventTypes.EventRelevantInformation
-	if len(endBlockerEventTypeHandlers) != 0 {
-		for _, event := range blockResults.EndBlockEvents {
-			handlers, handlersFound := endBlockerEventTypeHandlers[event.Type]
+func ProcessRPCBlockResults(blockResults *ctypes.ResultBlockResults) (*db.BlockDBWrapper, error) {
+	var blockDBWrapper db.BlockDBWrapper
 
-			if !handlersFound {
-				continue
-			}
+	blockDBWrapper.Block = models.Block{
+		Height: blockResults.Height,
+	}
+	var err error
+	blockDBWrapper.BeginBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.BeginBlockEvents, models.BeginBlockEvent)
 
-			var err error
-			for _, handler := range handlers {
-				cosmosEventHandler := handler()
-				err = cosmosEventHandler.HandleEvent(event.Type, event)
-				if err != nil {
-					config.Log.Debug(fmt.Sprintf("[Block: %v] Cosmos Block EndBlocker event of known type: %s. Handler failed", blockResults.Height, event.Type), err)
-					continue
-				}
-				relevantData := cosmosEventHandler.ParseRelevantData()
-
-				taxableEvents = append(taxableEvents, relevantData...)
-
-				config.Log.Debug(fmt.Sprintf("[Block: %v] Cosmos Block EndBlocker event of known type: %s: %s", blockResults.Height, event.Type, cosmosEventHandler))
-				break
-			}
-
-			// If err is not nil here, all handlers failed
-			if err != nil {
-				return nil, fmt.Errorf("could not handle event type %s, all handlers failed", event.Type)
-			}
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	if len(beginBlockerEventTypeHandlers) != 0 {
-		for _, event := range blockResults.BeginBlockEvents {
-			handlers, handlersFound := beginBlockerEventTypeHandlers[event.Type]
+	blockDBWrapper.EndBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.EndBlockEvents, models.EndBlockEvent)
 
-			if !handlersFound {
-				continue
-			}
-
-			var err error
-			for _, handler := range handlers {
-				cosmosEventHandler := handler()
-				err = cosmosEventHandler.HandleEvent(event.Type, event)
-				if err != nil {
-					config.Log.Debug(fmt.Sprintf("[Block: %v] Cosmos Block EndBlocker event of known type: %s. Handler failed", blockResults.Height, event.Type), err)
-					continue
-				}
-				relevantData := cosmosEventHandler.ParseRelevantData()
-
-				taxableEvents = append(taxableEvents, relevantData...)
-
-				config.Log.Debug(fmt.Sprintf("[Block: %v] Cosmos Block BeginBlocker event of known type: %s: %s", blockResults.Height, event.Type, cosmosEventHandler))
-				break
-			}
-
-			// If err is not nil here, all handlers failed
-			if err != nil {
-				return nil, fmt.Errorf("could not handle event type %s, all handlers failed", event.Type)
-			}
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	return taxableEvents, nil
+	return &blockDBWrapper, nil
+}
+
+func ProcessRPCBlockEvents(block models.Block, blockEvents []abci.Event, blockLifecyclePosition models.BlockLifecyclePosition) ([]db.BlockEventDBWrapper, error) {
+	beginBlockEvents := make([]db.BlockEventDBWrapper, len(blockEvents))
+	for index, event := range blockEvents {
+
+		beginBlockEvents[index].BlockEvent = models.BlockEvent{
+			Index:             uint64(index),
+			LifecyclePosition: blockLifecyclePosition,
+			Block:             block,
+			BlockEventType: models.BlockEventType{
+				Type: event.Type,
+			},
+		}
+
+		beginBlockEvents[index].Attributes = make([]models.BlockEventAttribute, len(event.Attributes))
+
+		for attrIndex, attribute := range event.Attributes {
+
+			// Should we even be decoding these from base64? What are the implications?
+			valueBytes, err := base64.StdEncoding.DecodeString(attribute.Value)
+			if err != nil {
+				return nil, err
+			}
+
+			keyBytes, err := base64.StdEncoding.DecodeString(attribute.Key)
+			if err != nil {
+				return nil, err
+			}
+
+			beginBlockEvents[index].Attributes[attrIndex] = models.BlockEventAttribute{
+				Value: string(valueBytes),
+				BlockEventAttributeKey: models.BlockEventAttributeKey{
+					Key: string(keyBytes),
+				},
+			}
+		}
+
+	}
+
+	return beginBlockEvents, nil
 }
