@@ -13,7 +13,6 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/core"
-	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
@@ -390,9 +389,9 @@ type dbData struct {
 }
 
 type blockEventsDBData struct {
-	blockRelevantEvents []eventTypes.EventRelevantInformation
-	blockTime           time.Time
-	blockHeight         int64
+	blockDBWrapper *dbTypes.BlockDBWrapper
+	blockTime      time.Time
+	blockHeight    int64
 }
 
 func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
@@ -446,33 +445,28 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 			continue
 		}
 
-		blockRelevantEvents, err := core.ProcessRPCBlockEvents(bresults)
-
-		switch {
-		case err != nil:
+		blockDBWrapper, err := core.ProcessRPCBlockResults(bresults)
+		if err != nil {
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 			if err != nil {
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
-		case len(blockRelevantEvents) != 0:
-			result, err := rpc.GetBlock(idxr.cl, bresults.Height)
-			if err != nil {
-				failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
+		}
+		result, err := rpc.GetBlock(idxr.cl, bresults.Height)
+		if err != nil {
+			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
-				err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
-				if err != nil {
-					config.Log.Fatal("Failed to insert failed block event", err)
-				}
-			} else {
-				blockEventsDataChan <- &blockEventsDBData{
-					blockHeight:         bresults.Height,
-					blockTime:           result.Block.Time,
-					blockRelevantEvents: blockRelevantEvents,
-				}
+			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+			if err != nil {
+				config.Log.Fatal("Failed to insert failed block event", err)
 			}
-		default:
-			config.Log.Infof("Block %d has no relevant block events", bresults.Height)
+		} else {
+			blockEventsDataChan <- &blockEventsDBData{
+				blockHeight:    bresults.Height,
+				blockTime:      result.Block.Time,
+				blockDBWrapper: blockDBWrapper,
+			}
 		}
 
 		currentHeight++
@@ -565,17 +559,18 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 				continue
 			}
 			dbWrites++
-			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", len(eventData.blockRelevantEvents), eventData.blockHeight))
+			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", len(eventData.blockDBWrapper.BeginBlockEvents)+len(eventData.blockDBWrapper.EndBlockEvents), eventData.blockHeight))
 			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockHeight)
 
-			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
+			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
 			if err != nil {
+				// TODO: Should we reattempt here still?
 				// Do a single reattempt on failure
-				dbReattempts++
-				err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockRelevantEvents, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
-				if err != nil {
-					config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
-				}
+				// dbReattempts++
+				// err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
+				// if err != nil {
+				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
+				// }
 			}
 		}
 	}
