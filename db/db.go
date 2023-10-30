@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
-func GetAddresses(addressList []string, db *gorm.DB) ([]Address, error) {
+func GetAddresses(addressList []string, db *gorm.DB) ([]models.Address, error) {
 	// Look up all DB Addresses that match the search
-	var addresses []Address
+	var addresses []models.Address
 	result := db.Where("address IN ?", addressList).Find(&addresses)
 	fmt.Printf("Found %d addresses in the db\n", result.RowsAffected)
 	if result.Error != nil {
@@ -44,25 +45,49 @@ func PostgresDbConnectLogInfo(host string, port string, database string, user st
 
 // MigrateModels runs the gorm automigrations with all the db models. This will migrate as needed and do nothing if nothing has changed.
 func MigrateModels(db *gorm.DB) error {
+	if err := migrateChainModels(db); err != nil {
+		return err
+	}
+
+	if err := migrateBlockModels(db); err != nil {
+		return err
+	}
+
 	return db.AutoMigrate(
-		&Block{},
-		&FailedBlock{},
-		&FailedEventBlock{},
-		&Chain{},
-		&Tx{},
-		&Fee{},
-		&Address{},
-		&MessageType{},
-		&Message{},
-		&Denom{},
-		&DenomUnit{},
-		&IBCDenom{},
+		&models.Tx{},
+		&models.Fee{},
+		&models.Address{},
+		&models.MessageType{},
+		&models.Message{},
+		&models.Denom{},
+		&models.DenomUnit{},
+		&models.IBCDenom{},
+		&models.FailedTx{},
+		&models.FailedMessage{},
 	)
 }
 
-func GetFailedBlocks(db *gorm.DB, chainID uint) []FailedBlock {
-	var failedBlocks []FailedBlock
-	db.Table("failed_blocks").Where("blockchain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
+func migrateChainModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Chain{},
+	)
+}
+
+func migrateBlockModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Block{},
+		&models.BlockEvent{},
+		&models.BlockEventType{},
+		&models.BlockEventAttribute{},
+		&models.BlockEventAttributeKey{},
+		&models.FailedBlock{},
+		&models.FailedEventBlock{},
+	)
+}
+
+func GetFailedBlocks(db *gorm.DB, chainID uint) []models.FailedBlock {
+	var failedBlocks []models.FailedBlock
+	db.Table("failed_blocks").Where("chain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
 	return failedBlocks
 }
 
@@ -78,7 +103,7 @@ func GetFirstMissingBlockInRange(db *gorm.DB, start, end int64, chainID uint) in
 	var firstMissingBlock int64
 	err := db.Raw(`SELECT s.i AS missing_blocks
 						FROM generate_series($1::int,$2::int) s(i)
-						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND blockchain_id = $3::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
+						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND chain_id = $3::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
 						ORDER BY s.i ASC LIMIT 1;`, start, end, chainID).Row().Scan(&firstMissingBlock)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no rows in result set") {
@@ -90,7 +115,7 @@ func GetFirstMissingBlockInRange(db *gorm.DB, start, end int64, chainID uint) in
 	return firstMissingBlock
 }
 
-func GetDBChainID(db *gorm.DB, chain Chain) (uint, error) {
+func GetDBChainID(db *gorm.DB, chain models.Chain) (uint, error) {
 	if err := db.Where("chain_id = ?", chain.ChainID).FirstOrCreate(&chain).Error; err != nil {
 		config.Log.Error("Error getting/creating chain DB object.", err)
 		return chain.ID, err
@@ -98,23 +123,23 @@ func GetDBChainID(db *gorm.DB, chain Chain) (uint, error) {
 	return chain.ID, nil
 }
 
-func GetHighestIndexedBlock(db *gorm.DB, chainID uint) Block {
-	var block Block
+func GetHighestIndexedBlock(db *gorm.DB, chainID uint) models.Block {
+	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
-	db.Table("blocks").Where("blockchain_id = ?::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block)
+	db.Table("blocks").Where("chain_id = ?::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block)
 	return block
 }
 
-func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (Block, error) {
-	var block Block
+func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error) {
+	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
-	err := db.Table("blocks").Where("blockchain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
+	err := db.Table("blocks").Where("chain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
 	return block, err
 }
 
 func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		failedBlock := FailedBlock{Height: blockHeight, Chain: Chain{ChainID: chainID, Name: chainName}}
+		failedBlock := models.FailedBlock{Height: blockHeight, Chain: models.Chain{ChainID: chainID, Name: chainName}}
 
 		if err := dbTransaction.Where(&failedBlock.Chain).FirstOrCreate(&failedBlock.Chain).Error; err != nil {
 			config.Log.Error("Error creating chain DB object.", err)
@@ -131,7 +156,7 @@ func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName
 
 func UpsertFailedEventBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		failedEventBlock := FailedEventBlock{Height: blockHeight, Chain: Chain{ChainID: chainID, Name: chainName}}
+		failedEventBlock := models.FailedEventBlock{Height: blockHeight, Chain: models.Chain{ChainID: chainID, Name: chainName}}
 
 		if err := dbTransaction.Where(&failedEventBlock.Chain).FirstOrCreate(&failedEventBlock.Chain).Error; err != nil {
 			config.Log.Error("Error creating chain DB object.", err)
@@ -153,24 +178,24 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		// remove from failed blocks if exists
 		if err := dbTransaction.
-			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
+			Exec("DELETE FROM failed_blocks WHERE height = ? AND chain_id = ?", blockHeight, dbChainID).
 			Error; err != nil {
 			config.Log.Error("Error updating failed block.", err)
 			return err
 		}
 
 		// create block if it doesn't exist
-		blockOnly := Block{Height: blockHeight, TimeStamp: blockTime, Indexed: true, BlockchainID: dbChainID}
+		blockOnly := models.Block{Height: blockHeight, TimeStamp: blockTime, TxIndexed: true, ChainID: dbChainID}
 		if err := dbTransaction.
-			Where(Block{Height: blockHeight, BlockchainID: dbChainID}).
-			Assign(Block{Indexed: true, TimeStamp: blockTime}).
+			Where(models.Block{Height: blockHeight, ChainID: dbChainID}).
+			Assign(models.Block{TxIndexed: true, TimeStamp: blockTime}).
 			FirstOrCreate(&blockOnly).Error; err != nil {
 			config.Log.Error("Error getting/creating block DB object.", err)
 			return err
 		}
 
 		for _, transaction := range txs {
-			txOnly := Tx{
+			txOnly := models.Tx{
 				Hash:            transaction.Tx.Hash,
 				Code:            transaction.Tx.Code,
 				BlockID:         blockOnly.ID,
@@ -180,7 +205,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 			// store the signer address if there is one
 			if transaction.SignerAddress.Address != "" {
 				// viewing gorm logs shows this gets translated into a single ON CONFLICT DO NOTHING RETURNING "id"
-				if err := dbTransaction.Where(Address{Address: transaction.SignerAddress.Address}).
+				if err := dbTransaction.Where(models.Address{Address: transaction.SignerAddress.Address}).
 					FirstOrCreate(&transaction.SignerAddress).
 					Error; err != nil {
 					config.Log.Error("Error getting/creating signer address for tx.", err)
@@ -191,19 +216,19 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 			}
 
 			// store the TX
-			if err := dbTransaction.Where(Tx{Hash: txOnly.Hash}).FirstOrCreate(&txOnly).Error; err != nil {
+			if err := dbTransaction.Where(models.Tx{Hash: txOnly.Hash}).FirstOrCreate(&txOnly).Error; err != nil {
 				config.Log.Error("Error creating tx.", err)
 				return err
 			}
 
 			for _, fee := range transaction.Tx.Fees {
-				feeOnly := Fee{
+				feeOnly := models.Fee{
 					TxID:           txOnly.ID,
 					Amount:         fee.Amount,
 					DenominationID: fee.Denomination.ID,
 				}
 				if fee.PayerAddress.Address != "" {
-					if err := dbTransaction.Where(Address{Address: fee.PayerAddress.Address}).
+					if err := dbTransaction.Where(models.Address{Address: fee.PayerAddress.Address}).
 						FirstOrCreate(&fee.PayerAddress).
 						Error; err != nil {
 						config.Log.Error("Error getting/creating fee payer address.", err)
@@ -221,7 +246,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 				}
 
 				// store the Fee
-				if err := dbTransaction.Where(Fee{TxID: feeOnly.TxID, DenominationID: feeOnly.DenominationID}).FirstOrCreate(&feeOnly).Error; err != nil {
+				if err := dbTransaction.Where(models.Fee{TxID: feeOnly.TxID, DenominationID: feeOnly.DenominationID}).FirstOrCreate(&feeOnly).Error; err != nil {
 					config.Log.Error("Error creating fee.", err)
 					return err
 				}
@@ -236,14 +261,14 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 					return err
 				}
 
-				msgOnly := Message{
+				msgOnly := models.Message{
 					TxID:          txOnly.ID,
 					MessageTypeID: message.Message.MessageType.ID,
 					MessageIndex:  message.Message.MessageIndex,
 				}
 
 				// Store the msg
-				if err := dbTransaction.Where(Message{TxID: msgOnly.TxID, MessageTypeID: msgOnly.MessageTypeID, MessageIndex: msgOnly.MessageIndex}).FirstOrCreate(&msgOnly).Error; err != nil {
+				if err := dbTransaction.Where(models.Message{TxID: msgOnly.TxID, MessageTypeID: msgOnly.MessageTypeID, MessageIndex: msgOnly.MessageIndex}).FirstOrCreate(&msgOnly).Error; err != nil {
 					config.Log.Error("Error creating message.", err)
 					return err
 				}
@@ -282,7 +307,7 @@ func UpsertDenoms(db *gorm.DB, denoms []DenomDBWrapper) error {
 	})
 }
 
-func UpsertIBCDenoms(db *gorm.DB, denoms []IBCDenom) error {
+func UpsertIBCDenoms(db *gorm.DB, denoms []models.IBCDenom) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		for i := range denoms {
 			if err := dbTransaction.Clauses(clause.OnConflict{

@@ -29,7 +29,7 @@ func (idxr *Indexer) enqueueBlocksToProcessByMsgType(blockChan chan int64, chain
 							JOIN messages ON messages.tx_id = txes.id
 							JOIN message_types ON message_types.id = messages.message_type_id
 							AND message_types.message_type = ?
-							WHERE height >= ? AND height <= ? AND blockchain_id = ?::int;
+							WHERE height >= ? AND height <= ? AND chain_id = ?::int;
 							`, msgType, startBlock, endBlock, chainID).Rows()
 	if err != nil {
 		config.Log.Fatalf("Error checking DB for blocks to reindex. Err: %v", err)

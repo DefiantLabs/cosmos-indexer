@@ -121,5 +121,5 @@ func connectToDBAndMigrate(dbConfig config.Database) (*gorm.DB, error) {
 		config.Log.Error("Error running DB migrations", err)
 	}
 
-	return database, nil
+	return database, err
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	eventTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/tasks"
@@ -191,7 +192,7 @@ func index(cmd *cobra.Command, args []string) {
 
 	var wg sync.WaitGroup // This group is to ensure we are done processing transactions and events before returning
 
-	chain := dbTypes.Chain{
+	chain := models.Chain{
 		ChainID: idxr.cfg.Probe.ChainID,
 		Name:    idxr.cfg.Probe.ChainName,
 	}
@@ -248,7 +249,7 @@ func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID uint) int64 {
 // blockAlreadyIndexed will return true if the block is already in the DB
 func blockAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) bool {
 	var exists bool
-	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND blockchain_id = ?::int AND indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
+	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
 	if err != nil {
 		config.Log.Fatalf("Error checking DB for block. Err: %v", err)
 	}
@@ -307,7 +308,7 @@ func (idxr *Indexer) queryRPC(blockChan chan int64, dbDataChan chan *dbData, fai
 
 func processBlock(cl *client.ChainClient, dbConn *gorm.DB, failedBlockHandler func(height int64, code core.BlockProcessingFailure, err error), dbDataChan chan *dbData, blockToProcess int64) error {
 	// fmt.Printf("Querying RPC transactions for block %d\n", blockToProcess)
-	newBlock := dbTypes.Block{Height: blockToProcess}
+	newBlock := models.Block{Height: blockToProcess}
 	var txDBWrappers []dbTypes.TxDBWrapper
 	var blockTime *time.Time
 	var err error

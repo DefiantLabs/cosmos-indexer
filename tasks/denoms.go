@@ -8,6 +8,7 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/rest"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 
@@ -78,11 +79,11 @@ func UpsertJunoDenoms(db *gorm.DB, retryMaxAttempts int64, retryMaxWaitSeconds u
 func assetListToDenoms(assets *AssetList) []dbTypes.DenomDBWrapper {
 	denoms := make([]dbTypes.DenomDBWrapper, len(assets.Assets))
 	for i, asset := range assets.Assets {
-		denoms[i].Denom = dbTypes.Denom{Base: asset.Base, Name: asset.Name, Symbol: asset.Symbol}
+		denoms[i].Denom = models.Denom{Base: asset.Base, Name: asset.Name, Symbol: asset.Symbol}
 		denoms[i].DenomUnits = make([]dbTypes.DenomUnitDBWrapper, len(asset.Denoms))
 
 		for ii, denomUnit := range asset.Denoms {
-			denoms[i].DenomUnits[ii].DenomUnit = dbTypes.DenomUnit{Exponent: uint(denomUnit.Exponent), Name: denomUnit.Denom}
+			denoms[i].DenomUnits[ii].DenomUnit = models.DenomUnit{Exponent: uint(denomUnit.Exponent), Name: denomUnit.Denom}
 		}
 	}
 
@@ -163,9 +164,9 @@ func IBCDenomUpsertTask(apiHost string, db *gorm.DB) {
 		return
 	}
 
-	denoms := make([]dbTypes.IBCDenom, len(ibcDenomsMetadata.DenomTraces))
+	denoms := make([]models.IBCDenom, len(ibcDenomsMetadata.DenomTraces))
 	for i, t := range ibcDenomsMetadata.DenomTraces {
-		denoms[i] = dbTypes.IBCDenom{
+		denoms[i] = models.IBCDenom{
 			Hash:      t.IBCDenom(),
 			Path:      t.Path,
 			BaseDenom: t.BaseDenom,
@@ -182,7 +183,7 @@ func IBCDenomUpsertTask(apiHost string, db *gorm.DB) {
 
 func ValidateDenoms(db *gorm.DB) error {
 	config.Log.Info("Running post-update denom validations")
-	var denoms []dbTypes.Denom
+	var denoms []models.Denom
 
 	// Find all denoms which are missing an entry in the denom_units table
 	// This is currently required due to a bug that was introduced by dropping the denom_units table without thinking fully through the consequences
@@ -198,7 +199,7 @@ func ValidateDenoms(db *gorm.DB) error {
 		config.Log.Infof("Adding missing denom units for %d denoms", len(denoms))
 		err := db.Transaction(func(dbTransaction *gorm.DB) error {
 			for _, denom := range denoms {
-				missingBaseDenomUnit := dbTypes.DenomUnit{DenomID: denom.ID, Name: denom.Base, Exponent: 0}
+				missingBaseDenomUnit := models.DenomUnit{DenomID: denom.ID, Name: denom.Base, Exponent: 0}
 				txRes := db.Create(&missingBaseDenomUnit)
 				if txRes.Error != nil {
 					return txRes.Error

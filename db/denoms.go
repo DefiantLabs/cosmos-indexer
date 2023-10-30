@@ -8,19 +8,20 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"gorm.io/gorm"
 )
 
 var (
-	CachedDenomUnits []DenomUnit
+	CachedDenomUnits []models.DenomUnit
 	denomCacheMutex  sync.Mutex
 
-	CachedIBCDenoms    []IBCDenom
+	CachedIBCDenoms    []models.IBCDenom
 	ibcDenomCacheMutex sync.Mutex
 )
 
 func CacheDenoms(db *gorm.DB) {
-	var denomUnits []DenomUnit
+	var denomUnits []models.DenomUnit
 	db.Preload("Denom").Find(&denomUnits)
 	denomCacheMutex.Lock()
 	defer denomCacheMutex.Unlock()
@@ -28,14 +29,14 @@ func CacheDenoms(db *gorm.DB) {
 }
 
 func CacheIBCDenoms(db *gorm.DB) {
-	var ibcDenoms []IBCDenom
+	var ibcDenoms []models.IBCDenom
 	db.Preload("IBCDenom").Find(&ibcDenoms)
 	ibcDenomCacheMutex.Lock()
 	defer ibcDenomCacheMutex.Unlock()
 	CachedIBCDenoms = ibcDenoms
 }
 
-func GetDenomForBase(base string) (Denom, error) {
+func GetDenomForBase(base string) (models.Denom, error) {
 	denomCacheMutex.Lock()
 	defer denomCacheMutex.Unlock()
 	for _, denomUnit := range CachedDenomUnits {
@@ -44,10 +45,10 @@ func GetDenomForBase(base string) (Denom, error) {
 		}
 	}
 
-	return Denom{}, fmt.Errorf("GetDenomForBase: no denom unit for the specified denom %s", base)
+	return models.Denom{}, fmt.Errorf("GetDenomForBase: no denom unit for the specified denom %s", base)
 }
 
-func GetIBCDenom(denomTrace string) (IBCDenom, error) {
+func GetIBCDenom(denomTrace string) (models.IBCDenom, error) {
 	ibcDenomCacheMutex.Lock()
 	defer ibcDenomCacheMutex.Unlock()
 	for _, denom := range CachedIBCDenoms {
@@ -55,31 +56,31 @@ func GetIBCDenom(denomTrace string) (IBCDenom, error) {
 			return denom, nil
 		}
 	}
-	return IBCDenom{}, fmt.Errorf("no IBC denom found for the specified denom trace %s", denomTrace)
+	return models.IBCDenom{}, fmt.Errorf("no IBC denom found for the specified denom trace %s", denomTrace)
 }
 
-func GetDenomUnitForDenom(denom Denom) (DenomUnit, error) {
+func GetDenomUnitForDenom(denom models.Denom) (models.DenomUnit, error) {
 	for _, denomUnit := range CachedDenomUnits {
 		if denomUnit.DenomID == denom.ID {
 			return denomUnit, nil
 		}
 	}
 
-	return DenomUnit{}, errors.New("GetDenomUnitForDenom: no denom unit for the specified denom")
+	return models.DenomUnit{}, errors.New("GetDenomUnitForDenom: no denom unit for the specified denom")
 }
 
-func GetBaseDenomUnitForDenom(denom Denom) (DenomUnit, error) {
+func GetBaseDenomUnitForDenom(denom models.Denom) (models.DenomUnit, error) {
 	for _, denomUnit := range CachedDenomUnits {
 		if denomUnit.DenomID == denom.ID && denomUnit.Exponent == 0 {
 			return denomUnit, nil
 		}
 	}
 
-	return DenomUnit{}, errors.New("GetDenomUnitForDenom: no denom unit for the specified denom")
+	return models.DenomUnit{}, errors.New("GetDenomUnitForDenom: no denom unit for the specified denom")
 }
 
-func GetHighestDenomUnit(denomUnit DenomUnit, denomUnits []DenomUnit) (DenomUnit, error) {
-	highestDenomUnit := DenomUnit{Exponent: 0, Name: "not found for denom"}
+func GetHighestDenomUnit(denomUnit models.DenomUnit, denomUnits []models.DenomUnit) (models.DenomUnit, error) {
+	highestDenomUnit := models.DenomUnit{Exponent: 0, Name: "not found for denom"}
 
 	for _, currDenomUnit := range denomUnits {
 		if currDenomUnit.Denom.ID == denomUnit.Denom.ID {
@@ -96,7 +97,7 @@ func GetHighestDenomUnit(denomUnit DenomUnit, denomUnits []DenomUnit) (DenomUnit
 	return highestDenomUnit, nil
 }
 
-func ConvertUnits(amount *big.Int, denom Denom) (*big.Float, string, error) {
+func ConvertUnits(amount *big.Int, denom models.Denom) (*big.Float, string, error) {
 	convertedAmount := new(big.Float).SetInt(amount)
 
 	// Handle gamm special case
@@ -136,9 +137,9 @@ func ConvertUnits(amount *big.Int, denom Denom) (*big.Float, string, error) {
 // which will be correct in all cases that the missing denom was pulled from
 // a transaction message and not found in our database during tx parsing
 // Creates a single denom and a single denom_unit that fits our DB structure, adds them to the DB
-func AddUnknownDenom(db *gorm.DB, denom string) (Denom, error) {
-	denomToAdd := Denom{Base: denom, Name: "UNKNOWN", Symbol: "UNKNOWN"}
-	singleDenomUnit := DenomUnit{Exponent: 0, Name: denom}
+func AddUnknownDenom(db *gorm.DB, denom string) (models.Denom, error) {
+	denomToAdd := models.Denom{Base: denom, Name: "UNKNOWN", Symbol: "UNKNOWN"}
+	singleDenomUnit := models.DenomUnit{Exponent: 0, Name: denom}
 	denomUnitsToAdd := [...]DenomUnitDBWrapper{{DenomUnit: singleDenomUnit}}
 
 	denomDbWrapper := [1]DenomDBWrapper{{Denom: denomToAdd}}

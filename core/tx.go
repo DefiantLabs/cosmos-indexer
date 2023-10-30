@@ -13,6 +13,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	txtypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -151,7 +152,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 			return currTxDbWrappers, blockTime, err
 		}
 
-		processedTx.SignerAddress = dbTypes.Address{Address: txFull.FeePayer().String()}
+		processedTx.SignerAddress = models.Address{Address: txFull.FeePayer().String()}
 		currTxDbWrappers[txIdx] = processedTx
 	}
 
@@ -224,7 +225,7 @@ func ProcessRPCTXs(db *gorm.DB, txEventResp *cosmosTx.GetTxsEventResponse) ([]db
 			blockTime = &txTime
 		}
 
-		processedTx.SignerAddress = dbTypes.Address{Address: currTx.FeePayer().String()}
+		processedTx.SignerAddress = models.Address{Address: currTx.FeePayer().String()}
 		currTxDbWrappers[txIdx] = processedTx
 	}
 
@@ -245,8 +246,8 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	// non-zero code means the Tx was unsuccessful. We will still need to account for fees in both cases though.
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
-			var currMessage dbTypes.Message
-			var currMessageType dbTypes.MessageType
+			var currMessage models.Message
+			var currMessageType models.MessageType
 			currMessage.MessageIndex = messageIndex
 
 			// Get the message log that corresponds to the current message
@@ -268,17 +269,17 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 		return txDBWapper, txTime, err
 	}
 
-	txDBWapper.Tx = dbTypes.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
+	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
 	txDBWapper.Messages = messages
 
 	return txDBWapper, txTime, nil
 }
 
 // ProcessFees returns a comma delimited list of fee amount/denoms
-func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAddress) ([]dbTypes.Fee, error) {
+func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAddress) ([]models.Fee, error) {
 	feeCoins := authInfo.Fee.Amount
 	payer := authInfo.Fee.GetPayer()
-	fees := []dbTypes.Fee{}
+	fees := []models.Fee{}
 
 	for _, coin := range feeCoins {
 		zeroFee := big.NewInt(0)
@@ -296,7 +297,7 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAdd
 					return nil, err
 				}
 			}
-			payerAddr := dbTypes.Address{}
+			payerAddr := models.Address{}
 			if payer != "" {
 				payerAddr.Address = payer
 			} else {
@@ -322,7 +323,7 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAdd
 				}
 			}
 
-			fees = append(fees, dbTypes.Fee{Amount: amount, Denomination: denom, PayerAddress: payerAddr})
+			fees = append(fees, models.Fee{Amount: amount, Denomination: denom, PayerAddress: payerAddr})
 		}
 	}
 
