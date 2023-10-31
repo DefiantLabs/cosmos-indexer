@@ -562,12 +562,12 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", len(eventData.blockDBWrapper.BeginBlockEvents)+len(eventData.blockDBWrapper.EndBlockEvents), eventData.blockHeight))
 			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockHeight)
 
-			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
+			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, dbChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
 			if err != nil {
 				// TODO: Should we reattempt here still?
 				// Do a single reattempt on failure
 				// dbReattempts++
-				// err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
+				// err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, dbChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
 				// if err != nil {
 				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
 				// }

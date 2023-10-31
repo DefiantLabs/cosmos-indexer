@@ -16,9 +16,11 @@ const (
 )
 
 type BlockDBWrapper struct {
-	Block            models.Block
-	BeginBlockEvents []BlockEventDBWrapper
-	EndBlockEvents   []BlockEventDBWrapper
+	Block                         *models.Block
+	BeginBlockEvents              []BlockEventDBWrapper
+	EndBlockEvents                []BlockEventDBWrapper
+	UniqueBlockEventTypes         map[string]models.BlockEventType
+	UniqueBlockEventAttributeKeys map[string]models.BlockEventAttributeKey
 }
 
 type BlockEventDBWrapper struct {

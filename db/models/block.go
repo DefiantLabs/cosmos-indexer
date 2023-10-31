@@ -29,7 +29,7 @@ type BlockEvent struct {
 	// Index refers to the position of the event in the block event lifecycle array
 	// LifecyclePosition refers to whether the event is a BeginBlock or EndBlock event
 	Index             uint64                 `gorm:"uniqueIndex:eventBlockPositionIndex,priority:3"`
-	LifecyclePosition BlockLifecyclePosition `gorm:"uniqueIndex:eventBlockLifecyclepositionIndex,priority:2"`
+	LifecyclePosition BlockLifecyclePosition `gorm:"uniqueIndex:eventBlockPositionIndex,priority:2"`
 	BlockID           uint                   `gorm:"uniqueIndex:eventBlockPositionIndex,priority:1"`
 	Block             Block
 	BlockEventTypeID  uint
