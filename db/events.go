@@ -95,7 +95,10 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 		}
 
 		// Bulk insert the block events
-		allBlockEvents := append(beginBlockEvents, endBlockEvents...)
+		allBlockEvents := make([]*models.BlockEvent, len(beginBlockEvents)+len(endBlockEvents))
+		copy(allBlockEvents, beginBlockEvents)
+		copy(allBlockEvents[len(beginBlockEvents):], endBlockEvents)
+
 		if len(allBlockEvents) != 0 {
 			if err := dbTransaction.Clauses(clause.OnConflict{DoNothing: true}).Create(&allBlockEvents).Error; err != nil {
 				config.Log.Error("Error creating begin block events.", err)
