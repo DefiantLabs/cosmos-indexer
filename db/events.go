@@ -99,13 +99,16 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 		copy(allBlockEvents, beginBlockEvents)
 		copy(allBlockEvents[len(beginBlockEvents):], endBlockEvents)
 
+		// TODO: Should consider the on conflict values here, do we want to provide the user with some control over the behavior here?
+		// Something similar to our reindex flag may be appropriate, unless we just want to have that pre-check the block has already been indexed.
 		if len(allBlockEvents) != 0 {
 			// This clause forces a return of ID for all items even on conflict
 			// We need this so that we can then create the proper associations with the attributes below
 			if err := dbTransaction.Clauses(
 				clause.OnConflict{
-					Columns:   []clause.Column{{Name: "index"}, {Name: "lifecycle_position"}, {Name: "block_id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"index", "lifecycle_position", "block_id"}),
+					Columns: []clause.Column{{Name: "index"}, {Name: "lifecycle_position"}, {Name: "block_id"}},
+					// Force update of block event type ID
+					DoUpdates: clause.AssignmentColumns([]string{"block_event_type_id"}),
 				},
 			).Create(&allBlockEvents).Error; err != nil {
 				config.Log.Error("Error creating begin block events.", err)
@@ -134,7 +137,11 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 			}
 
 			if len(allAttributes) != 0 {
-				if err := dbTransaction.Clauses(clause.OnConflict{DoNothing: true}).Create(&allAttributes).Error; err != nil {
+				if err := dbTransaction.Clauses(clause.OnConflict{
+					Columns: []clause.Column{{Name: "block_event_id"}, {Name: "index"}},
+					// Force update of value
+					DoUpdates: clause.AssignmentColumns([]string{"value"}),
+				}).Create(&allAttributes).Error; err != nil {
 					config.Log.Error("Error creating begin block event attributes.", err)
 					return err
 				}
