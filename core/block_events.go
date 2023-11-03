@@ -88,6 +88,7 @@ func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockL
 			beginBlockEvents[index].Attributes[attrIndex] = models.BlockEventAttribute{
 				Value:                  string(valueBytes),
 				BlockEventAttributeKey: key,
+				Index:                  uint64(attrIndex),
 			}
 
 			uniqueAttributeKeys[key.Key] = key

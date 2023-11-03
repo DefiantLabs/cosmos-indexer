@@ -44,8 +44,9 @@ type BlockEventType struct {
 type BlockEventAttribute struct {
 	ID           uint
 	BlockEvent   BlockEvent
-	BlockEventID uint
+	BlockEventID uint `gorm:"uniqueIndex:eventAttributeIndex,priority:1"`
 	Value        string
+	Index        uint64 `gorm:"uniqueIndex:eventAttributeIndex,priority:2"`
 	// Keys are limited to a smallish subset of string values set by the Cosmos SDK and external modules
 	// Save DB space by storing the key as a foreign key
 	BlockEventAttributeKeyID uint

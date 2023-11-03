@@ -100,7 +100,14 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 		copy(allBlockEvents[len(beginBlockEvents):], endBlockEvents)
 
 		if len(allBlockEvents) != 0 {
-			if err := dbTransaction.Clauses(clause.OnConflict{DoNothing: true}).Create(&allBlockEvents).Error; err != nil {
+			// This clause forces a return of ID for all items even on conflict
+			// We need this so that we can then create the proper associations with the attributes below
+			if err := dbTransaction.Clauses(
+				clause.OnConflict{
+					Columns:   []clause.Column{{Name: "index"}, {Name: "lifecycle_position"}, {Name: "block_id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"index", "lifecycle_position", "block_id"}),
+				},
+			).Create(&allBlockEvents).Error; err != nil {
 				config.Log.Error("Error creating begin block events.", err)
 				return nil
 			}
