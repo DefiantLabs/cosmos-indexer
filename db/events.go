@@ -45,7 +45,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 			},
 		).Create(&uniqueBlockEventTypes).Error; err != nil {
 			config.Log.Error("Error creating begin block event types.", err)
-			return nil
+			return err
 		}
 
 		for _, value := range uniqueBlockEventTypes {
@@ -70,7 +70,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 			},
 		).Create(&uniqueBlockEventAttributeKeys).Error; err != nil {
 			config.Log.Error("Error creating begin block event attribute keys.", err)
-			return nil
+			return err
 		}
 
 		for _, value := range uniqueBlockEventAttributeKeys {
@@ -109,7 +109,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 				},
 			).Create(&allBlockEvents).Error; err != nil {
 				config.Log.Error("Error creating begin block events.", err)
-				return nil
+				return err
 			}
 
 			var allAttributes []models.BlockEventAttribute
@@ -136,7 +136,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime tim
 			if len(allAttributes) != 0 {
 				if err := dbTransaction.Clauses(clause.OnConflict{DoNothing: true}).Create(&allAttributes).Error; err != nil {
 					config.Log.Error("Error creating begin block event attributes.", err)
-					return nil
+					return err
 				}
 			}
 		}
