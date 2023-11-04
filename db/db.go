@@ -133,8 +133,19 @@ func GetHighestIndexedBlock(db *gorm.DB, chainID uint) models.Block {
 func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error) {
 	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
-	err := db.Table("blocks").Where("chain_id = ?::int AND block_event_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
+	err := db.Table("blocks").Where("chain_id = ?::int AND block_events_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z'", chainID).Order("height desc").First(&block).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return block, nil
+	}
+
 	return block, err
+}
+
+func BlockEventsAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) (bool, error) {
+	var exists bool
+	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND block_events_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
+	return exists, err
 }
 
 func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {

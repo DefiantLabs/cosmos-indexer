@@ -153,10 +153,11 @@ func index(cmd *cobra.Command, args []string) {
 	}
 	defer dbConn.Close()
 
-	// blockChan are just the block heights; limit max jobs in the queue, otherwise this queue would contain one
+	// blockChans are just the block heights; limit max jobs in the queue, otherwise this queue would contain one
 	// item (block height) for every block on the entire blockchain we're indexing. Furthermore, once the queue
 	// is close to empty, we will spin up a new thread to fill it up with new jobs.
-	blockChan := make(chan int64, 10000)
+	transactionBlockChan := make(chan int64, 10000)
+	blockEventBlockChan := make(chan int64, 10000)
 
 	// This channel represents query job results for the RPC queries to Cosmos Nodes. Every time an RPC query
 	// completes, the query result will be sent to this channel (for later processing by a different thread).
@@ -177,7 +178,7 @@ func index(cmd *cobra.Command, args []string) {
 		for i := 0; i < rpcQueryThreads; i++ {
 			txChanWaitGroup.Add(1)
 			go func() {
-				idxr.queryRPC(blockChan, txDataChan, core.HandleFailedBlock)
+				idxr.queryRPC(transactionBlockChan, txDataChan, core.HandleFailedBlock)
 				txChanWaitGroup.Done()
 			}()
 		}
@@ -205,7 +206,7 @@ func index(cmd *cobra.Command, args []string) {
 	blockEventsDataChan := make(chan *blockEventsDBData, 4*rpcQueryThreads)
 	if idxr.cfg.Base.BlockEventIndexingEnabled {
 		wg.Add(1)
-		go idxr.indexBlockEvents(&wg, core.HandleFailedBlock, blockEventsDataChan, dbChainID)
+		go idxr.indexBlockEvents(&wg, core.HandleFailedBlock, blockEventBlockChan, blockEventsDataChan, dbChainID)
 	} else {
 		close(blockEventsDataChan)
 	}
@@ -216,19 +217,36 @@ func index(cmd *cobra.Command, args []string) {
 		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
 	}
 
+	// TODO: We need to wrap these in goroutines to prevent blocking if block event and block indexing are both enabled
 	// Add jobs to the queue to be processed
 	if idxr.cfg.Base.ChainIndexingEnabled {
 		switch {
 		case idxr.cfg.Base.ReindexMessageType != "":
-			idxr.enqueueBlocksToProcessByMsgType(blockChan, dbChainID, idxr.cfg.Base.ReindexMessageType)
+			idxr.enqueueBlocksToProcessByMsgType(transactionBlockChan, dbChainID, idxr.cfg.Base.ReindexMessageType)
 		case idxr.cfg.Base.BlockInputFile != "":
-			idxr.enqueueBlocksToProcessFromBlockInputFile(blockChan, idxr.cfg.Base.BlockInputFile)
+			idxr.enqueueBlocksToProcessFromBlockInputFile(transactionBlockChan, idxr.cfg.Base.BlockInputFile)
 		default:
-			idxr.enqueueBlocksToProcess(blockChan, dbChainID)
+			idxr.enqueueBlocksToProcess(transactionBlockChan, dbChainID)
 		}
 
 		// close the block chan once all blocks have been written to it
-		close(blockChan)
+		close(transactionBlockChan)
+	}
+
+	if idxr.cfg.Base.BlockEventIndexingEnabled {
+		// Is a closure really necessary?
+		// It may make it easier to switch between different enqueue functions if they all have a common signature, in which case this wrapper is useful for pre-setting configs.
+		enqueueFunc, err := core.GenerateBlockEventEnqueueFunctionNoReindex(idxr.db, *idxr.cfg, idxr.cl, dbChainID)
+		if err != nil {
+			config.Log.Fatal("Failed to generate block event enqueue function", err)
+		}
+
+		err = enqueueFunc(blockEventBlockChan)
+		if err != nil {
+			config.Log.Fatal("Block enqueue failed", err)
+		}
+
+		close(blockEventBlockChan)
 	}
 
 	// If we error out in the main loop, this will block. Meaning we may not know of an error for 6 hours until last scheduled task stops
@@ -394,43 +412,20 @@ type blockEventsDBData struct {
 	blockHeight    int64
 }
 
-func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
+func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEnqueueChan chan int64, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
 	defer close(blockEventsDataChan)
 	defer wg.Done()
-
-	startHeight := idxr.cfg.Base.BlockEventsStartBlock
-	endHeight := idxr.cfg.Base.BlockEventsEndBlock
-
-	if startHeight <= 0 {
-		dbLastIndexedBlockEvent := GetBlockEventsStartIndexHeight(idxr.db, chainID)
-		if dbLastIndexedBlockEvent > 0 {
-			startHeight = dbLastIndexedBlockEvent + 1
-		}
-	}
-
-	// 0 isn't a valid starting block
-	if startHeight <= 0 {
-		startHeight = 1
-	}
-
-	lastKnownBlockHeight, errBh := rpc.GetLatestBlockHeight(idxr.cl)
-	if errBh != nil {
-		config.Log.Fatal("Error getting blockchain latest height in block event indexer.", errBh)
-	}
-
-	config.Log.Infof("Indexing block events from block: %v to %v", startHeight, endHeight)
 
 	rpcClient := rpc.URIClient{
 		Address: idxr.cl.Config.RPCAddr,
 		Client:  &http.Client{},
 	}
 
-	currentHeight := startHeight
-
-	for endHeight == -1 || currentHeight <= endHeight {
+	for currentHeight := range blockEnqueueChan {
+		config.Log.Infof("Gathering block event data for block %d", currentHeight)
 		bresults, err := rpc.GetBlockResultWithRetry(rpcClient, currentHeight, idxr.cfg.Base.RequestRetryAttempts, idxr.cfg.Base.RequestRetryMaxWait)
 		if err != nil {
-			config.Log.Error(fmt.Sprintf("Error receiving block result for block %d", currentHeight), err)
+			config.Log.Errorf("Failed to process block events block %d event processing, adding to failed block events table", currentHeight)
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
 			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
@@ -438,15 +433,12 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
 
-			currentHeight++
-			if idxr.cfg.Base.Throttling != 0 {
-				time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
-			}
 			continue
 		}
 
 		blockDBWrapper, err := core.ProcessRPCBlockResults(bresults)
 		if err != nil {
+			config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
 			if err != nil {
@@ -455,6 +447,7 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 		}
 		result, err := rpc.GetBlock(idxr.cl, bresults.Height)
 		if err != nil {
+			config.Log.Errorf("Failed to retrieve block time during block %d event processing, adding to failed block events table", currentHeight)
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
 			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
@@ -462,38 +455,13 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
 		} else {
+			config.Log.Infof("Finished gathering block event data for block %d", currentHeight)
+
 			blockEventsDataChan <- &blockEventsDBData{
 				blockHeight:    bresults.Height,
 				blockTime:      result.Block.Time,
 				blockDBWrapper: blockDBWrapper,
 			}
-		}
-
-		currentHeight++
-
-		// Sleep for a bit to allow new blocks to be written to the chain, this allows us to continue the indexer run indefinitely
-		if currentHeight > lastKnownBlockHeight {
-			config.Log.Infof("Block %d has passed lastKnownBlockHeight, checking again", currentHeight)
-			// For loop catches both of the following
-			// whether we are going too fast and need to do multiple sleeps
-			// whether the lastKnownHeight was set a long time ago (as in at app start) and we just need to reset the value
-			for {
-				lastKnownBlockHeight, err = rpc.GetLatestBlockHeight(idxr.cl)
-				if err != nil {
-					config.Log.Fatal("Error getting blockchain latest height in block event indexer.", errBh)
-				}
-
-				if currentHeight > lastKnownBlockHeight {
-					config.Log.Infof("Sleeping...")
-					time.Sleep(time.Second * 20)
-				} else {
-					config.Log.Infof("Continuing until block %d", lastKnownBlockHeight)
-					time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
-					break
-				}
-			}
-		} else if idxr.cfg.Base.Throttling != 0 {
-			time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
 		}
 	}
 }
@@ -559,7 +527,8 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 				continue
 			}
 			dbWrites++
-			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", len(eventData.blockDBWrapper.BeginBlockEvents)+len(eventData.blockDBWrapper.EndBlockEvents), eventData.blockHeight))
+			numEvents := len(eventData.blockDBWrapper.BeginBlockEvents) + len(eventData.blockDBWrapper.EndBlockEvents)
+			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", numEvents, eventData.blockHeight))
 			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockHeight)
 
 			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, dbChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
@@ -572,6 +541,7 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
 				// }
 			}
+			config.Log.Info(fmt.Sprintf("Finished indexing %v Block Events from block %d", numEvents, eventData.blockHeight))
 		}
 	}
 }
