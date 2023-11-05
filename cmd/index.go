@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -203,12 +202,25 @@ func index(cmd *cobra.Command, args []string) {
 	}
 
 	// Block BeginBlocker and EndBlocker indexing requirements. Indexes block events that took place in the BeginBlock and EndBlock state transitions
+	blockEventRPCWorkerChan := make(chan core.IndexerBlockEventData, 10)
 	blockEventsDataChan := make(chan *blockEventsDBData, 4*rpcQueryThreads)
 	if idxr.cfg.Base.BlockEventIndexingEnabled {
+		var blockChanWaitGroup sync.WaitGroup
+		for i := 0; i < rpcQueryThreads; i++ {
+			blockChanWaitGroup.Add(1)
+			go core.BlockEventRPCWorker(&blockChanWaitGroup, blockEventBlockChan, dbChainID, idxr.cfg, idxr.cl, idxr.db, idxr.cfg.Base.ChainIndexingEnabled, idxr.cfg.Base.BlockEventIndexingEnabled, blockEventRPCWorkerChan)
+		}
+
 		wg.Add(1)
-		go idxr.indexBlockEvents(&wg, core.HandleFailedBlock, blockEventBlockChan, blockEventsDataChan, dbChainID)
+		go idxr.processBlockEvents(&wg, core.HandleFailedBlock, blockEventRPCWorkerChan, blockEventsDataChan, dbChainID)
+
+		go func() {
+			blockChanWaitGroup.Wait()
+			close(blockEventRPCWorkerChan)
+		}()
 	} else {
 		close(blockEventsDataChan)
+		close(blockEventRPCWorkerChan)
 	}
 
 	// Start a thread to index the data queried from the chain.
@@ -412,31 +424,15 @@ type blockEventsDBData struct {
 	blockHeight    int64
 }
 
-func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEnqueueChan chan int64, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
+func (idxr *Indexer) processBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
 	defer close(blockEventsDataChan)
 	defer wg.Done()
 
-	rpcClient := rpc.URIClient{
-		Address: idxr.cl.Config.RPCAddr,
-		Client:  &http.Client{},
-	}
+	for blockData := range blockEventRPCWorkerChan {
+		currentHeight := blockData.BlockData.Block.Height
+		config.Log.Infof("Parsing data for block %d", currentHeight)
 
-	for currentHeight := range blockEnqueueChan {
-		config.Log.Infof("Gathering block event data for block %d", currentHeight)
-		bresults, err := rpc.GetBlockResultWithRetry(rpcClient, currentHeight, idxr.cfg.Base.RequestRetryAttempts, idxr.cfg.Base.RequestRetryMaxWait)
-		if err != nil {
-			config.Log.Errorf("Failed to process block events block %d event processing, adding to failed block events table", currentHeight)
-			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
-
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
-			if err != nil {
-				config.Log.Fatal("Failed to insert failed block event", err)
-			}
-
-			continue
-		}
-
-		blockDBWrapper, err := core.ProcessRPCBlockResults(bresults)
+		blockDBWrapper, err := core.ProcessRPCBlockResults(blockData.BlockResultsData)
 		if err != nil {
 			config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
 			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
@@ -444,24 +440,15 @@ func (idxr *Indexer) indexBlockEvents(wg *sync.WaitGroup, failedBlockHandler cor
 			if err != nil {
 				config.Log.Fatal("Failed to insert failed block event", err)
 			}
+			continue
 		}
-		result, err := rpc.GetBlock(idxr.cl, bresults.Height)
-		if err != nil {
-			config.Log.Errorf("Failed to retrieve block time during block %d event processing, adding to failed block events table", currentHeight)
-			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
 
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
-			if err != nil {
-				config.Log.Fatal("Failed to insert failed block event", err)
-			}
-		} else {
-			config.Log.Infof("Finished gathering block event data for block %d", currentHeight)
+		config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
 
-			blockEventsDataChan <- &blockEventsDBData{
-				blockHeight:    bresults.Height,
-				blockTime:      result.Block.Time,
-				blockDBWrapper: blockDBWrapper,
-			}
+		blockEventsDataChan <- &blockEventsDBData{
+			blockHeight:    currentHeight,
+			blockTime:      blockData.BlockData.Block.Time,
+			blockDBWrapper: blockDBWrapper,
 		}
 	}
 }
