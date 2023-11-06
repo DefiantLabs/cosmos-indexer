@@ -23,11 +23,12 @@ import (
 )
 
 type Indexer struct {
-	cfg       *config.IndexConfig
-	dryRun    bool
-	db        *gorm.DB
-	cl        *client.ChainClient
-	scheduler *gocron.Scheduler
+	cfg                  *config.IndexConfig
+	dryRun               bool
+	db                   *gorm.DB
+	cl                   *client.ChainClient
+	scheduler            *gocron.Scheduler
+	blockEnqueueFunction func(chan int64) error
 }
 
 var indexer Indexer
@@ -187,7 +188,7 @@ func index(cmd *cobra.Command, args []string) {
 	blockRPCWorkerDataChan := make(chan core.IndexerBlockEventData, 10)
 	for i := 0; i < rpcQueryThreads; i++ {
 		blockRPCWaitGroup.Add(1)
-		go core.BlockRPCWorker(&blockRPCWaitGroup, blockEnqueueChan, dbChainID, idxr.cfg.Probe.ChainID, idxr.cfg, idxr.cl, idxr.db, idxr.cfg.Base.ChainIndexingEnabled, idxr.cfg.Base.BlockEventIndexingEnabled, blockRPCWorkerDataChan)
+		go core.BlockRPCWorker(&blockRPCWaitGroup, blockEnqueueChan, dbChainID, idxr.cfg.Probe.ChainID, idxr.cfg, idxr.cl, idxr.db, idxr.cfg.Base.TransactionIndexingEnabled, idxr.cfg.Base.BlockEventIndexingEnabled, blockRPCWorkerDataChan)
 	}
 
 	go func() {
@@ -202,47 +203,40 @@ func index(cmd *cobra.Command, args []string) {
 	wg.Add(1)
 	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID)
 
-	// Start a thread to index the data queried from the chain.
-	if idxr.cfg.Base.ChainIndexingEnabled || idxr.cfg.Base.BlockEventIndexingEnabled {
-		wg.Add(1)
-		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
+	wg.Add(1)
+	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
+
+	switch {
+	// If block enqueue function has been explicitly set, use that
+	case idxr.blockEnqueueFunction != nil:
+		err = idxr.blockEnqueueFunction(blockEnqueueChan)
+		if err != nil {
+			config.Log.Fatal("Block enqueue failed", err)
+		}
+	// Default block enqueue functions based on config values
+	case idxr.cfg.Base.ReindexMessageType != "":
+		idxr.blockEnqueueFunction, err = core.GenerateMsgTypeEnqueueFunction(idxr.db, *idxr.cfg, dbChainID, idxr.cfg.Base.ReindexMessageType)
+		if err != nil {
+			config.Log.Fatal("Failed to generate block enqueue function", err)
+		}
+		err = idxr.blockEnqueueFunction(blockEnqueueChan)
+		if err != nil {
+			config.Log.Fatal("Block enqueue failed", err)
+		}
+	case idxr.cfg.Base.BlockInputFile != "":
+		idxr.blockEnqueueFunction, err = core.GenerateBlockFileEnqueueFunction(idxr.db, *idxr.cfg, idxr.cl, dbChainID, idxr.cfg.Base.BlockInputFile)
+		if err != nil {
+			config.Log.Fatal("Failed to generate block enqueue function", err)
+		}
+		err = idxr.blockEnqueueFunction(blockEnqueueChan)
+		if err != nil {
+			config.Log.Fatal("Block enqueue failed", err)
+		}
+	default:
+		idxr.enqueueBlocksToProcess(blockEnqueueChan, dbChainID)
 	}
 
-	// TODO: Build method to switch block enqueue methods based on configuration values.
-	idxr.enqueueBlocksToProcess(blockEnqueueChan, dbChainID)
 	close(blockEnqueueChan)
-
-	// TODO: We need to wrap these in goroutines to prevent blocking if block event and block indexing are both enabled
-	// Add jobs to the queue to be processed
-	// if idxr.cfg.Base.ChainIndexingEnabled {
-	// 	switch {
-	// 	case idxr.cfg.Base.ReindexMessageType != "":
-	// 		idxr.enqueueBlocksToProcessByMsgType(transactionBlockChan, dbChainID, idxr.cfg.Base.ReindexMessageType)
-	// 	case idxr.cfg.Base.BlockInputFile != "":
-	// 		idxr.enqueueBlocksToProcessFromBlockInputFile(transactionBlockChan, idxr.cfg.Base.BlockInputFile)
-	// 	default:
-	// 		idxr.enqueueBlocksToProcess(transactionBlockChan, dbChainID)
-	// 	}
-
-	// 	// close the block chan once all blocks have been written to it
-	// close(transactionBlockChan)
-	// }
-
-	// if idxr.cfg.Base.BlockEventIndexingEnabled {
-	// 	// Is a closure really necessary?
-	// 	// It may make it easier to switch between different enqueue functions if they all have a common signature, in which case this wrapper is useful for pre-setting configs.
-	// 	enqueueFunc, err := core.GenerateBlockEventEnqueueFunctionNoReindex(idxr.db, *idxr.cfg, idxr.cl, dbChainID)
-	// 	if err != nil {
-	// 		config.Log.Fatal("Failed to generate block event enqueue function", err)
-	// 	}
-
-	// 	err = enqueueFunc(blockEventBlockChan)
-	// 	if err != nil {
-	// 		config.Log.Fatal("Block enqueue failed", err)
-	// 	}
-
-	// 	close(blockEventBlockChan)
-	// }
 
 	// If we error out in the main loop, this will block. Meaning we may not know of an error for 6 hours until last scheduled task stops
 	idxr.scheduler.Stop()
@@ -313,6 +307,8 @@ type blockEventsDBData struct {
 	blockHeight    int64
 }
 
+// This function is responsible for processing raw RPC data into app-usable types. It handles both block events and transactions.
+// It parses each dataset according to the application configuration requirements and passes the data to the channels that handle the parsed data.
 func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, txDataChan chan *dbData, chainID uint) {
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
@@ -344,7 +340,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			}
 		}
 
-		if idxr.cfg.Base.ChainIndexingEnabled && !blockData.TxRequestsFailed {
+		if idxr.cfg.Base.TransactionIndexingEnabled && !blockData.TxRequestsFailed {
 			config.Log.Info("Parsing transactions")
 			var txDBWrappers []dbTypes.TxDBWrapper
 			var err error
