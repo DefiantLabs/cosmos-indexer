@@ -28,7 +28,7 @@ type Indexer struct {
 	db                   *gorm.DB
 	cl                   *client.ChainClient
 	scheduler            *gocron.Scheduler
-	blockEnqueueFunction func(chan int64) error
+	blockEnqueueFunction func(chan *core.EnqueueData) error
 }
 
 var indexer Indexer
@@ -156,7 +156,7 @@ func index(cmd *cobra.Command, args []string) {
 	// blockChans are just the block heights; limit max jobs in the queue, otherwise this queue would contain one
 	// item (block height) for every block on the entire blockchain we're indexing. Furthermore, once the queue
 	// is close to empty, we will spin up a new thread to fill it up with new jobs.
-	blockEnqueueChan := make(chan int64, 10000)
+	blockEnqueueChan := make(chan *core.EnqueueData, 10000)
 
 	// This channel represents query job results for the RPC queries to Cosmos Nodes. Every time an RPC query
 	// completes, the query result will be sent to this channel (for later processing by a different thread).
@@ -188,7 +188,7 @@ func index(cmd *cobra.Command, args []string) {
 	blockRPCWorkerDataChan := make(chan core.IndexerBlockEventData, 10)
 	for i := 0; i < rpcQueryThreads; i++ {
 		blockRPCWaitGroup.Add(1)
-		go core.BlockRPCWorker(&blockRPCWaitGroup, blockEnqueueChan, dbChainID, idxr.cfg.Probe.ChainID, idxr.cfg, idxr.cl, idxr.db, idxr.cfg.Base.TransactionIndexingEnabled, idxr.cfg.Base.BlockEventIndexingEnabled, blockRPCWorkerDataChan)
+		go core.BlockRPCWorker(&blockRPCWaitGroup, blockEnqueueChan, dbChainID, idxr.cfg.Probe.ChainID, idxr.cfg, idxr.cl, idxr.db, blockRPCWorkerDataChan)
 	}
 
 	go func() {
@@ -318,7 +318,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 		currentHeight := blockData.BlockData.Block.Height
 		config.Log.Infof("Parsing data for block %d", currentHeight)
 
-		if idxr.cfg.Base.BlockEventIndexingEnabled && !blockData.BlockEventRequestsFailed {
+		if blockData.IndexBlockEvents && !blockData.BlockEventRequestsFailed {
 			config.Log.Info("Parsing block events")
 			blockDBWrapper, err := core.ProcessRPCBlockResults(blockData.BlockResultsData)
 			if err != nil {
@@ -340,7 +340,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			}
 		}
 
-		if idxr.cfg.Base.TransactionIndexingEnabled && !blockData.TxRequestsFailed {
+		if blockData.IndexTransactions && !blockData.TxRequestsFailed {
 			config.Log.Info("Parsing transactions")
 			var txDBWrappers []dbTypes.TxDBWrapper
 			var err error

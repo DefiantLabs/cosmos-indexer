@@ -17,6 +17,12 @@ import (
 
 var EnqueueFunctions = map[string]func(chan int64) error{}
 
+type EnqueueData struct {
+	Height            int64
+	IndexBlockEvents  bool
+	IndexTransactions bool
+}
+
 // Generates a closure that will enqueue blocks to be processed by the indexer based on the passed in configuration.
 // This closure is oriented to a configuration that is not reindexing old blocks. It will start at the last indexed event block and skip already indexed blocks.
 func GenerateBlockEventEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint) (func(chan int64) error, error) {
@@ -89,8 +95,8 @@ func GenerateBlockEventEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, clie
 	}, nil
 }
 
-func GenerateBlockFileEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint, blockInputFile string) (func(chan int64) error, error) {
-	return func(blockChan chan int64) error {
+func GenerateBlockFileEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint, blockInputFile string) (func(chan *EnqueueData) error, error) {
+	return func(blockChan chan *EnqueueData) error {
 		plan, err := os.ReadFile(blockInputFile)
 		if err != nil {
 			config.Log.Errorf("Error reading block input file. Err: %v", err)
@@ -154,13 +160,17 @@ func GenerateBlockFileEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, clien
 			}
 			config.Log.Debugf("Sending block %v to be indexed.", height)
 			// Add the new block to the queue
-			blockChan <- int64(height)
+			blockChan <- &EnqueueData{
+				IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled,
+				IndexTransactions: cfg.Base.TransactionIndexingEnabled,
+				Height:            int64(height),
+			}
 		}
 		return nil
 	}, nil
 }
 
-func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID uint, msgType string) (func(chan int64) error, error) {
+func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID uint, msgType string) (func(chan *EnqueueData) error, error) {
 	// get the block range
 	startBlock := cfg.Base.StartBlock
 	endBlock := cfg.Base.EndBlock
@@ -181,7 +191,7 @@ func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 		return nil, err
 	}
 
-	return func(blockChan chan int64) error {
+	return func(blockChan chan *EnqueueData) error {
 		defer rows.Close()
 		for rows.Next() {
 			var block int64
@@ -196,7 +206,11 @@ func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 			}
 
 			// Add the new block to the queue
-			blockChan <- block
+			blockChan <- &EnqueueData{
+				IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled,
+				IndexTransactions: cfg.Base.TransactionIndexingEnabled,
+				Height:            block,
+			}
 		}
 
 		return nil

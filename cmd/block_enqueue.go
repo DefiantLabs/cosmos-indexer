@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
+	"github.com/DefiantLabs/cosmos-indexer/core"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 )
 
-func (idxr *Indexer) enqueueFailedBlocks(blockChan chan int64, chainID uint) {
+func (idxr *Indexer) enqueueFailedBlocks(blockChan chan *core.EnqueueData, chainID uint) {
 	// Get all failed blocks
 	failedBlocks := dbTypes.GetFailedBlocks(idxr.db, chainID)
 	if len(failedBlocks) == 0 {
@@ -20,13 +21,17 @@ func (idxr *Indexer) enqueueFailedBlocks(blockChan chan int64, chainID uint) {
 			time.Sleep(time.Second * time.Duration(idxr.cfg.Base.Throttling))
 		}
 		config.Log.Infof("Will re-attempt failed block: %v", block.Height)
-		blockChan <- block.Height
+		blockChan <- &core.EnqueueData{
+			Height:            block.Height,
+			IndexBlockEvents:  idxr.cfg.Base.BlockEventIndexingEnabled,
+			IndexTransactions: idxr.cfg.Base.TransactionIndexingEnabled,
+		}
 	}
 	config.Log.Info("All failed blocks have been re-enqueued for processing")
 }
 
 // enqueueBlocksToProcess will pass the blocks that need to be processed to the blockchannel
-func (idxr *Indexer) enqueueBlocksToProcess(blockChan chan int64, chainID uint) {
+func (idxr *Indexer) enqueueBlocksToProcess(blockChan chan *core.EnqueueData, chainID uint) {
 	// Unless explicitly prevented, lets attempt to enqueue any failed blocks
 	if idxr.cfg.Base.ReattemptFailedBlocks {
 		idxr.enqueueFailedBlocks(blockChan, chainID)
@@ -77,7 +82,11 @@ func (idxr *Indexer) enqueueBlocksToProcess(blockChan chan int64, chainID uint) 
 				}
 
 				// Add the new block to the queue
-				blockChan <- currBlock
+				blockChan <- &core.EnqueueData{
+					Height:            currBlock,
+					IndexBlockEvents:  idxr.cfg.Base.BlockEventIndexingEnabled,
+					IndexTransactions: idxr.cfg.Base.TransactionIndexingEnabled,
+				}
 				currBlock++
 			}
 		}
