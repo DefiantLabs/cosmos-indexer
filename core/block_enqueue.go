@@ -9,6 +9,7 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
@@ -211,6 +212,91 @@ func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 				IndexTransactions: cfg.Base.TransactionIndexingEnabled,
 				Height:            block,
 			}
+		}
+
+		return nil
+	}, nil
+}
+
+// The default enqueue function will enqueue blocks according to the configuration passed in. It has a few default cases detailed here:
+// Based on whether transaction indexing or block event indexing are enabled, it will choose a start block based on passed in config values.
+// If reindexing is disabled, it will not reindex blocks that have already been indexed. This means it may skip around finding blocks that have not been
+// indexed according to the current configuration.
+// If failed block reattempts are enabled, it will enqueue those according to the passed in configuration as well.
+func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID uint) (func(chan *EnqueueData) error, error) {
+	var failedBlockEnqueueData []*EnqueueData
+	if cfg.Base.ReattemptFailedBlocks {
+		var failedEventBlocks []models.FailedEventBlock
+		var failedBlocks []models.FailedBlock
+
+		uniqueBlockFailures := make(map[int64]*EnqueueData)
+		if cfg.Base.BlockEventIndexingEnabled {
+			err := db.Table("failed_event_blocks").Where("blockchain_id = ?::int", chainID).Order("height asc").Scan(&failedEventBlocks).Error
+			if err != nil {
+				config.Log.Error("Error retrieving failed event blocks for reenqueue", err)
+				return nil, err
+			}
+		}
+
+		if cfg.Base.TransactionIndexingEnabled {
+			err := db.Table("failed_blocks").Where("blockchain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks).Error
+			if err != nil {
+				config.Log.Error("Error retrieving failed blocks for reenqueue", err)
+				return nil, err
+			}
+		}
+
+		for _, failedEventBlock := range failedEventBlocks {
+			uniqueBlockFailures[failedEventBlock.Height] = &EnqueueData{
+				Height:            failedEventBlock.Height,
+				IndexBlockEvents:  true,
+				IndexTransactions: false,
+			}
+		}
+
+		for _, failedBlock := range failedBlocks {
+			if _, ok := uniqueBlockFailures[failedBlock.Height]; ok {
+				uniqueBlockFailures[failedBlock.Height].IndexTransactions = true
+			} else {
+				uniqueBlockFailures[failedBlock.Height] = &EnqueueData{
+					Height:            failedBlock.Height,
+					IndexBlockEvents:  false,
+					IndexTransactions: true,
+				}
+			}
+		}
+
+		for _, block := range uniqueBlockFailures {
+			failedBlockEnqueueData = append(failedBlockEnqueueData, block)
+		}
+
+		sort.Slice(failedBlockEnqueueData, func(i, j int) bool { return failedBlockEnqueueData[i].Height < failedBlockEnqueueData[j].Height })
+	}
+
+	return func(blockChan chan *EnqueueData) error {
+		config.Log.Info("Re-enqueuing failed blocks")
+		if len(failedBlockEnqueueData) > 0 && cfg.Base.ReattemptFailedBlocks {
+			for _, block := range failedBlockEnqueueData {
+
+				switch {
+				case block.IndexBlockEvents && block.IndexTransactions:
+					config.Log.Infof("Re-attempting failed block %v for both block events and transactions", block.Height)
+				case block.IndexBlockEvents:
+					config.Log.Infof("Re-attempting failed block: %v for block events", block.Height)
+				case block.IndexTransactions:
+					config.Log.Infof("Re-attempting failed block: %v for transactions", block.Height)
+				}
+
+				if block.IndexBlockEvents || block.IndexTransactions {
+					blockChan <- block
+					if cfg.Base.Throttling != 0 {
+						time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
+					}
+				}
+			}
+			config.Log.Info("All failed blocks have been re-enqueued for processing")
+		} else if cfg.Base.ReattemptFailedBlocks {
+			config.Log.Info("No failed blocks to re-enqueue")
 		}
 
 		return nil

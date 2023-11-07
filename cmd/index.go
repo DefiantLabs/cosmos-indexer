@@ -233,7 +233,14 @@ func index(cmd *cobra.Command, args []string) {
 			config.Log.Fatal("Block enqueue failed", err)
 		}
 	default:
-		idxr.enqueueBlocksToProcess(blockEnqueueChan, dbChainID)
+		idxr.blockEnqueueFunction, err = core.GenerateDefaultEnqueueFunction(idxr.db, *idxr.cfg, dbChainID)
+		if err != nil {
+			config.Log.Fatal("Failed to generate block enqueue function", err)
+		}
+		err = idxr.blockEnqueueFunction(blockEnqueueChan)
+		if err != nil {
+			config.Log.Fatal("Block enqueue failed", err)
+		}
 	}
 
 	close(blockEnqueueChan)

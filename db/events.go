@@ -11,7 +11,12 @@ import (
 
 func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime time.Time, blockDBWrapper *BlockDBWrapper, dbChainID uint, dbChainName string, identifierLoggingString string) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		// TODO: Delete from FailedEventBlock table
+		if err := dbTransaction.
+			Exec("DELETE FROM failed_event_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
+			Error; err != nil {
+			config.Log.Error("Error updating failed block.", err)
+			return err
+		}
 
 		// create block if it doesn't exist
 		blockDBWrapper.Block.ChainID = dbChainID
