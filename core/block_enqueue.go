@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -22,78 +23,6 @@ type EnqueueData struct {
 	Height            int64
 	IndexBlockEvents  bool
 	IndexTransactions bool
-}
-
-// Generates a closure that will enqueue blocks to be processed by the indexer based on the passed in configuration.
-// This closure is oriented to a configuration that is not reindexing old blocks. It will start at the last indexed event block and skip already indexed blocks.
-func GenerateBlockEventEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint) (func(chan int64) error, error) {
-	startHeight := cfg.Base.StartBlock
-	endHeight := cfg.Base.EndBlock
-
-	dbLastIndexedBlockEvent, err := dbTypes.GetHighestEventIndexedBlock(db, chainID)
-	if err != nil {
-		return nil, err
-	}
-	if dbLastIndexedBlockEvent.Height > 0 {
-		startHeight = dbLastIndexedBlockEvent.Height + 1
-	}
-
-	// 0 isn't a valid starting block
-	if startHeight <= 0 {
-		startHeight = 1
-	}
-
-	lastKnownBlockHeight, errBh := rpc.GetLatestBlockHeight(client)
-	if errBh != nil {
-		config.Log.Fatal("Error getting blockchain latest height in block event indexer enqueue builder.", errBh)
-	}
-
-	currentHeight := startHeight
-
-	throttling := cfg.Base.Throttling
-
-	// Generate closure that works on the above configured dataset
-	return func(blockChan chan int64) error {
-		for endHeight == -1 || currentHeight <= endHeight {
-			// OPTIMIZE: We should come up with a query to skip blocks in a range that have already been indexed to avoid iterating through
-			alreadyIndexed, err := dbTypes.BlockEventsAlreadyIndexed(currentHeight, chainID, db)
-			if err != nil {
-				return err
-			}
-
-			if !alreadyIndexed {
-				blockChan <- currentHeight
-			} else {
-				config.Log.Debugf("Block %d already indexed, skipping", currentHeight)
-			}
-
-			currentHeight++
-			if currentHeight > lastKnownBlockHeight {
-				config.Log.Infof("Block %d has passed lastKnownBlockHeight, checking again", currentHeight)
-				// For loop catches both of the following
-				// whether we are going too fast and need to do multiple sleeps
-				// whether the lastKnownHeight was set a long time ago (as in at app start) and we just need to reset the value
-				for {
-					lastKnownBlockHeight, err := rpc.GetLatestBlockHeight(client)
-					if err != nil {
-						return err
-					}
-
-					if currentHeight > lastKnownBlockHeight {
-						config.Log.Infof("Sleeping...")
-						time.Sleep(time.Second * 20)
-					} else {
-						config.Log.Infof("Continuing until block %d", lastKnownBlockHeight)
-						break
-					}
-				}
-			}
-
-			time.Sleep(time.Second * time.Duration(throttling))
-
-		}
-		return nil
-	}, nil
 }
 
 func GenerateBlockFileEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint, blockInputFile string) (func(chan *EnqueueData) error, error) {
@@ -223,7 +152,7 @@ func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 // If reindexing is disabled, it will not reindex blocks that have already been indexed. This means it may skip around finding blocks that have not been
 // indexed according to the current configuration.
 // If failed block reattempts are enabled, it will enqueue those according to the passed in configuration as well.
-func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID uint) (func(chan *EnqueueData) error, error) {
+func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client *client.ChainClient, chainID uint) (func(chan *EnqueueData) error, error) {
 	var failedBlockEnqueueData []*EnqueueData
 	if cfg.Base.ReattemptFailedBlocks {
 		var failedEventBlocks []models.FailedEventBlock
@@ -273,9 +202,41 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 		sort.Slice(failedBlockEnqueueData, func(i, j int) bool { return failedBlockEnqueueData[i].Height < failedBlockEnqueueData[j].Height })
 	}
 
+	startBlock := cfg.Base.StartBlock
+	endBlock := cfg.Base.EndBlock
+	var latestBlock int64 = math.MaxInt64
+	reindexing := cfg.Base.ReIndex
+	// var lastBlock = cfg.Base.EndBlock
+	// var latestBlock int64 = math.MaxInt64
+
+	if startBlock <= 0 {
+		startBlock = 1
+	}
+
+	var blocksFromStart []models.Block
+
+	if !reindexing {
+		var err error
+		config.Log.Info("Reindexing is disabled, skipping blocks that have already been indexed")
+		// We need to pick up where we last left off, find blocks after start and skip already indexed blocks
+		blocksFromStart, err = dbTypes.GetBlocksFromStart(db, chainID, startBlock, endBlock)
+
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		config.Log.Info("Reindexing is enabled starting from initial start height")
+	}
+
 	return func(blockChan chan *EnqueueData) error {
-		config.Log.Info("Re-enqueuing failed blocks")
+		blocksInDB := make(map[int64]models.Block)
+		for _, block := range blocksFromStart {
+			blocksInDB[block.Height] = block
+		}
+
 		if len(failedBlockEnqueueData) > 0 && cfg.Base.ReattemptFailedBlocks {
+			config.Log.Info("Re-enqueuing failed blocks")
 			for _, block := range failedBlockEnqueueData {
 
 				switch {
@@ -299,6 +260,89 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 			config.Log.Info("No failed blocks to re-enqueue")
 		}
 
-		return nil
+		currBlock := startBlock
+
+		for {
+			// The program is configured to stop running after a set block height.
+			// Generally this will only be done while debugging or if a particular block was incorrectly processed.
+			if endBlock != -1 && currBlock > endBlock {
+				config.Log.Info("Hit the last block we're allowed to index, exiting enqueue func.")
+				return nil
+			} else if cfg.Base.ExitWhenCaughtUp && currBlock > latestBlock {
+				config.Log.Info("Hit the last block we're allowed to index, exiting enqueue func.")
+				return nil
+			}
+
+			// The job queue is running out of jobs to process, see if the blockchain has produced any new blocks we haven't indexed yet.
+			if len(blockChan) <= cap(blockChan)/4 {
+				// This is the latest block height available on the Node.
+
+				var err error
+				latestBlock, err = rpc.GetLatestBlockHeightWithRetry(client, cfg.Base.RequestRetryAttempts, cfg.Base.RequestRetryMaxWait)
+				if err != nil {
+					config.Log.Error("Error getting blockchain latest height. Err: %v", err)
+					return err
+				}
+
+				// Throttling in case of hitting public APIs
+				if cfg.Base.Throttling != 0 {
+					time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
+				}
+
+				// Already at the latest block, wait for the next block to be available.
+				for currBlock < latestBlock && (currBlock <= endBlock || endBlock == -1) && len(blockChan) != cap(blockChan) {
+					// if we are not re-indexing, skip curr block if already indexed
+					block, blockExists := blocksInDB[currBlock]
+
+					// Skip blocks already in DB that do not need indexing according to the config
+					if !reindexing && blockExists {
+						config.Log.Debugf("Block %d already in DB, checking if it needs indexing", currBlock)
+
+						needsIndex := false
+
+						if cfg.Base.BlockEventIndexingEnabled && !block.BlockEventsIndexed {
+							needsIndex = true
+						} else if cfg.Base.TransactionIndexingEnabled && !block.TxIndexed {
+							needsIndex = true
+						}
+
+						if !needsIndex {
+							config.Log.Debugf("Block %d already indexed, skipping", currBlock)
+							currBlock++
+							continue
+						} else {
+							config.Log.Debugf("Block %d needs indexing, adding to queue", currBlock)
+							blockChan <- &EnqueueData{
+								Height:            currBlock,
+								IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled && !block.BlockEventsIndexed,
+								IndexTransactions: cfg.Base.TransactionIndexingEnabled && !block.TxIndexed,
+							}
+
+							delete(blocksInDB, currBlock)
+
+							currBlock++
+
+							if cfg.Base.Throttling != 0 {
+								time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
+							}
+
+							continue
+						}
+					}
+
+					// Add the new block to the queue
+					blockChan <- &EnqueueData{
+						Height:            currBlock,
+						IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled,
+						IndexTransactions: cfg.Base.TransactionIndexingEnabled,
+					}
+					currBlock++
+
+					if cfg.Base.Throttling != 0 {
+						time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
+					}
+				}
+			}
+		}
 	}, nil
 }
