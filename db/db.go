@@ -53,18 +53,11 @@ func MigrateModels(db *gorm.DB) error {
 		return err
 	}
 
-	return db.AutoMigrate(
-		&models.Tx{},
-		&models.Fee{},
-		&models.Address{},
-		&models.MessageType{},
-		&models.Message{},
-		&models.Denom{},
-		&models.DenomUnit{},
-		&models.IBCDenom{},
-		&models.FailedTx{},
-		&models.FailedMessage{},
-	)
+	if err := migrateTXModels(db); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func migrateChainModels(db *gorm.DB) error {
@@ -82,6 +75,22 @@ func migrateBlockModels(db *gorm.DB) error {
 		&models.BlockEventAttributeKey{},
 		&models.FailedBlock{},
 		&models.FailedEventBlock{},
+	)
+}
+
+func migrateTXModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Tx{},
+		&models.Fee{},
+		&models.Address{},
+		&models.MessageType{},
+		&models.Message{},
+		&models.FailedTx{},
+		&models.FailedMessage{},
+		&models.MessageEvent{},
+		&models.MessageEventType{},
+		&models.MessageEventAttribute{},
+		&models.MessageEventAttributeKey{},
 	)
 }
 

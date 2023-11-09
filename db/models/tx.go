@@ -50,3 +50,36 @@ type FailedMessage struct {
 	TxID         uint
 	Tx           Tx
 }
+
+type MessageEvent struct {
+	ID uint
+	// These fields uniquely identify every message event
+	// Index refers to the position of the event in the message event array
+	Index              uint64 `gorm:"uniqueIndex:messageEventIndex,priority:2"`
+	MessageID          uint   `gorm:"uniqueIndex:messageEventIndex,priority:1"`
+	Message            Message
+	MessageEventTypeID uint
+	MessageEventType   MessageEventType
+}
+
+type MessageEventType struct {
+	ID   uint
+	Type string `gorm:"uniqueIndex"`
+}
+
+type MessageEventAttribute struct {
+	ID             uint
+	MessageEvent   MessageEvent
+	MessageEventID uint `gorm:"uniqueIndex:messageAttributeIndex,priority:1"`
+	Value          string
+	Index          uint64 `gorm:"uniqueIndex:messageAttributeIndex,priority:2"`
+	// Keys are limited to a smallish subset of string values set by the Cosmos SDK and external modules
+	// Save DB space by storing the key as a foreign key
+	MessageEventAttributeKeyID uint
+	MessageEventAttributeKey   MessageEventAttributeKey
+}
+
+type MessageEventAttributeKey struct {
+	ID  uint
+	Key string `gorm:"uniqueIndex"`
+}
