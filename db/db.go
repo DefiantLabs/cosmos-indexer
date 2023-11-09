@@ -130,6 +130,22 @@ func GetHighestIndexedBlock(db *gorm.DB, chainID uint) models.Block {
 	return block
 }
 
+func GetBlocksFromStart(db *gorm.DB, chainID uint, startHeight int64, endHeight int64) ([]models.Block, error) {
+	var blocks []models.Block
+
+	initialWhere := db.Where("chain_id = ?::int AND time_stamp != '0001-01-01T00:00:00.000Z' AND height >= ?", chainID, startHeight)
+
+	if endHeight != -1 {
+		initialWhere = initialWhere.Where("height <= ?", endHeight)
+	}
+
+	if err := initialWhere.Find(&blocks).Error; err != nil {
+		return nil, err
+	}
+
+	return blocks, nil
+}
+
 func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error) {
 	var block models.Block
 	// this can potentially be optimized by getting max first and selecting it (this gets translated into a select * limit 1)
@@ -189,7 +205,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		// remove from failed blocks if exists
 		if err := dbTransaction.
-			Exec("DELETE FROM failed_blocks WHERE height = ? AND chain_id = ?", blockHeight, dbChainID).
+			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
 			Error; err != nil {
 			config.Log.Error("Error updating failed block.", err)
 			return err

@@ -23,11 +23,12 @@ import (
 )
 
 type Indexer struct {
-	cfg       *config.IndexConfig
-	dryRun    bool
-	db        *gorm.DB
-	cl        *client.ChainClient
-	scheduler *gocron.Scheduler
+	cfg                  *config.IndexConfig
+	dryRun               bool
+	db                   *gorm.DB
+	cl                   *client.ChainClient
+	scheduler            *gocron.Scheduler
+	blockEnqueueFunction func(chan *core.EnqueueData) error
 }
 
 var indexer Indexer
@@ -155,8 +156,7 @@ func index(cmd *cobra.Command, args []string) {
 	// blockChans are just the block heights; limit max jobs in the queue, otherwise this queue would contain one
 	// item (block height) for every block on the entire blockchain we're indexing. Furthermore, once the queue
 	// is close to empty, we will spin up a new thread to fill it up with new jobs.
-	transactionBlockChan := make(chan int64, 10000)
-	blockEventBlockChan := make(chan int64, 10000)
+	blockEnqueueChan := make(chan *core.EnqueueData, 10000)
 
 	// This channel represents query job results for the RPC queries to Cosmos Nodes. Every time an RPC query
 	// completes, the query result will be sent to this channel (for later processing by a different thread).
@@ -169,25 +169,6 @@ func index(cmd *cobra.Command, args []string) {
 	} else if rpcQueryThreads > 64 {
 		rpcQueryThreads = 64
 	}
-	txDataChan := make(chan *dbData, 4*rpcQueryThreads)
-	var txChanWaitGroup sync.WaitGroup // This group is to ensure we are done getting transactions before we close the TX channel
-	// Spin up a (configurable) number of threads to query RPC endpoints for Transactions.
-	// this is assumed to be the slowest process that allows concurrency and thus has the most dedicated go routines.
-	if idxr.cfg.Base.ChainIndexingEnabled {
-		for i := 0; i < rpcQueryThreads; i++ {
-			txChanWaitGroup.Add(1)
-			go func() {
-				idxr.queryRPC(transactionBlockChan, txDataChan, core.HandleFailedBlock)
-				txChanWaitGroup.Done()
-			}()
-		}
-	}
-
-	// close the transaction chan once all transactions have been written to it
-	go func() {
-		txChanWaitGroup.Wait()
-		close(txDataChan)
-	}()
 
 	var wg sync.WaitGroup // This group is to ensure we are done processing transactions and events before returning
 
@@ -201,65 +182,57 @@ func index(cmd *cobra.Command, args []string) {
 		config.Log.Fatal("Failed to add/create chain in DB", err)
 	}
 
+	// This block consolidates all base RPC requests into one worker.
+	// Workers read from the enqueued blocks and query blockchain data from the RPC server.
+	var blockRPCWaitGroup sync.WaitGroup
+	blockRPCWorkerDataChan := make(chan core.IndexerBlockEventData, 10)
+	for i := 0; i < rpcQueryThreads; i++ {
+		blockRPCWaitGroup.Add(1)
+		go core.BlockRPCWorker(&blockRPCWaitGroup, blockEnqueueChan, dbChainID, idxr.cfg.Probe.ChainID, idxr.cfg, idxr.cl, idxr.db, blockRPCWorkerDataChan)
+	}
+
+	go func() {
+		blockRPCWaitGroup.Wait()
+		close(blockRPCWorkerDataChan)
+	}()
+
 	// Block BeginBlocker and EndBlocker indexing requirements. Indexes block events that took place in the BeginBlock and EndBlock state transitions
-	blockEventRPCWorkerChan := make(chan core.IndexerBlockEventData, 10)
 	blockEventsDataChan := make(chan *blockEventsDBData, 4*rpcQueryThreads)
-	if idxr.cfg.Base.BlockEventIndexingEnabled {
-		var blockChanWaitGroup sync.WaitGroup
-		for i := 0; i < rpcQueryThreads; i++ {
-			blockChanWaitGroup.Add(1)
-			go core.BlockEventRPCWorker(&blockChanWaitGroup, blockEventBlockChan, dbChainID, idxr.cfg, idxr.cl, idxr.db, idxr.cfg.Base.ChainIndexingEnabled, idxr.cfg.Base.BlockEventIndexingEnabled, blockEventRPCWorkerChan)
-		}
+	txDataChan := make(chan *dbData, 4*rpcQueryThreads)
 
-		wg.Add(1)
-		go idxr.processBlockEvents(&wg, core.HandleFailedBlock, blockEventRPCWorkerChan, blockEventsDataChan, dbChainID)
+	wg.Add(1)
+	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID)
 
-		go func() {
-			blockChanWaitGroup.Wait()
-			close(blockEventRPCWorkerChan)
-		}()
-	} else {
-		close(blockEventsDataChan)
-		close(blockEventRPCWorkerChan)
-	}
+	wg.Add(1)
+	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
 
-	// Start a thread to index the data queried from the chain.
-	if idxr.cfg.Base.ChainIndexingEnabled || idxr.cfg.Base.BlockEventIndexingEnabled {
-		wg.Add(1)
-		go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
-	}
-
-	// TODO: We need to wrap these in goroutines to prevent blocking if block event and block indexing are both enabled
-	// Add jobs to the queue to be processed
-	if idxr.cfg.Base.ChainIndexingEnabled {
-		switch {
-		case idxr.cfg.Base.ReindexMessageType != "":
-			idxr.enqueueBlocksToProcessByMsgType(transactionBlockChan, dbChainID, idxr.cfg.Base.ReindexMessageType)
-		case idxr.cfg.Base.BlockInputFile != "":
-			idxr.enqueueBlocksToProcessFromBlockInputFile(transactionBlockChan, idxr.cfg.Base.BlockInputFile)
-		default:
-			idxr.enqueueBlocksToProcess(transactionBlockChan, dbChainID)
-		}
-
-		// close the block chan once all blocks have been written to it
-		close(transactionBlockChan)
-	}
-
-	if idxr.cfg.Base.BlockEventIndexingEnabled {
-		// Is a closure really necessary?
-		// It may make it easier to switch between different enqueue functions if they all have a common signature, in which case this wrapper is useful for pre-setting configs.
-		enqueueFunc, err := core.GenerateBlockEventEnqueueFunctionNoReindex(idxr.db, *idxr.cfg, idxr.cl, dbChainID)
+	switch {
+	// If block enqueue function has been explicitly set, use that
+	case idxr.blockEnqueueFunction != nil:
+	// Default block enqueue functions based on config values
+	case idxr.cfg.Base.ReindexMessageType != "":
+		idxr.blockEnqueueFunction, err = core.GenerateMsgTypeEnqueueFunction(idxr.db, *idxr.cfg, dbChainID, idxr.cfg.Base.ReindexMessageType)
 		if err != nil {
-			config.Log.Fatal("Failed to generate block event enqueue function", err)
+			config.Log.Fatal("Failed to generate block enqueue function", err)
 		}
-
-		err = enqueueFunc(blockEventBlockChan)
+	case idxr.cfg.Base.BlockInputFile != "":
+		idxr.blockEnqueueFunction, err = core.GenerateBlockFileEnqueueFunction(idxr.db, *idxr.cfg, idxr.cl, dbChainID, idxr.cfg.Base.BlockInputFile)
 		if err != nil {
-			config.Log.Fatal("Block enqueue failed", err)
+			config.Log.Fatal("Failed to generate block enqueue function", err)
 		}
-
-		close(blockEventBlockChan)
+	default:
+		idxr.blockEnqueueFunction, err = core.GenerateDefaultEnqueueFunction(idxr.db, *idxr.cfg, idxr.cl, dbChainID)
+		if err != nil {
+			config.Log.Fatal("Failed to generate block enqueue function", err)
+		}
 	}
+
+	err = idxr.blockEnqueueFunction(blockEnqueueChan)
+	if err != nil {
+		config.Log.Fatal("Block enqueue failed", err)
+	}
+
+	close(blockEnqueueChan)
 
 	// If we error out in the main loop, this will block. Meaning we may not know of an error for 6 hours until last scheduled task stops
 	idxr.scheduler.Stop()
@@ -273,16 +246,6 @@ func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID uint) int64 {
 	}
 
 	return block.Height
-}
-
-// blockAlreadyIndexed will return true if the block is already in the DB
-func blockAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) bool {
-	var exists bool
-	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
-	if err != nil {
-		config.Log.Fatalf("Error checking DB for block. Err: %v", err)
-	}
-	return exists
 }
 
 // GetIndexerStartingHeight will determine which block to start at
@@ -318,100 +281,6 @@ func (idxr *Indexer) GetIndexerStartingHeight(chainID uint) int64 {
 	return dbTypes.GetFirstMissingBlockInRange(idxr.db, idxr.cfg.Base.StartBlock, maxStart, chainID)
 }
 
-// queryRPC will query the RPC endpoint
-// this information will be parsed and converted into the domain objects we use for indexing this data.
-// data is then passed to a channel to be consumed and inserted into the DB
-func (idxr *Indexer) queryRPC(blockChan chan int64, dbDataChan chan *dbData, failedBlockHandler core.FailedBlockHandler) {
-	for blockToProcess := range blockChan {
-		// attempt to process the block 5 times and then give up
-		err := processBlock(idxr.cl, idxr.db, failedBlockHandler, dbDataChan, blockToProcess)
-		if err != nil {
-			config.Log.Error(fmt.Sprintf("Failed to process block %v. Will add to failed blocks table", blockToProcess))
-			err := dbTypes.UpsertFailedBlock(idxr.db, blockToProcess, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
-			if err != nil {
-				config.Log.Fatal(fmt.Sprintf("Failed to store that block %v failed. Not safe to continue.", blockToProcess), err)
-			}
-		}
-	}
-}
-
-func processBlock(cl *client.ChainClient, dbConn *gorm.DB, failedBlockHandler func(height int64, code core.BlockProcessingFailure, err error), dbDataChan chan *dbData, blockToProcess int64) error {
-	// fmt.Printf("Querying RPC transactions for block %d\n", blockToProcess)
-	newBlock := models.Block{Height: blockToProcess}
-	var txDBWrappers []dbTypes.TxDBWrapper
-	var blockTime *time.Time
-	var err error
-	errTypeURL := false
-
-	txsEventResp, err := rpc.GetTxsByBlockHeight(cl, newBlock.Height)
-	if err != nil {
-		if strings.Contains(err.Error(), "unable to resolve type URL") {
-			errTypeURL = true
-		} else {
-			config.Log.Errorf("Error getting transactions by block height (%v). Err: %v. Will reattempt", newBlock.Height, err)
-			return err
-		}
-	}
-
-	// There are two reasons this block would be hit
-	// 1) The node might have pruned history resulting in a failed lookup. Recheck to see if the block was supposed to have TX results.
-	// 2) The RPC endpoint (node we queried) doesn't recognize the type URL anymore, for an older type (e.g. on an archive node).
-	if errTypeURL || len(txsEventResp.Txs) == 0 {
-		// The node might have pruned history resulting in a failed lookup. Recheck to see if the block was supposed to have TX results.
-		resBlockResults, err := rpc.GetBlockByHeight(cl, newBlock.Height)
-		if err != nil || resBlockResults == nil {
-			if err != nil && strings.Contains(err.Error(), "is not available, lowest height is") {
-				failedBlockHandler(newBlock.Height, core.NodeMissingHistoryForBlock, err)
-			} else {
-				failedBlockHandler(newBlock.Height, core.BlockQueryError, err)
-			}
-			return err
-		} else if len(resBlockResults.TxsResults) > 0 {
-			// The tx.height=X query said there were 0 TXs, but GetBlockByHeight() found some. When this happens
-			// it is the same on every RPC node. Thus, we defer to the results from GetBlockByHeight.
-			config.Log.Debugf("Falling back to secondary queries for block height %d", newBlock.Height)
-
-			blockResults, err := rpc.GetBlock(cl, newBlock.Height)
-			if err != nil {
-				config.Log.Errorf("Secondary RPC query failed, %d, %s", newBlock.Height, err)
-				return err
-			}
-
-			txDBWrappers, blockTime, err = core.ProcessRPCBlockByHeightTXs(dbConn, cl, blockResults, resBlockResults)
-			if err != nil {
-				config.Log.Errorf("Second query parser failed (ProcessRPCBlockByHeightTXs), %d, %s", newBlock.Height, err.Error())
-				return err
-			}
-		}
-	} else {
-		txDBWrappers, blockTime, err = core.ProcessRPCTXs(dbConn, txsEventResp)
-		if err != nil {
-			config.Log.Error("ProcessRpcTxs: unhandled error", err)
-			failedBlockHandler(blockToProcess, core.UnprocessableTxError, err)
-			return err
-		}
-	}
-
-	// Get the block time if we don't have TXs
-	if blockTime == nil {
-		result, err := rpc.GetBlock(cl, newBlock.Height)
-		if err != nil {
-			config.Log.Errorf("Error getting block info for block %v. Err: %v", newBlock.Height, err)
-			return err
-		}
-		blockTime = &result.Block.Time
-	}
-
-	res := &dbData{
-		txDBWrappers: txDBWrappers,
-		blockTime:    *blockTime,
-		blockHeight:  blockToProcess,
-	}
-	dbDataChan <- res
-
-	return nil
-}
-
 type dbData struct {
 	txDBWrappers []dbTypes.TxDBWrapper
 	blockTime    time.Time
@@ -424,31 +293,62 @@ type blockEventsDBData struct {
 	blockHeight    int64
 }
 
-func (idxr *Indexer) processBlockEvents(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockEventRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, chainID uint) {
+// This function is responsible for processing raw RPC data into app-usable types. It handles both block events and transactions.
+// It parses each dataset according to the application configuration requirements and passes the data to the channels that handle the parsed data.
+func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, txDataChan chan *dbData, chainID uint) {
 	defer close(blockEventsDataChan)
+	defer close(txDataChan)
 	defer wg.Done()
 
-	for blockData := range blockEventRPCWorkerChan {
+	for blockData := range blockRPCWorkerChan {
 		currentHeight := blockData.BlockData.Block.Height
 		config.Log.Infof("Parsing data for block %d", currentHeight)
 
-		blockDBWrapper, err := core.ProcessRPCBlockResults(blockData.BlockResultsData)
-		if err != nil {
-			config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
-			failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
-			err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+		if blockData.IndexBlockEvents && !blockData.BlockEventRequestsFailed {
+			config.Log.Info("Parsing block events")
+			blockDBWrapper, err := core.ProcessRPCBlockResults(blockData.BlockResultsData)
 			if err != nil {
-				config.Log.Fatal("Failed to insert failed block event", err)
+				config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
+				failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
+				err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+				if err != nil {
+					config.Log.Fatal("Failed to insert failed block event", err)
+				}
+				continue
 			}
-			continue
+
+			config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
+
+			blockEventsDataChan <- &blockEventsDBData{
+				blockHeight:    currentHeight,
+				blockTime:      blockData.BlockData.Block.Time,
+				blockDBWrapper: blockDBWrapper,
+			}
 		}
 
-		config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
+		if blockData.IndexTransactions && !blockData.TxRequestsFailed {
+			config.Log.Info("Parsing transactions")
+			var txDBWrappers []dbTypes.TxDBWrapper
+			var err error
 
-		blockEventsDataChan <- &blockEventsDBData{
-			blockHeight:    currentHeight,
-			blockTime:      blockData.BlockData.Block.Time,
-			blockDBWrapper: blockDBWrapper,
+			if blockData.GetTxsResponse != nil {
+				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, blockData.GetTxsResponse)
+			} else if blockData.BlockResultsData != nil {
+				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, blockData.BlockData, blockData.BlockResultsData)
+			}
+
+			if err != nil {
+				config.Log.Error("ProcessRpcTxs: unhandled error", err)
+				failedBlockHandler(currentHeight, core.UnprocessableTxError, err)
+				continue
+			}
+
+			txDataChan <- &dbData{
+				txDBWrappers: txDBWrappers,
+				blockTime:    blockData.BlockData.Block.Time,
+				blockHeight:  currentHeight,
+			}
+
 		}
 	}
 }
