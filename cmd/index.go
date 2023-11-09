@@ -209,38 +209,27 @@ func index(cmd *cobra.Command, args []string) {
 	switch {
 	// If block enqueue function has been explicitly set, use that
 	case idxr.blockEnqueueFunction != nil:
-		err = idxr.blockEnqueueFunction(blockEnqueueChan)
-		if err != nil {
-			config.Log.Fatal("Block enqueue failed", err)
-		}
 	// Default block enqueue functions based on config values
 	case idxr.cfg.Base.ReindexMessageType != "":
 		idxr.blockEnqueueFunction, err = core.GenerateMsgTypeEnqueueFunction(idxr.db, *idxr.cfg, dbChainID, idxr.cfg.Base.ReindexMessageType)
 		if err != nil {
 			config.Log.Fatal("Failed to generate block enqueue function", err)
 		}
-		err = idxr.blockEnqueueFunction(blockEnqueueChan)
-		if err != nil {
-			config.Log.Fatal("Block enqueue failed", err)
-		}
 	case idxr.cfg.Base.BlockInputFile != "":
 		idxr.blockEnqueueFunction, err = core.GenerateBlockFileEnqueueFunction(idxr.db, *idxr.cfg, idxr.cl, dbChainID, idxr.cfg.Base.BlockInputFile)
 		if err != nil {
 			config.Log.Fatal("Failed to generate block enqueue function", err)
-		}
-		err = idxr.blockEnqueueFunction(blockEnqueueChan)
-		if err != nil {
-			config.Log.Fatal("Block enqueue failed", err)
 		}
 	default:
 		idxr.blockEnqueueFunction, err = core.GenerateDefaultEnqueueFunction(idxr.db, *idxr.cfg, idxr.cl, dbChainID)
 		if err != nil {
 			config.Log.Fatal("Failed to generate block enqueue function", err)
 		}
-		err = idxr.blockEnqueueFunction(blockEnqueueChan)
-		if err != nil {
-			config.Log.Fatal("Block enqueue failed", err)
-		}
+	}
+
+	err = idxr.blockEnqueueFunction(blockEnqueueChan)
+	if err != nil {
+		config.Log.Fatal("Block enqueue failed", err)
 	}
 
 	close(blockEnqueueChan)
