@@ -244,6 +244,8 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	var messages []dbTypes.MessageDBWrapper
 
 	// non-zero code means the Tx was unsuccessful. We will still need to account for fees in both cases though.
+	uniqueEventTypes := make(map[string]models.MessageEventType)
+	uniqueEventAttributeKeys := make(map[string]models.MessageEventAttributeKey)
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
 			var currMessage models.Message
@@ -252,12 +254,35 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 			// Get the message log that corresponds to the current message
 			var currMessageDBWrapper dbTypes.MessageDBWrapper
-			// TODO: Parse log into event items
-			// messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
+			messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
 
 			currMessageType.MessageType = types.MsgTypeURL(message)
 			currMessage.MessageType = currMessageType
 			currMessageDBWrapper.Message = currMessage
+
+			for eventIndex, event := range messageLog.Events {
+				uniqueEventTypes[event.Type] = models.MessageEventType{Type: event.Type}
+
+				var currMessageEvent dbTypes.MessageEventDBWrapper
+				currMessageEvent.MessageEvent = models.MessageEvent{
+					MessageEventType: uniqueEventTypes[event.Type],
+					Index:            uint64(eventIndex),
+				}
+				var currMessageEventAttributes []models.MessageEventAttribute
+				for attributeIndex, attribute := range event.Attributes {
+					uniqueEventAttributeKeys[attribute.Key] = models.MessageEventAttributeKey{Key: attribute.Key}
+
+					currMessageEventAttributes = append(currMessageEventAttributes, models.MessageEventAttribute{
+						Value:                    attribute.Value,
+						MessageEventAttributeKey: uniqueEventAttributeKeys[attribute.Key],
+						Index:                    uint64(attributeIndex),
+					})
+				}
+
+				currMessageEvent.Attributes = currMessageEventAttributes
+				currMessageDBWrapper.MessageEvents = append(currMessageDBWrapper.MessageEvents, currMessageEvent)
+			}
+
 			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, currMessageType.MessageType))
 
 			messages = append(messages, currMessageDBWrapper)
@@ -271,6 +296,8 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
 	txDBWapper.Messages = messages
+	txDBWapper.UniqueMessageAttributeKeys = uniqueEventAttributeKeys
+	txDBWapper.UniqueMessageEventTypes = uniqueEventTypes
 
 	return txDBWapper, txTime, nil
 }
