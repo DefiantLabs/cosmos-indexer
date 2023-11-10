@@ -53,6 +53,10 @@ func MigrateModels(db *gorm.DB) error {
 		return err
 	}
 
+	if err := migrateDenomModels(db); err != nil {
+		return err
+	}
+
 	if err := migrateTXModels(db); err != nil {
 		return err
 	}
@@ -75,6 +79,13 @@ func migrateBlockModels(db *gorm.DB) error {
 		&models.BlockEventAttributeKey{},
 		&models.FailedBlock{},
 		&models.FailedEventBlock{},
+	)
+}
+
+func migrateDenomModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Denom{},
+		&models.DenomUnit{},
 	)
 }
 
