@@ -33,6 +33,7 @@ type TxDBWrapper struct {
 	Tx                         models.Tx
 	SignerAddress              models.Address
 	Messages                   []MessageDBWrapper
+	UniqueMessageTypes         map[string]models.MessageType
 	UniqueMessageEventTypes    map[string]models.MessageEventType
 	UniqueMessageAttributeKeys map[string]models.MessageEventAttributeKey
 }
