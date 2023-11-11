@@ -1,7 +1,6 @@
 package core
 
 import (
-	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -133,7 +132,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		indexerTx.Body = txBody
 		txHash := tendermintTx.Hash()
 		indexerTxResp := txtypes.Response{
-			TxHash:    b64.StdEncoding.EncodeToString(txHash),
+			TxHash:    strings.ToUpper(hex.EncodeToString(txHash)),
 			Height:    fmt.Sprintf("%d", blockResults.Block.Height),
 			TimeStamp: blockTimeStr,
 			RawLog:    txResult.Log,
@@ -263,6 +262,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
 	txDBWapper.Messages = messages
+	txDBWapper.UniqueMessageTypes = uniqueMessageTypes
 	txDBWapper.UniqueMessageAttributeKeys = uniqueEventAttributeKeys
 	txDBWapper.UniqueMessageEventTypes = uniqueEventTypes
 
