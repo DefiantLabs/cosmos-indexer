@@ -314,15 +314,14 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 				if err != nil {
 					config.Log.Fatal("Failed to insert failed block event", err)
 				}
-				continue
-			}
+			} else {
+				config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
 
-			config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
-
-			blockEventsDataChan <- &blockEventsDBData{
-				blockHeight:    currentHeight,
-				blockTime:      blockData.BlockData.Block.Time,
-				blockDBWrapper: blockDBWrapper,
+				blockEventsDataChan <- &blockEventsDBData{
+					blockHeight:    currentHeight,
+					blockTime:      blockData.BlockData.Block.Time,
+					blockDBWrapper: blockDBWrapper,
+				}
 			}
 		}
 
@@ -340,13 +339,16 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			if err != nil {
 				config.Log.Error("ProcessRpcTxs: unhandled error", err)
 				failedBlockHandler(currentHeight, core.UnprocessableTxError, err)
-				continue
-			}
-
-			txDataChan <- &dbData{
-				txDBWrappers: txDBWrappers,
-				blockTime:    blockData.BlockData.Block.Time,
-				blockHeight:  currentHeight,
+				err := dbTypes.UpsertFailedBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+				if err != nil {
+					config.Log.Fatal("Failed to insert failed block", err)
+				}
+			} else {
+				txDataChan <- &dbData{
+					txDBWrappers: txDBWrappers,
+					blockTime:    blockData.BlockData.Block.Time,
+					blockHeight:  currentHeight,
+				}
 			}
 
 		}
