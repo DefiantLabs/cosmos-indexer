@@ -242,16 +242,55 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 		}
 
 		// pull txes and insert them
-		var uniqueTxes = make(map[string]models.Tx)
+		uniqueTxes := make(map[string]models.Tx)
+		uniqueAddress := make(map[string]models.Address)
 		for _, tx := range txs {
 			tx.Tx.BlockID = blockOnly.ID
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
+			if tx.Tx.SignerAddress.Address != "" {
+				uniqueAddress[tx.Tx.SignerAddress.Address] = tx.Tx.SignerAddress
+			}
+			for _, fee := range tx.Tx.Fees {
+				uniqueAddress[fee.PayerAddress.Address] = fee.PayerAddress
+			}
+		}
+
+		var addressesSlice []models.Address
+		for _, address := range uniqueAddress {
+			addressesSlice = append(addressesSlice, address)
+		}
+
+		if len(addressesSlice) != 0 {
+			if err := dbTransaction.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "address"}},
+				DoUpdates: clause.AssignmentColumns([]string{"address"}),
+			}).Create(addressesSlice).Error; err != nil {
+				config.Log.Error("Error getting/creating addresses.", err)
+				return err
+			}
+		}
+
+		for _, address := range addressesSlice {
+			uniqueAddress[address.Address] = address
 		}
 
 		var txesSlice []models.Tx
 		for _, tx := range uniqueTxes {
-			// TODO Remove this hack, fees are broken until they are inserted first (alongside the address they are associated with)
-			tx.Fees = nil
+
+			var signerAddressID uint
+
+			if tx.SignerAddress.Address != "" {
+				signerAddressID = uniqueAddress[tx.SignerAddress.Address].ID
+				tx.SignerAddress = uniqueAddress[tx.SignerAddress.Address]
+				tx.SignerAddressID = &signerAddressID
+			} else {
+				tx.SignerAddressID = nil
+			}
+
+			for feeIndex := range tx.Fees {
+				tx.Fees[feeIndex].PayerAddressID = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address].ID
+				tx.Fees[feeIndex].PayerAddress = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address]
+			}
 			txesSlice = append(txesSlice, tx)
 		}
 
@@ -271,19 +310,16 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 
 		// Create unique message types and post-process them into the messages
 		fullUniqueBlockMessageTypes, err := indexMessageTypes(dbTransaction, txs)
-
 		if err != nil {
 			return err
 		}
 
 		fullUniqueBlockMessageEventTypes, err := indexMessageEventTypes(dbTransaction, txs)
-
 		if err != nil {
 			return err
 		}
 
 		fullUniqueBlockMessageEventAttributeKeys, err := indexMessageEventAttributeKeys(dbTransaction, txs)
-
 		if err != nil {
 			return err
 		}
@@ -454,7 +490,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 }
 
 func indexMessageTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageType, error) {
-	var fullUniqueBlockMessageTypes = make(map[string]models.MessageType)
+	fullUniqueBlockMessageTypes := make(map[string]models.MessageType)
 	for _, tx := range txs {
 		for messageTypeKey, messageType := range tx.UniqueMessageTypes {
 			fullUniqueBlockMessageTypes[messageTypeKey] = messageType
@@ -484,7 +520,7 @@ func indexMessageTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.Messag
 }
 
 func indexMessageEventTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageEventType, error) {
-	var fullUniqueBlockMessageEventTypes = make(map[string]models.MessageEventType)
+	fullUniqueBlockMessageEventTypes := make(map[string]models.MessageEventType)
 
 	for _, tx := range txs {
 		for messageEventTypeKey, messageEventType := range tx.UniqueMessageEventTypes {
@@ -512,11 +548,10 @@ func indexMessageEventTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.M
 	}
 
 	return fullUniqueBlockMessageEventTypes, nil
-
 }
 
 func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageEventAttributeKey, error) {
-	var fullUniqueMessageEventAttributeKeys = make(map[string]models.MessageEventAttributeKey)
+	fullUniqueMessageEventAttributeKeys := make(map[string]models.MessageEventAttributeKey)
 
 	for _, tx := range txs {
 		for messageEventAttributeKey, messageEventAttribute := range tx.UniqueMessageAttributeKeys {

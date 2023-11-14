@@ -1,6 +1,10 @@
 package models
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
 
 type Tx struct {
 	ID              uint
@@ -28,6 +32,15 @@ type Fee struct {
 	Denomination   Denom           `gorm:"foreignKey:DenominationID"`
 	PayerAddressID uint            `gorm:"index:idx_payer_addr"`
 	PayerAddress   Address         `gorm:"foreignKey:PayerAddressID"`
+}
+
+// This lifecycle function ensures the on conflict statement is added for Fees which are associated to Txes by the Gorm slice association method for has_many
+func (b *Fee) BeforeCreate(tx *gorm.DB) (err error) {
+	tx.Statement.AddClause(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tx_id"}, {Name: "denomination_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"amount"}),
+	})
+	return nil
 }
 
 type MessageType struct {
