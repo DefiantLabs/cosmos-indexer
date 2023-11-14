@@ -21,3 +21,7 @@ drop table if exists block_event_attribute_keys cascade;
 drop table if exists block_event_attributes cascade;
 drop table if exists block_event_types cascade;
 drop table if exists failed_messages cascade;
+drop table if exists message_events cascade;
+drop table if exists message_event_types cascade;
+drop table if exists message_event_attributes cascade;
+drop table if exists message_event_attribute_keys cascade;

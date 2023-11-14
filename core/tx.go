@@ -1,7 +1,6 @@
 package core
 
 import (
-	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -133,7 +132,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		indexerTx.Body = txBody
 		txHash := tendermintTx.Hash()
 		indexerTxResp := txtypes.Response{
-			TxHash:    b64.StdEncoding.EncodeToString(txHash),
+			TxHash:    strings.ToUpper(hex.EncodeToString(txHash)),
 			Height:    fmt.Sprintf("%d", blockResults.Block.Height),
 			TimeStamp: blockTimeStr,
 			RawLog:    txResult.Log,
@@ -243,23 +242,15 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 	var messages []dbTypes.MessageDBWrapper
 
+	uniqueMessageTypes := make(map[string]models.MessageType)
+	uniqueEventTypes := make(map[string]models.MessageEventType)
+	uniqueEventAttributeKeys := make(map[string]models.MessageEventAttributeKey)
 	// non-zero code means the Tx was unsuccessful. We will still need to account for fees in both cases though.
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
-			var currMessage models.Message
-			var currMessageType models.MessageType
-			currMessage.MessageIndex = messageIndex
-
-			// Get the message log that corresponds to the current message
-			var currMessageDBWrapper dbTypes.MessageDBWrapper
-			// TODO: Parse log into event items
-			// messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
-
-			currMessageType.MessageType = types.MsgTypeURL(message)
-			currMessage.MessageType = currMessageType
-			currMessageDBWrapper.Message = currMessage
-			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, currMessageType.MessageType))
-
+			messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
+			uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
+			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, messageType))
 			messages = append(messages, currMessageDBWrapper)
 		}
 	}
@@ -271,6 +262,9 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 
 	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
 	txDBWapper.Messages = messages
+	txDBWapper.UniqueMessageTypes = uniqueMessageTypes
+	txDBWapper.UniqueMessageAttributeKeys = uniqueEventAttributeKeys
+	txDBWapper.UniqueMessageEventTypes = uniqueEventTypes
 
 	return txDBWapper, txTime, nil
 }
@@ -328,6 +322,44 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAdd
 	}
 
 	return fees, nil
+}
+
+func ProcessMessage(messageIndex int, message types.Msg, txMessageEventLogs []txtypes.LogMessage, uniqueEventTypes map[string]models.MessageEventType, uniqueEventAttributeKeys map[string]models.MessageEventAttributeKey) (string, dbTypes.MessageDBWrapper) {
+	var currMessage models.Message
+	var currMessageType models.MessageType
+	currMessage.MessageIndex = messageIndex
+
+	// Get the message log that corresponds to the current message
+	var currMessageDBWrapper dbTypes.MessageDBWrapper
+	messageLog := txtypes.GetMessageLogForIndex(txMessageEventLogs, messageIndex)
+
+	currMessageType.MessageType = types.MsgTypeURL(message)
+	currMessage.MessageType = currMessageType
+	currMessageDBWrapper.Message = currMessage
+
+	for eventIndex, event := range messageLog.Events {
+		uniqueEventTypes[event.Type] = models.MessageEventType{Type: event.Type}
+
+		var currMessageEvent dbTypes.MessageEventDBWrapper
+		currMessageEvent.MessageEvent = models.MessageEvent{
+			MessageEventType: uniqueEventTypes[event.Type],
+			Index:            uint64(eventIndex),
+		}
+		var currMessageEventAttributes []models.MessageEventAttribute
+		for attributeIndex, attribute := range event.Attributes {
+			uniqueEventAttributeKeys[attribute.Key] = models.MessageEventAttributeKey{Key: attribute.Key}
+
+			currMessageEventAttributes = append(currMessageEventAttributes, models.MessageEventAttribute{
+				Value:                    attribute.Value,
+				MessageEventAttributeKey: uniqueEventAttributeKeys[attribute.Key],
+				Index:                    uint64(attributeIndex),
+			})
+		}
+
+		currMessageEvent.Attributes = currMessageEventAttributes
+		currMessageDBWrapper.MessageEvents = append(currMessageDBWrapper.MessageEvents, currMessageEvent)
+	}
+	return currMessageType.MessageType, currMessageDBWrapper
 }
 
 // getDenom handles denom processing for both IBC denoms and native denoms.

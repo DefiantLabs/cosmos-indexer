@@ -30,13 +30,22 @@ type BlockEventDBWrapper struct {
 
 // Store transactions with their messages for easy database creation
 type TxDBWrapper struct {
-	Tx            models.Tx
-	SignerAddress models.Address
-	Messages      []MessageDBWrapper
+	Tx                         models.Tx
+	SignerAddress              models.Address
+	Messages                   []MessageDBWrapper
+	UniqueMessageTypes         map[string]models.MessageType
+	UniqueMessageEventTypes    map[string]models.MessageEventType
+	UniqueMessageAttributeKeys map[string]models.MessageEventAttributeKey
 }
 
 type MessageDBWrapper struct {
-	Message models.Message
+	Message       models.Message
+	MessageEvents []MessageEventDBWrapper
+}
+
+type MessageEventDBWrapper struct {
+	MessageEvent models.MessageEvent
+	Attributes   []models.MessageEventAttribute
 }
 
 type DenomDBWrapper struct {

@@ -53,18 +53,15 @@ func MigrateModels(db *gorm.DB) error {
 		return err
 	}
 
-	return db.AutoMigrate(
-		&models.Tx{},
-		&models.Fee{},
-		&models.Address{},
-		&models.MessageType{},
-		&models.Message{},
-		&models.Denom{},
-		&models.DenomUnit{},
-		&models.IBCDenom{},
-		&models.FailedTx{},
-		&models.FailedMessage{},
-	)
+	if err := migrateDenomModels(db); err != nil {
+		return err
+	}
+
+	if err := migrateTXModels(db); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func migrateChainModels(db *gorm.DB) error {
@@ -82,6 +79,29 @@ func migrateBlockModels(db *gorm.DB) error {
 		&models.BlockEventAttributeKey{},
 		&models.FailedBlock{},
 		&models.FailedEventBlock{},
+	)
+}
+
+func migrateDenomModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Denom{},
+		&models.DenomUnit{},
+	)
+}
+
+func migrateTXModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Tx{},
+		&models.Fee{},
+		&models.Address{},
+		&models.MessageType{},
+		&models.Message{},
+		&models.FailedTx{},
+		&models.FailedMessage{},
+		&models.MessageEvent{},
+		&models.MessageEventType{},
+		&models.MessageEventAttribute{},
+		&models.MessageEventAttributeKey{},
 	)
 }
 
@@ -221,92 +241,260 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 			return err
 		}
 
-		for _, transaction := range txs {
-			txOnly := models.Tx{
-				Hash:            transaction.Tx.Hash,
-				Code:            transaction.Tx.Code,
-				BlockID:         blockOnly.ID,
-				SignerAddressID: nil,
+		// pull txes and insert them
+		uniqueTxes := make(map[string]models.Tx)
+		uniqueAddress := make(map[string]models.Address)
+		for _, tx := range txs {
+			tx.Tx.BlockID = blockOnly.ID
+			uniqueTxes[tx.Tx.Hash] = tx.Tx
+			if tx.Tx.SignerAddress.Address != "" {
+				uniqueAddress[tx.Tx.SignerAddress.Address] = tx.Tx.SignerAddress
 			}
-
-			// store the signer address if there is one
-			if transaction.SignerAddress.Address != "" {
-				// viewing gorm logs shows this gets translated into a single ON CONFLICT DO NOTHING RETURNING "id"
-				if err := dbTransaction.Where(models.Address{Address: transaction.SignerAddress.Address}).
-					FirstOrCreate(&transaction.SignerAddress).
-					Error; err != nil {
-					config.Log.Error("Error getting/creating signer address for tx.", err)
-					return err
-				}
-				// store created db model in signer address, creates foreign key relation
-				txOnly.SignerAddressID = &transaction.SignerAddress.ID
+			for _, fee := range tx.Tx.Fees {
+				uniqueAddress[fee.PayerAddress.Address] = fee.PayerAddress
 			}
+		}
 
-			// store the TX
-			if err := dbTransaction.Where(models.Tx{Hash: txOnly.Hash}).FirstOrCreate(&txOnly).Error; err != nil {
-				config.Log.Error("Error creating tx.", err)
+		var addressesSlice []models.Address
+		for _, address := range uniqueAddress {
+			addressesSlice = append(addressesSlice, address)
+		}
+
+		if len(addressesSlice) != 0 {
+			if err := dbTransaction.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "address"}},
+				DoUpdates: clause.AssignmentColumns([]string{"address"}),
+			}).Create(addressesSlice).Error; err != nil {
+				config.Log.Error("Error getting/creating addresses.", err)
 				return err
 			}
+		}
 
-			for _, fee := range transaction.Tx.Fees {
-				feeOnly := models.Fee{
-					TxID:           txOnly.ID,
-					Amount:         fee.Amount,
-					DenominationID: fee.Denomination.ID,
-				}
-				if fee.PayerAddress.Address != "" {
-					if err := dbTransaction.Where(models.Address{Address: fee.PayerAddress.Address}).
-						FirstOrCreate(&fee.PayerAddress).
-						Error; err != nil {
-						config.Log.Error("Error getting/creating fee payer address.", err)
-						return err
+		for _, address := range addressesSlice {
+			uniqueAddress[address.Address] = address
+		}
+
+		var txesSlice []models.Tx
+		for _, tx := range uniqueTxes {
+
+			var signerAddressID uint
+
+			if tx.SignerAddress.Address != "" {
+				signerAddressID = uniqueAddress[tx.SignerAddress.Address].ID
+				tx.SignerAddress = uniqueAddress[tx.SignerAddress.Address]
+				tx.SignerAddressID = &signerAddressID
+			} else {
+				tx.SignerAddressID = nil
+			}
+
+			for feeIndex := range tx.Fees {
+				tx.Fees[feeIndex].PayerAddressID = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address].ID
+				tx.Fees[feeIndex].PayerAddress = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address]
+			}
+			txesSlice = append(txesSlice, tx)
+		}
+
+		if len(txesSlice) != 0 {
+			if err := dbTransaction.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "hash"}},
+				DoUpdates: clause.AssignmentColumns([]string{"code", "block_id", "signer_address_id"}),
+			}).Create(txesSlice).Error; err != nil {
+				config.Log.Error("Error getting/creating txes.", err)
+				return err
+			}
+		}
+
+		for _, tx := range txesSlice {
+			uniqueTxes[tx.Hash] = tx
+		}
+
+		// Create unique message types and post-process them into the messages
+		fullUniqueBlockMessageTypes, err := indexMessageTypes(dbTransaction, txs)
+		if err != nil {
+			return err
+		}
+
+		fullUniqueBlockMessageEventTypes, err := indexMessageEventTypes(dbTransaction, txs)
+		if err != nil {
+			return err
+		}
+
+		fullUniqueBlockMessageEventAttributeKeys, err := indexMessageEventAttributeKeys(dbTransaction, txs)
+		if err != nil {
+			return err
+		}
+
+		// This complex set of loops is to ensure that foreign key relations are created and attached to downstream models before batch insertion is executed.
+		// We are trading off in-app performance for batch insertion here and should consider complexity increase vs performance increase.
+		for _, tx := range txs {
+			tx.Tx = uniqueTxes[tx.Tx.Hash]
+			var messagesSlice []*models.Message
+			for messageIndex := range tx.Messages {
+				tx.Messages[messageIndex].Message.TxID = tx.Tx.ID
+				tx.Messages[messageIndex].Message.Tx = tx.Tx
+				tx.Messages[messageIndex].Message.MessageTypeID = fullUniqueBlockMessageTypes[tx.Messages[messageIndex].Message.MessageType.MessageType].ID
+
+				tx.Messages[messageIndex].Message.MessageType = fullUniqueBlockMessageTypes[tx.Messages[messageIndex].Message.MessageType.MessageType]
+				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventTypeID = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type].ID
+					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type]
+
+					for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
+						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKeyID = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key].ID
+						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key]
 					}
-
-					// creates foreign key relation.
-					feeOnly.PayerAddressID = fee.PayerAddress.ID
-				} else if fee.PayerAddress.Address == "" {
-					return errors.New("fee cannot have empty payer address")
 				}
 
-				if fee.Denomination.Base == "" || fee.Denomination.Symbol == "" {
-					return fmt.Errorf("denom not cached for base %s and symbol %s", fee.Denomination.Base, fee.Denomination.Symbol)
-				}
+				messagesSlice = append(messagesSlice, &tx.Messages[messageIndex].Message)
+			}
 
-				// store the Fee
-				if err := dbTransaction.Where(models.Fee{TxID: feeOnly.TxID, DenominationID: feeOnly.DenominationID}).FirstOrCreate(&feeOnly).Error; err != nil {
-					config.Log.Error("Error creating fee.", err)
+			if len(messagesSlice) != 0 {
+				if err := dbTransaction.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "tx_id"}, {Name: "message_index"}},
+					DoUpdates: clause.AssignmentColumns([]string{"message_type_id"}),
+				}).Create(messagesSlice).Error; err != nil {
+					config.Log.Error("Error getting/creating messages.", err)
 					return err
 				}
 			}
 
-			for _, message := range transaction.Messages {
-				if message.Message.MessageType.MessageType == "" {
-					config.Log.Fatal("Message type not getting to DB")
+			var messagesEventsSlice []*models.MessageEvent
+			for messageIndex := range tx.Messages {
+				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageID = tx.Messages[messageIndex].Message.ID
+					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.Message = tx.Messages[messageIndex].Message
+
+					messagesEventsSlice = append(messagesEventsSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent)
 				}
-				if err := dbTransaction.Where(&message.Message.MessageType).FirstOrCreate(&message.Message.MessageType).Error; err != nil {
-					config.Log.Error("Error getting/creating message_type.", err)
+			}
+
+			if len(messagesEventsSlice) != 0 {
+				if err := dbTransaction.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "message_id"}, {Name: "index"}},
+					DoUpdates: clause.AssignmentColumns([]string{"message_event_type_id"}),
+				}).Create(messagesEventsSlice).Error; err != nil {
+					config.Log.Error("Error getting/creating message events.", err)
 					return err
 				}
+			}
 
-				msgOnly := models.Message{
-					TxID:          txOnly.ID,
-					MessageTypeID: message.Message.MessageType.ID,
-					MessageIndex:  message.Message.MessageIndex,
+			var messagesEventsAttributesSlice []*models.MessageEventAttribute
+			for messageIndex := range tx.Messages {
+				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+					for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
+						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventID = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.ID
+						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEvent = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent
+
+						messagesEventsAttributesSlice = append(messagesEventsAttributesSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex])
+					}
 				}
+			}
 
-				// Store the msg
-				if err := dbTransaction.Where(models.Message{TxID: msgOnly.TxID, MessageTypeID: msgOnly.MessageTypeID, MessageIndex: msgOnly.MessageIndex}).FirstOrCreate(&msgOnly).Error; err != nil {
-					config.Log.Error("Error creating message.", err)
+			if len(messagesEventsAttributesSlice) != 0 {
+				if err := dbTransaction.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "message_event_id"}, {Name: "index"}},
+					DoUpdates: clause.AssignmentColumns([]string{"value", "message_event_attribute_key_id"}),
+				}).Create(messagesEventsAttributesSlice).Error; err != nil {
+					config.Log.Error("Error getting/creating message event attributes.", err)
 					return err
 				}
-
-				// TODO: Store message events
-
 			}
 		}
 
 		return nil
 	})
+}
+
+func indexMessageTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageType, error) {
+	fullUniqueBlockMessageTypes := make(map[string]models.MessageType)
+	for _, tx := range txs {
+		for messageTypeKey, messageType := range tx.UniqueMessageTypes {
+			fullUniqueBlockMessageTypes[messageTypeKey] = messageType
+		}
+	}
+
+	var messageTypesSlice []models.MessageType
+	for _, messageType := range fullUniqueBlockMessageTypes {
+		messageTypesSlice = append(messageTypesSlice, messageType)
+	}
+
+	if len(messageTypesSlice) != 0 {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "message_type"}},
+			DoUpdates: clause.AssignmentColumns([]string{"message_type"}),
+		}).Create(messageTypesSlice).Error; err != nil {
+			config.Log.Error("Error getting/creating message types.", err)
+			return nil, err
+		}
+	}
+
+	for _, messageType := range messageTypesSlice {
+		fullUniqueBlockMessageTypes[messageType.MessageType] = messageType
+	}
+
+	return fullUniqueBlockMessageTypes, nil
+}
+
+func indexMessageEventTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageEventType, error) {
+	fullUniqueBlockMessageEventTypes := make(map[string]models.MessageEventType)
+
+	for _, tx := range txs {
+		for messageEventTypeKey, messageEventType := range tx.UniqueMessageEventTypes {
+			fullUniqueBlockMessageEventTypes[messageEventTypeKey] = messageEventType
+		}
+	}
+
+	var messageTypesSlice []models.MessageEventType
+	for _, messageType := range fullUniqueBlockMessageEventTypes {
+		messageTypesSlice = append(messageTypesSlice, messageType)
+	}
+
+	if len(messageTypesSlice) != 0 {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "type"}},
+			DoUpdates: clause.AssignmentColumns([]string{"type"}),
+		}).Create(messageTypesSlice).Error; err != nil {
+			config.Log.Error("Error getting/creating message event types.", err)
+			return nil, err
+		}
+	}
+
+	for _, messageType := range messageTypesSlice {
+		fullUniqueBlockMessageEventTypes[messageType.Type] = messageType
+	}
+
+	return fullUniqueBlockMessageEventTypes, nil
+}
+
+func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageEventAttributeKey, error) {
+	fullUniqueMessageEventAttributeKeys := make(map[string]models.MessageEventAttributeKey)
+
+	for _, tx := range txs {
+		for messageEventAttributeKey, messageEventAttribute := range tx.UniqueMessageAttributeKeys {
+			fullUniqueMessageEventAttributeKeys[messageEventAttributeKey] = messageEventAttribute
+		}
+	}
+
+	var messageEventAttributeKeysSlice []models.MessageEventAttributeKey
+	for _, messageEventAttributeKey := range fullUniqueMessageEventAttributeKeys {
+		messageEventAttributeKeysSlice = append(messageEventAttributeKeysSlice, messageEventAttributeKey)
+	}
+
+	if len(messageEventAttributeKeysSlice) != 0 {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"key"}),
+		}).Create(messageEventAttributeKeysSlice).Error; err != nil {
+			config.Log.Error("Error getting/creating message event attribute keys.", err)
+			return nil, err
+		}
+	}
+
+	for _, messageEventAttributeKey := range messageEventAttributeKeysSlice {
+		fullUniqueMessageEventAttributeKeys[messageEventAttributeKey.Key] = messageEventAttributeKey
+	}
+
+	return fullUniqueMessageEventAttributeKeys, nil
 }
 
 func UpsertDenoms(db *gorm.DB, denoms []DenomDBWrapper) error {

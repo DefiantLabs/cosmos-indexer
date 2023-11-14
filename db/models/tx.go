@@ -1,6 +1,10 @@
 package models
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
 
 type Tx struct {
 	ID              uint
@@ -30,6 +34,15 @@ type Fee struct {
 	PayerAddress   Address         `gorm:"foreignKey:PayerAddressID"`
 }
 
+// This lifecycle function ensures the on conflict statement is added for Fees which are associated to Txes by the Gorm slice association method for has_many
+func (b *Fee) BeforeCreate(tx *gorm.DB) (err error) {
+	tx.Statement.AddClause(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tx_id"}, {Name: "denomination_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"amount"}),
+	})
+	return nil
+}
+
 type MessageType struct {
 	ID          uint   `gorm:"primaryKey"`
 	MessageType string `gorm:"uniqueIndex;not null"`
@@ -37,11 +50,11 @@ type MessageType struct {
 
 type Message struct {
 	ID            uint
-	TxID          uint `gorm:"index:idx_txid_typeid"`
+	TxID          uint `gorm:"uniqueIndex:messageIndex,priority:1"`
 	Tx            Tx
 	MessageTypeID uint `gorm:"foreignKey:MessageTypeID,index:idx_txid_typeid"`
 	MessageType   MessageType
-	MessageIndex  int
+	MessageIndex  int `gorm:"uniqueIndex:messageIndex,priority:2"`
 }
 
 type FailedMessage struct {
@@ -49,4 +62,37 @@ type FailedMessage struct {
 	MessageIndex int
 	TxID         uint
 	Tx           Tx
+}
+
+type MessageEvent struct {
+	ID uint
+	// These fields uniquely identify every message event
+	// Index refers to the position of the event in the message event array
+	Index              uint64 `gorm:"uniqueIndex:messageEventIndex,priority:2"`
+	MessageID          uint   `gorm:"uniqueIndex:messageEventIndex,priority:1"`
+	Message            Message
+	MessageEventTypeID uint
+	MessageEventType   MessageEventType
+}
+
+type MessageEventType struct {
+	ID   uint
+	Type string `gorm:"uniqueIndex"`
+}
+
+type MessageEventAttribute struct {
+	ID             uint
+	MessageEvent   MessageEvent
+	MessageEventID uint `gorm:"uniqueIndex:messageAttributeIndex,priority:1"`
+	Value          string
+	Index          uint64 `gorm:"uniqueIndex:messageAttributeIndex,priority:2"`
+	// Keys are limited to a smallish subset of string values set by the Cosmos SDK and external modules
+	// Save DB space by storing the key as a foreign key
+	MessageEventAttributeKeyID uint
+	MessageEventAttributeKey   MessageEventAttributeKey
+}
+
+type MessageEventAttributeKey struct {
+	ID  uint
+	Key string `gorm:"uniqueIndex"`
 }
