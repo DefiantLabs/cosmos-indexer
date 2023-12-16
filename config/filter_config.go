@@ -8,6 +8,28 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 )
 
+const (
+	EventTypeKey                  = "event_type"
+	EventTypeAndAttributeValueKey = "event_type_and_attribute_value"
+	RegexEventTypeKey             = "regex_event_type"
+	RollingWindowKey              = "rolling_window"
+)
+
+var SingleBlockEventFilterKeys = []string{
+	EventTypeKey,
+	EventTypeAndAttributeValueKey,
+	RegexEventTypeKey,
+}
+
+func SingleBlockEventFilterIncludes(val string) bool {
+	for _, key := range SingleBlockEventFilterKeys {
+		if key == val {
+			return true
+		}
+	}
+	return false
+}
+
 type blockEventFilterConfigs struct {
 	BeginBlockFilters []json.RawMessage `json:"begin_block_filters"`
 	EndBlockFilters   []json.RawMessage `json:"end_block_filters"`
@@ -29,11 +51,13 @@ func ParseJsonFilterConfig(configJson []byte) ([]filter.BlockEventFilter, []filt
 
 	beginBlockSingleEventFilters, beginBlockRollingWindowFilters, err := ParseLifecycleConfig(config.BeginBlockFilters)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		newErr := fmt.Errorf("error parsing begin_block_filters: %s", err)
+		return nil, nil, nil, nil, newErr
 	}
 	endBlockSingleEventFilters, endBlockRollingWindowFilters, err := ParseLifecycleConfig(config.EndBlockFilters)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		newErr := fmt.Errorf("error parsing end_block_filters: %s", err)
+		return nil, nil, nil, nil, newErr
 	}
 
 	return beginBlockSingleEventFilters, beginBlockRollingWindowFilters, endBlockSingleEventFilters, endBlockRollingWindowFilters, nil
@@ -49,29 +73,29 @@ func ParseLifecycleConfig(lifecycleConfig []json.RawMessage) ([]filter.BlockEven
 		err := json.Unmarshal(beginFilters, &newFilter)
 
 		if err != nil {
-			parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+			parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 			return nil, nil, parserError
 		}
 
 		err = validateBlockEventFilterConfig(newFilter)
 		if err != nil {
-			parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+			parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 			return nil, nil, parserError
 		}
 
-		switch newFilter.Type {
-		case "rolling_window":
+		switch {
+		case newFilter.Type == RollingWindowKey:
 			eventPatterns := []filter.BlockEventFilter{}
-			for _, subfilter := range newFilter.Subfilters {
+			for subfilterIndex, subfilter := range newFilter.Subfilters {
 				newSubFilter := BlockEventFilterConfig{}
 				err := json.Unmarshal(subfilter, &newSubFilter)
 				if err != nil {
-					parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+					parserError := fmt.Errorf("error parsing rolling window filter at index %d and subfilter index %d: %s", index, subfilterIndex, err)
 					return nil, nil, parserError
 				}
-				parsedFilter, err := ParseJsonFilterConfigFromType(newSubFilter.Type, subfilter, 0)
+				parsedFilter, err := ParseJsonFilterConfigFromType(newSubFilter.Type, subfilter)
 				if err != nil {
-					parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+					parserError := fmt.Errorf("error parsing rolling window filter at index %d and subfilter index %d: %s", index, subfilterIndex, err)
 					return nil, nil, parserError
 				}
 				eventPatterns = append(eventPatterns, parsedFilter)
@@ -79,41 +103,29 @@ func ParseLifecycleConfig(lifecycleConfig []json.RawMessage) ([]filter.BlockEven
 			newRollingFilter := filter.NewDefaultRollingWindowBlockEventFilter(eventPatterns, newFilter.Inclusive)
 			valid, err := newRollingFilter.Valid()
 			if !valid || err != nil {
-				parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+				parserError := fmt.Errorf("error parsing rolling window filter at index %d: %s", index, err)
 				return nil, nil, parserError
 			}
 			rollingWindowFilters = append(rollingWindowFilters, newRollingFilter)
-		case "event_type":
-			parsedFilter, err := ParseJsonFilterConfigFromType(newFilter.Type, beginFilters, 0)
+		case SingleBlockEventFilterIncludes(newFilter.Type):
+			parsedFilter, err := ParseJsonFilterConfigFromType(newFilter.Type, beginFilters)
 			if err != nil {
-				parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+				parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 				return nil, nil, parserError
 			}
 			valid, err := parsedFilter.Valid()
 			if !valid || err != nil {
-				parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
-				return nil, nil, parserError
-			}
-			singleEventFilters = append(singleEventFilters, parsedFilter)
-		case "event_type_and_attribute_value":
-			parsedFilter, err := ParseJsonFilterConfigFromType(newFilter.Type, beginFilters, 0)
-			if err != nil {
-				parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
-				return nil, nil, parserError
-			}
-			valid, err := parsedFilter.Valid()
-			if !valid || err != nil {
-				parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+				parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 				return nil, nil, parserError
 			}
 			singleEventFilters = append(singleEventFilters, parsedFilter)
 		default:
-			parserError := fmt.Errorf("error parsing begin_block_filters at index %d: unknown filter type \"%s\"", index, newFilter.Type)
+			parserError := fmt.Errorf("error parsing filter at index %d: unknown filter type \"%s\"", index, newFilter.Type)
 			return nil, nil, parserError
 		}
 
 		if err != nil {
-			parserError := fmt.Errorf("error parsing begin_block_filters at index %d: %s", index, err)
+			parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 			return nil, nil, parserError
 		}
 	}
@@ -121,9 +133,9 @@ func ParseLifecycleConfig(lifecycleConfig []json.RawMessage) ([]filter.BlockEven
 	return singleEventFilters, rollingWindowFilters, nil
 }
 
-func ParseJsonFilterConfigFromType(filterType string, configJson []byte, level int) (filter.BlockEventFilter, error) {
+func ParseJsonFilterConfigFromType(filterType string, configJson []byte) (filter.BlockEventFilter, error) {
 	switch filterType {
-	case "event_type":
+	case EventTypeKey:
 		newFilter := filter.DefaultBlockEventTypeFilter{}
 
 		err := json.Unmarshal(configJson, &newFilter)
@@ -132,7 +144,7 @@ func ParseJsonFilterConfigFromType(filterType string, configJson []byte, level i
 			return nil, err
 		}
 		return newFilter, nil
-	case "event_type_and_attribute_value":
+	case EventTypeAndAttributeValueKey:
 		newFilter := filter.DefaultBlockEventTypeAndAttributeValueFilter{}
 
 		err := json.Unmarshal(configJson, &newFilter)
@@ -141,6 +153,21 @@ func ParseJsonFilterConfigFromType(filterType string, configJson []byte, level i
 			return nil, err
 		}
 		return newFilter, nil
+	case RegexEventTypeKey:
+		newFilter := filter.RegexBlockEventTypeFilter{}
+
+		err := json.Unmarshal(configJson, &newFilter)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Reinit the filter so that regex compiles
+		regexFilter, err := filter.NewRegexBlockEventTypeAndAttributeValueFilter(newFilter.EventTypeRegexPattern, newFilter.Inclusive)
+		if err != nil {
+			return nil, err
+		}
+		return regexFilter, nil
 	default:
 		return nil, fmt.Errorf("unknown filter type %s", filterType)
 	}

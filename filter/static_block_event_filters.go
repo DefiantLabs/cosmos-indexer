@@ -3,6 +3,7 @@ package filter
 import (
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 )
@@ -38,6 +39,29 @@ func (f DefaultBlockEventTypeFilter) Valid() (bool, error) {
 	}
 
 	return true, errors.New("EventType must be set")
+}
+
+type RegexBlockEventTypeFilter struct {
+	EventTypeRegexPattern string `json:"event_type_regex"`
+	eventTypeRegex        *regexp.Regexp
+	Inclusive             bool `json:"inclusive"`
+}
+
+func (f RegexBlockEventTypeFilter) EventMatches(eventData FilterEventData) (bool, error) {
+	return f.eventTypeRegex.MatchString(eventData.Event.BlockEventType.Type), nil
+}
+
+func (f RegexBlockEventTypeFilter) IncludeMatch() bool {
+	return f.Inclusive
+}
+
+func (f RegexBlockEventTypeFilter) Valid() (bool, error) {
+
+	if f.eventTypeRegex != nil && f.EventTypeRegexPattern != "" {
+		return true, nil
+	}
+
+	return true, errors.New("EventTypeRegexPattern must be set")
 }
 
 type DefaultBlockEventTypeAndAttributeValueFilter struct {
@@ -131,6 +155,14 @@ func NewDefaultBlockEventTypeFilter(eventType string, inclusive bool) BlockEvent
 
 func NewDefaultBlockEventTypeAndAttributeValueFilter(eventType string, attributeKey string, attributeValue string, inclusive bool) BlockEventFilter {
 	return &DefaultBlockEventTypeAndAttributeValueFilter{EventType: eventType, AttributeKey: attributeKey, AttributeValue: attributeValue, Inclusive: inclusive}
+}
+
+func NewRegexBlockEventTypeAndAttributeValueFilter(eventTypeRegex string, inclusive bool) (BlockEventFilter, error) {
+	re, err := regexp.Compile(eventTypeRegex)
+	if err != nil {
+		return nil, err
+	}
+	return &RegexBlockEventTypeFilter{EventTypeRegexPattern: eventTypeRegex, eventTypeRegex: re, Inclusive: inclusive}, nil
 }
 
 func NewDefaultRollingWindowBlockEventFilter(eventPatterns []BlockEventFilter, includeMatches bool) RollingWindowBlockEventFilter {
