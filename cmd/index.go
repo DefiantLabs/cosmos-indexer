@@ -14,6 +14,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/tasks"
@@ -23,12 +24,18 @@ import (
 )
 
 type Indexer struct {
-	cfg                  *config.IndexConfig
-	dryRun               bool
-	db                   *gorm.DB
-	cl                   *client.ChainClient
-	scheduler            *gocron.Scheduler
-	blockEnqueueFunction func(chan *core.EnqueueData) error
+	cfg                        *config.IndexConfig
+	dryRun                     bool
+	db                         *gorm.DB
+	cl                         *client.ChainClient
+	scheduler                  *gocron.Scheduler
+	blockEnqueueFunction       func(chan *core.EnqueueData) error
+	blockEventFilterRegistries blockEventFilterRegistries
+}
+
+type blockEventFilterRegistries struct {
+	beginBlockEventFilterRegistry *filter.StaticBlockEventFilterRegistry
+	endBlockEventFilterRegistry   *filter.StaticBlockEventFilterRegistry
 }
 
 var indexer Indexer
@@ -89,6 +96,11 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	dbTypes.CacheIBCDenoms(db)
 
 	indexer.dryRun = indexer.cfg.Base.Dry
+
+	indexer.blockEventFilterRegistries = blockEventFilterRegistries{
+		beginBlockEventFilterRegistry: &filter.StaticBlockEventFilterRegistry{},
+		endBlockEventFilterRegistry:   &filter.StaticBlockEventFilterRegistry{},
+	}
 
 	return nil
 }
@@ -201,7 +213,7 @@ func index(cmd *cobra.Command, args []string) {
 	txDataChan := make(chan *dbData, 4*rpcQueryThreads)
 
 	wg.Add(1)
-	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID)
+	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID, indexer.blockEventFilterRegistries)
 
 	wg.Add(1)
 	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
@@ -295,7 +307,7 @@ type blockEventsDBData struct {
 
 // This function is responsible for processing raw RPC data into app-usable types. It handles both block events and transactions.
 // It parses each dataset according to the application configuration requirements and passes the data to the channels that handle the parsed data.
-func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, txDataChan chan *dbData, chainID uint) {
+func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, txDataChan chan *dbData, chainID uint, blockEventFilterRegistry blockEventFilterRegistries) {
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
 	defer wg.Done()
@@ -317,10 +329,29 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			} else {
 				config.Log.Infof("Finished parsing block event data for block %d", currentHeight)
 
-				blockEventsDataChan <- &blockEventsDBData{
-					blockHeight:    currentHeight,
-					blockTime:      blockData.BlockData.Block.Time,
-					blockDBWrapper: blockDBWrapper,
+				var beginBlockFilterError error
+				var endBlockFilterError error
+				if blockEventFilterRegistry.beginBlockEventFilterRegistry != nil && blockEventFilterRegistry.beginBlockEventFilterRegistry.NumFilters() > 0 {
+					blockDBWrapper.BeginBlockEvents, beginBlockFilterError = core.FilterRPCBlockEvents(blockDBWrapper.BeginBlockEvents, *blockEventFilterRegistry.beginBlockEventFilterRegistry)
+				}
+
+				if blockEventFilterRegistry.endBlockEventFilterRegistry != nil && blockEventFilterRegistry.endBlockEventFilterRegistry.NumFilters() > 0 {
+					blockDBWrapper.EndBlockEvents, endBlockFilterError = core.FilterRPCBlockEvents(blockDBWrapper.EndBlockEvents, *blockEventFilterRegistry.endBlockEventFilterRegistry)
+				}
+
+				if beginBlockFilterError == nil && endBlockFilterError == nil {
+					blockEventsDataChan <- &blockEventsDBData{
+						blockHeight:    currentHeight,
+						blockTime:      blockData.BlockData.Block.Time,
+						blockDBWrapper: blockDBWrapper,
+					}
+				} else {
+					config.Log.Errorf("Failed to filter block events during block %d event processing, adding to failed block events table. Begin blocker filter error %s. End blocker filter error %s", currentHeight, beginBlockFilterError, endBlockFilterError)
+					failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
+					err := dbTypes.UpsertFailedEventBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+					if err != nil {
+						config.Log.Fatal("Failed to insert failed block event", err)
+					}
 				}
 			}
 		}
