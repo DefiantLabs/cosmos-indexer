@@ -158,7 +158,7 @@ func ParseJSONFilterConfigFromType(filterType string, configJSON []byte) (filter
 		}
 
 		// Reinit the filter so that regex compiles
-		regexFilter, err := filter.NewRegexBlockEventTypeAndAttributeValueFilter(newFilter.EventTypeRegexPattern, newFilter.Inclusive)
+		regexFilter, err := filter.NewRegexBlockEventFilter(newFilter.EventTypeRegexPattern, newFilter.Inclusive)
 		if err != nil {
 			return nil, err
 		}

@@ -153,7 +153,7 @@ func NewDefaultBlockEventTypeAndAttributeValueFilter(eventType string, attribute
 	return &DefaultBlockEventTypeAndAttributeValueFilter{EventType: eventType, AttributeKey: attributeKey, AttributeValue: attributeValue, Inclusive: inclusive}
 }
 
-func NewRegexBlockEventTypeAndAttributeValueFilter(eventTypeRegex string, inclusive bool) (BlockEventFilter, error) {
+func NewRegexBlockEventFilter(eventTypeRegex string, inclusive bool) (BlockEventFilter, error) {
 	re, err := regexp.Compile(eventTypeRegex)
 	if err != nil {
 		return nil, err
