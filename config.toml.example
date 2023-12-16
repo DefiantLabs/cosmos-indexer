@@ -25,6 +25,7 @@ api = "" # node api endpoint
 rpc-workers = 1
 rpc-retry-attempts=0 #RPC queries are configured to retry if failed. This value sets how many retries to do before giving up. (-1 for indefinite retries)
 rpc-retry-max-wait=30 #RPC query failure backoff max wait time in seconds
+block-event-filter-file = "filters.json"
 
 #Probe config options
 [probe]
