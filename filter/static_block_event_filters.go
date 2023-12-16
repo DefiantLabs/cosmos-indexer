@@ -8,13 +8,13 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 )
 
-type FilterEventData struct {
+type EventData struct {
 	Event      models.BlockEvent
 	Attributes []models.BlockEventAttribute
 }
 
 type BlockEventFilter interface {
-	EventMatches(FilterEventData) (bool, error)
+	EventMatches(EventData) (bool, error)
 	IncludeMatch() bool
 	Valid() (bool, error)
 }
@@ -24,7 +24,7 @@ type DefaultBlockEventTypeFilter struct {
 	Inclusive bool   `json:"inclusive"`
 }
 
-func (f DefaultBlockEventTypeFilter) EventMatches(eventData FilterEventData) (bool, error) {
+func (f DefaultBlockEventTypeFilter) EventMatches(eventData EventData) (bool, error) {
 	return eventData.Event.BlockEventType.Type == f.EventType, nil
 }
 
@@ -33,7 +33,6 @@ func (f DefaultBlockEventTypeFilter) IncludeMatch() bool {
 }
 
 func (f DefaultBlockEventTypeFilter) Valid() (bool, error) {
-
 	if f.EventType != "" {
 		return true, nil
 	}
@@ -47,7 +46,7 @@ type RegexBlockEventTypeFilter struct {
 	Inclusive             bool `json:"inclusive"`
 }
 
-func (f RegexBlockEventTypeFilter) EventMatches(eventData FilterEventData) (bool, error) {
+func (f RegexBlockEventTypeFilter) EventMatches(eventData EventData) (bool, error) {
 	return f.eventTypeRegex.MatchString(eventData.Event.BlockEventType.Type), nil
 }
 
@@ -56,7 +55,6 @@ func (f RegexBlockEventTypeFilter) IncludeMatch() bool {
 }
 
 func (f RegexBlockEventTypeFilter) Valid() (bool, error) {
-
 	if f.eventTypeRegex != nil && f.EventTypeRegexPattern != "" {
 		return true, nil
 	}
@@ -71,7 +69,7 @@ type DefaultBlockEventTypeAndAttributeValueFilter struct {
 	Inclusive      bool   `json:"inclusive"`
 }
 
-func (f DefaultBlockEventTypeAndAttributeValueFilter) EventMatches(eventData FilterEventData) (bool, error) {
+func (f DefaultBlockEventTypeAndAttributeValueFilter) EventMatches(eventData EventData) (bool, error) {
 	if eventData.Event.BlockEventType.Type != f.EventType {
 		return false, nil
 	}
@@ -90,7 +88,6 @@ func (f DefaultBlockEventTypeAndAttributeValueFilter) IncludeMatch() bool {
 }
 
 func (f DefaultBlockEventTypeAndAttributeValueFilter) Valid() (bool, error) {
-
 	if f.EventType != "" && f.AttributeKey != "" && f.AttributeValue != "" {
 		return true, nil
 	}
@@ -99,7 +96,7 @@ func (f DefaultBlockEventTypeAndAttributeValueFilter) Valid() (bool, error) {
 }
 
 type RollingWindowBlockEventFilter interface {
-	EventsMatch([]FilterEventData) (bool, error)
+	EventsMatch([]EventData) (bool, error)
 	RollingWindowLength() int
 	IncludeMatches() bool
 	Valid() (bool, error)
@@ -110,7 +107,7 @@ type DefaultRollingWindowBlockEventFilter struct {
 	includeMatches bool
 }
 
-func (f DefaultRollingWindowBlockEventFilter) EventsMatch(eventData []FilterEventData) (bool, error) {
+func (f DefaultRollingWindowBlockEventFilter) EventsMatch(eventData []EventData) (bool, error) {
 	if len(eventData) < f.RollingWindowLength() {
 		return false, nil
 	}
@@ -146,7 +143,6 @@ func (f DefaultRollingWindowBlockEventFilter) Valid() (bool, error) {
 	}
 
 	return true, nil
-
 }
 
 func NewDefaultBlockEventTypeFilter(eventType string, inclusive bool) BlockEventFilter {

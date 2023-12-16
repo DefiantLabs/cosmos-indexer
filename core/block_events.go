@@ -102,7 +102,6 @@ func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockL
 }
 
 func FilterRPCBlockEvents(blockEvents []db.BlockEventDBWrapper, filterRegistry filter.StaticBlockEventFilterRegistry) ([]db.BlockEventDBWrapper, error) {
-
 	// If there are no filters, just return the block events
 	if len(filterRegistry.BlockEventFilters) == 0 && len(filterRegistry.RollingWindowEventFilters) == 0 {
 		return blockEvents, nil
@@ -113,7 +112,7 @@ func FilterRPCBlockEvents(blockEvents []db.BlockEventDBWrapper, filterRegistry f
 	// If filters are defined, we treat filters as a whitelist, and only include block events that match the filters and are allowed
 	// Filters are evaluated in order, and the first filter that matches is the one that is used. Single block event filters are preferred in ordering.
 	for index, blockEvent := range blockEvents {
-		filterEvent := filter.FilterEventData{
+		filterEvent := filter.EventData{
 			Event:      blockEvent.BlockEvent,
 			Attributes: blockEvent.Attributes,
 		}
@@ -133,17 +132,16 @@ func FilterRPCBlockEvents(blockEvents []db.BlockEventDBWrapper, filterRegistry f
 				lastIndex := index + rollingWindowFilter.RollingWindowLength()
 				blockEventSlice := blockEvents[index:lastIndex]
 
-				filterEvents := make([]filter.FilterEventData, len(blockEventSlice))
+				filterEvents := make([]filter.EventData, len(blockEventSlice))
 
 				for index, blockEvent := range blockEventSlice {
-					filterEvents[index] = filter.FilterEventData{
+					filterEvents[index] = filter.EventData{
 						Event:      blockEvent.BlockEvent,
 						Attributes: blockEvent.Attributes,
 					}
 				}
 
 				patternMatches, err := rollingWindowFilter.EventsMatch(filterEvents)
-
 				if err != nil {
 					return nil, err
 				}
@@ -154,7 +152,6 @@ func FilterRPCBlockEvents(blockEvents []db.BlockEventDBWrapper, filterRegistry f
 					}
 				}
 			}
-
 		}
 	}
 
