@@ -1,6 +1,9 @@
 package filter
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 )
 
@@ -12,35 +15,45 @@ type FilterEventData struct {
 type BlockEventFilter interface {
 	EventMatches(FilterEventData) (bool, error)
 	IncludeMatch() bool
+	Valid() (bool, error)
 }
 
-type defaultBlockEventTypeFilter struct {
-	eventType string
-	inclusive bool
+type DefaultBlockEventTypeFilter struct {
+	EventType string `json:"event_type"`
+	Inclusive bool   `json:"inclusive"`
 }
 
-func (f *defaultBlockEventTypeFilter) EventMatches(eventData FilterEventData) (bool, error) {
-	return eventData.Event.BlockEventType.Type == f.eventType, nil
+func (f DefaultBlockEventTypeFilter) EventMatches(eventData FilterEventData) (bool, error) {
+	return eventData.Event.BlockEventType.Type == f.EventType, nil
 }
 
-func (f *defaultBlockEventTypeFilter) IncludeMatch() bool {
-	return f.inclusive
+func (f DefaultBlockEventTypeFilter) IncludeMatch() bool {
+	return f.Inclusive
 }
 
-type defaultBlockEventTypeAndAttributeValueFilter struct {
-	eventType      string
-	attributeKey   string
-	attributeValue string
-	inclusive      bool
+func (f DefaultBlockEventTypeFilter) Valid() (bool, error) {
+
+	if f.EventType != "" {
+		return true, nil
+	}
+
+	return true, errors.New("EventType must be set")
 }
 
-func (f *defaultBlockEventTypeAndAttributeValueFilter) EventMatches(eventData FilterEventData) (bool, error) {
-	if eventData.Event.BlockEventType.Type != f.eventType {
+type DefaultBlockEventTypeAndAttributeValueFilter struct {
+	EventType      string `json:"event_type"`
+	AttributeKey   string `json:"attribute_key"`
+	AttributeValue string `json:"attribute_value"`
+	Inclusive      bool   `json:"inclusive"`
+}
+
+func (f DefaultBlockEventTypeAndAttributeValueFilter) EventMatches(eventData FilterEventData) (bool, error) {
+	if eventData.Event.BlockEventType.Type != f.EventType {
 		return false, nil
 	}
 
 	for _, attr := range eventData.Attributes {
-		if attr.BlockEventAttributeKey.Key == f.attributeKey && attr.Value == f.attributeValue {
+		if attr.BlockEventAttributeKey.Key == f.AttributeKey && attr.Value == f.AttributeValue {
 			return true, nil
 		}
 	}
@@ -48,27 +61,37 @@ func (f *defaultBlockEventTypeAndAttributeValueFilter) EventMatches(eventData Fi
 	return false, nil
 }
 
-func (f *defaultBlockEventTypeAndAttributeValueFilter) IncludeMatch() bool {
-	return f.inclusive
+func (f DefaultBlockEventTypeAndAttributeValueFilter) IncludeMatch() bool {
+	return f.Inclusive
+}
+
+func (f DefaultBlockEventTypeAndAttributeValueFilter) Valid() (bool, error) {
+
+	if f.EventType != "" && f.AttributeKey != "" && f.AttributeValue != "" {
+		return true, nil
+	}
+
+	return false, errors.New("EventType, AttributeKey and AttributeValue must be set")
 }
 
 type RollingWindowBlockEventFilter interface {
 	EventsMatch([]FilterEventData) (bool, error)
 	RollingWindowLength() int
 	IncludeMatches() bool
+	Valid() (bool, error)
 }
 
-type defaultRollingWindowBlockEventFilter struct {
-	eventPatterns  []BlockEventFilter
+type DefaultRollingWindowBlockEventFilter struct {
+	EventPatterns  []BlockEventFilter
 	includeMatches bool
 }
 
-func (f *defaultRollingWindowBlockEventFilter) EventsMatch(eventData []FilterEventData) (bool, error) {
+func (f DefaultRollingWindowBlockEventFilter) EventsMatch(eventData []FilterEventData) (bool, error) {
 	if len(eventData) < f.RollingWindowLength() {
 		return false, nil
 	}
 
-	for i, pattern := range f.eventPatterns {
+	for i, pattern := range f.EventPatterns {
 		patternMatches, err := pattern.EventMatches(eventData[i])
 		if !patternMatches || err != nil {
 			return false, err
@@ -78,22 +101,38 @@ func (f *defaultRollingWindowBlockEventFilter) EventsMatch(eventData []FilterEve
 	return true, nil
 }
 
-func (f *defaultRollingWindowBlockEventFilter) RollingWindowLength() int {
-	return len(f.eventPatterns)
-}
-
-func (f *defaultRollingWindowBlockEventFilter) IncludeMatches() bool {
+func (f DefaultRollingWindowBlockEventFilter) IncludeMatches() bool {
 	return f.includeMatches
 }
 
+func (f DefaultRollingWindowBlockEventFilter) RollingWindowLength() int {
+	return len(f.EventPatterns)
+}
+
+func (f DefaultRollingWindowBlockEventFilter) Valid() (bool, error) {
+	if len(f.EventPatterns) == 0 {
+		return false, errors.New("eventPatterns must be set")
+	}
+
+	for index, pattern := range f.EventPatterns {
+		valid, err := pattern.Valid()
+		if !valid || err != nil {
+			return false, fmt.Errorf("error parsing eventPatterns at index %d: %s", index, err)
+		}
+	}
+
+	return true, nil
+
+}
+
 func NewDefaultBlockEventTypeFilter(eventType string, inclusive bool) BlockEventFilter {
-	return &defaultBlockEventTypeFilter{eventType: eventType, inclusive: inclusive}
+	return &DefaultBlockEventTypeFilter{EventType: eventType, Inclusive: inclusive}
 }
 
 func NewDefaultBlockEventTypeAndAttributeValueFilter(eventType string, attributeKey string, attributeValue string, inclusive bool) BlockEventFilter {
-	return &defaultBlockEventTypeAndAttributeValueFilter{eventType: eventType, attributeKey: attributeKey, attributeValue: attributeValue, inclusive: inclusive}
+	return &DefaultBlockEventTypeAndAttributeValueFilter{EventType: eventType, AttributeKey: attributeKey, AttributeValue: attributeValue, Inclusive: inclusive}
 }
 
 func NewDefaultRollingWindowBlockEventFilter(eventPatterns []BlockEventFilter, includeMatches bool) RollingWindowBlockEventFilter {
-	return &defaultRollingWindowBlockEventFilter{eventPatterns: eventPatterns, includeMatches: includeMatches}
+	return &DefaultRollingWindowBlockEventFilter{EventPatterns: eventPatterns, includeMatches: includeMatches}
 }

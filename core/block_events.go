@@ -128,33 +128,33 @@ func FilterRPCBlockEvents(blockEvents []db.BlockEventDBWrapper, filterRegistry f
 			}
 		}
 
-		if _, inMap := filterIndexes[index]; !inMap {
-			for _, rollingWindowFilter := range filterRegistry.RollingWindowEventFilters {
-				if index+rollingWindowFilter.RollingWindowLength() <= len(blockEvents) {
-					blockEventSlice := blockEvents[index : index+rollingWindowFilter.RollingWindowLength()]
+		for _, rollingWindowFilter := range filterRegistry.RollingWindowEventFilters {
+			if index+rollingWindowFilter.RollingWindowLength() <= len(blockEvents) {
+				lastIndex := index + rollingWindowFilter.RollingWindowLength()
+				blockEventSlice := blockEvents[index:lastIndex]
 
-					filterEvents := make([]filter.FilterEventData, len(blockEventSlice))
+				filterEvents := make([]filter.FilterEventData, len(blockEventSlice))
 
-					for index, blockEvent := range blockEventSlice {
-						filterEvents[index] = filter.FilterEventData{
-							Event:      blockEvent.BlockEvent,
-							Attributes: blockEvent.Attributes,
-						}
-					}
-
-					patternMatches, err := rollingWindowFilter.EventsMatch(filterEvents)
-
-					if err != nil {
-						return nil, err
-					}
-
-					if patternMatches {
-						filterIndexes[index] = rollingWindowFilter.IncludeMatches()
-						break
+				for index, blockEvent := range blockEventSlice {
+					filterEvents[index] = filter.FilterEventData{
+						Event:      blockEvent.BlockEvent,
+						Attributes: blockEvent.Attributes,
 					}
 				}
 
+				patternMatches, err := rollingWindowFilter.EventsMatch(filterEvents)
+
+				if err != nil {
+					return nil, err
+				}
+
+				if patternMatches {
+					for i := index; i < lastIndex; i++ {
+						filterIndexes[i] = rollingWindowFilter.IncludeMatches()
+					}
+				}
 			}
+
 		}
 	}
 

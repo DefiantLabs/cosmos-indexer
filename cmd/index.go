@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -102,6 +104,24 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 		endBlockEventFilterRegistry:   &filter.StaticBlockEventFilterRegistry{},
 	}
 
+	if indexer.cfg.Base.BlockEventFilterFile != "" {
+		f, err := os.Open(indexer.cfg.Base.BlockEventFilterFile)
+		if err != nil {
+			config.Log.Fatalf("Failed to open block event filter file %s: %s", indexer.cfg.Base.BlockEventFilterFile, err)
+		}
+
+		b, err := io.ReadAll(f)
+		if err != nil {
+			config.Log.Fatal("Failed to parse block event filter config", err)
+		}
+
+		indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.BlockEventFilters, indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.RollingWindowEventFilters, indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.BlockEventFilters, indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.RollingWindowEventFilters, err = config.ParseJsonFilterConfig(b)
+
+		if err != nil {
+			config.Log.Fatal("Failed to parse block event filter config", err)
+		}
+
+	}
 	return nil
 }
 
