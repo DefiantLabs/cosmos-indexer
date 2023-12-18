@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	sdkTypes "github.com/cosmos/cosmos-sdk/types"
 )
 
 type BlockProcessingFailure int
@@ -19,6 +22,24 @@ const (
 )
 
 type FailedBlockHandler func(height int64, code BlockProcessingFailure, err error)
+
+// Process RPC Block data into the model object used by the application.
+func ProcessBlock(blockData *ctypes.ResultBlock, blockResultsData *ctypes.ResultBlockResults, chainID uint) (models.Block, error) {
+	block := models.Block{
+		Height:  blockData.Block.Height,
+		ChainID: chainID,
+	}
+
+	propAddressFromHex, err := sdkTypes.ConsAddressFromHex(blockData.Block.ProposerAddress.String())
+	if err != nil {
+		return block, err
+	}
+
+	block.ProposerConsAddress = propAddressFromHex.String()
+	block.TimeStamp = blockData.Block.Time
+
+	return block, nil
+}
 
 // Log error to stdout. Not much else we can do to handle right now.
 func HandleFailedBlock(height int64, code BlockProcessingFailure, err error) {

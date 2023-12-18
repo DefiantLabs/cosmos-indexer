@@ -315,14 +315,11 @@ func (idxr *Indexer) GetIndexerStartingHeight(chainID uint) int64 {
 
 type dbData struct {
 	txDBWrappers []dbTypes.TxDBWrapper
-	blockTime    time.Time
-	blockHeight  int64
+	block        models.Block
 }
 
 type blockEventsDBData struct {
 	blockDBWrapper *dbTypes.BlockDBWrapper
-	blockTime      time.Time
-	blockHeight    int64
 }
 
 // This function is responsible for processing raw RPC data into app-usable types. It handles both block events and transactions.
@@ -336,9 +333,20 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 		currentHeight := blockData.BlockData.Block.Height
 		config.Log.Infof("Parsing data for block %d", currentHeight)
 
+		block, err := core.ProcessBlock(blockData.BlockData, blockData.BlockResultsData, chainID)
+		if err != nil {
+			config.Log.Error("ProcessBlock: unhandled error", err)
+			failedBlockHandler(currentHeight, core.UnprocessableTxError, err)
+			err := dbTypes.UpsertFailedBlock(idxr.db, currentHeight, idxr.cfg.Probe.ChainID, idxr.cfg.Probe.ChainName)
+			if err != nil {
+				config.Log.Fatal("Failed to insert failed block", err)
+			}
+			continue
+		}
+
 		if blockData.IndexBlockEvents && !blockData.BlockEventRequestsFailed {
 			config.Log.Info("Parsing block events")
-			blockDBWrapper, err := core.ProcessRPCBlockResults(blockData.BlockResultsData)
+			blockDBWrapper, err := core.ProcessRPCBlockResults(block, blockData.BlockResultsData)
 			if err != nil {
 				config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
 				failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
@@ -361,8 +369,6 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 
 				if beginBlockFilterError == nil && endBlockFilterError == nil {
 					blockEventsDataChan <- &blockEventsDBData{
-						blockHeight:    currentHeight,
-						blockTime:      blockData.BlockData.Block.Time,
 						blockDBWrapper: blockDBWrapper,
 					}
 				} else {
@@ -397,8 +403,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			} else {
 				txDataChan <- &dbData{
 					txDBWrappers: txDBWrappers,
-					blockTime:    blockData.BlockData.Block.Time,
-					blockHeight:  currentHeight,
+					block:        block,
 				}
 			}
 
@@ -435,18 +440,18 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			// While debugging we'll sometimes want to turn off INSERTS to the DB
 			// Note that this does not turn off certain reads or DB connections.
 			if !idxr.dryRun {
-				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.blockHeight))
-				err := dbTypes.IndexNewBlock(idxr.db, data.blockHeight, data.blockTime, data.txDBWrappers, dbChainID)
+				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
+				err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers)
 				if err != nil {
 					// Do a single reattempt on failure
 					dbReattempts++
-					err = dbTypes.IndexNewBlock(idxr.db, data.blockHeight, data.blockTime, data.txDBWrappers, dbChainID)
+					err = dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers)
 					if err != nil {
-						config.Log.Fatal(fmt.Sprintf("Error indexing block %v.", data.blockHeight), err)
+						config.Log.Fatal(fmt.Sprintf("Error indexing block %v.", data.block.Height), err)
 					}
 				}
 			} else {
-				config.Log.Info(fmt.Sprintf("Processing block %d (dry run, block data will not be stored in DB).", data.blockHeight))
+				config.Log.Info(fmt.Sprintf("Processing block %d (dry run, block data will not be stored in DB).", data.block.Height))
 			}
 
 			// Just measuring how many blocks/second we can process
@@ -468,10 +473,10 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			}
 			dbWrites++
 			numEvents := len(eventData.blockDBWrapper.BeginBlockEvents) + len(eventData.blockDBWrapper.EndBlockEvents)
-			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", numEvents, eventData.blockHeight))
-			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockHeight)
+			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", numEvents, eventData.blockDBWrapper.Block.Height))
+			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockDBWrapper.Block.Height)
 
-			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, dbChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
+			err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockDBWrapper, identifierLoggingString)
 			if err != nil {
 				// TODO: Should we reattempt here still?
 				// Do a single reattempt on failure
@@ -481,7 +486,7 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
 				// }
 			}
-			config.Log.Info(fmt.Sprintf("Finished indexing %v Block Events from block %d", numEvents, eventData.blockHeight))
+			config.Log.Info(fmt.Sprintf("Finished indexing %v Block Events from block %d", numEvents, eventData.blockDBWrapper.Block.Height))
 		}
 	}
 }

@@ -25,12 +25,10 @@ func ChainSpecificBeginBlockerEventTypeHandlerBootstrap(chainID string) {
 	// Stub, for use when we have begin blocker events
 }
 
-func ProcessRPCBlockResults(blockResults *ctypes.ResultBlockResults) (*db.BlockDBWrapper, error) {
+func ProcessRPCBlockResults(block models.Block, blockResults *ctypes.ResultBlockResults) (*db.BlockDBWrapper, error) {
 	var blockDBWrapper db.BlockDBWrapper
 
-	blockDBWrapper.Block = &models.Block{
-		Height: blockResults.Height,
-	}
+	blockDBWrapper.Block = &block
 
 	blockDBWrapper.UniqueBlockEventAttributeKeys = make(map[string]models.BlockEventAttributeKey)
 	blockDBWrapper.UniqueBlockEventTypes = make(map[string]models.BlockEventType)
