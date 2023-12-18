@@ -1,31 +1,27 @@
 package db
 
 import (
-	"time"
-
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func IndexBlockEvents(db *gorm.DB, dryRun bool, blockHeight int64, blockTime time.Time, blockDBWrapper *BlockDBWrapper, dbChainID uint, dbChainName string, identifierLoggingString string) error {
+func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, identifierLoggingString string) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		if err := dbTransaction.
-			Exec("DELETE FROM failed_event_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
+			Exec("DELETE FROM failed_event_blocks WHERE height = ? AND blockchain_id = ?", blockDBWrapper.Block.Height, blockDBWrapper.Block.ChainID).
 			Error; err != nil {
 			config.Log.Error("Error updating failed block.", err)
 			return err
 		}
 
 		// create block if it doesn't exist
-		blockDBWrapper.Block.ChainID = dbChainID
-		blockDBWrapper.Block.TimeStamp = blockTime
 		blockDBWrapper.Block.BlockEventsIndexed = true
 
 		if err := dbTransaction.
-			Where(models.Block{Height: blockHeight, ChainID: dbChainID}).
-			Assign(models.Block{BlockEventsIndexed: true, TimeStamp: blockTime}).
+			Where(models.Block{Height: blockDBWrapper.Block.Height, ChainID: blockDBWrapper.Block.ChainID}).
+			Assign(models.Block{BlockEventsIndexed: true, TimeStamp: blockDBWrapper.Block.TimeStamp, ProposerConsAddress: blockDBWrapper.Block.ProposerConsAddress}).
 			FirstOrCreate(&blockDBWrapper.Block).Error; err != nil {
 			config.Log.Error("Error getting/creating block DB object.", err)
 			return err

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -218,25 +217,25 @@ func UpsertFailedEventBlock(db *gorm.DB, blockHeight int64, chainID string, chai
 	})
 }
 
-func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []TxDBWrapper, dbChainID uint) error {
+func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 	// consider optimizing the transaction, but how? Ordering matters due to foreign key constraints
 	// Order required: Block -> (For each Tx: Signer Address -> Tx -> (For each Message: Message -> Taxable Events))
 	// Also, foreign key relations are struct value based so create needs to be called first to get right foreign key ID
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
 		// remove from failed blocks if exists
 		if err := dbTransaction.
-			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", blockHeight, dbChainID).
+			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", block.Height, block.ChainID).
 			Error; err != nil {
 			config.Log.Error("Error updating failed block.", err)
 			return err
 		}
 
 		// create block if it doesn't exist
-		blockOnly := models.Block{Height: blockHeight, TimeStamp: blockTime, TxIndexed: true, ChainID: dbChainID}
+		block.TxIndexed = true
 		if err := dbTransaction.
-			Where(models.Block{Height: blockHeight, ChainID: dbChainID}).
-			Assign(models.Block{TxIndexed: true, TimeStamp: blockTime}).
-			FirstOrCreate(&blockOnly).Error; err != nil {
+			Where(models.Block{Height: block.Height, ChainID: block.ChainID}).
+			Assign(models.Block{TxIndexed: true, TimeStamp: block.TimeStamp}).
+			FirstOrCreate(&block).Error; err != nil {
 			config.Log.Error("Error getting/creating block DB object.", err)
 			return err
 		}
@@ -245,7 +244,7 @@ func IndexNewBlock(db *gorm.DB, blockHeight int64, blockTime time.Time, txs []Tx
 		uniqueTxes := make(map[string]models.Tx)
 		uniqueAddress := make(map[string]models.Address)
 		for _, tx := range txs {
-			tx.Tx.BlockID = blockOnly.ID
+			tx.Tx.BlockID = block.ID
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
 			if tx.Tx.SignerAddress.Address != "" {
 				uniqueAddress[tx.Tx.SignerAddress.Address] = tx.Tx.SignerAddress

@@ -5,12 +5,13 @@ import (
 )
 
 type Block struct {
-	ID        uint
-	TimeStamp time.Time
-	Height    int64 `gorm:"uniqueIndex:chainheight"`
-	ChainID   uint  `gorm:"uniqueIndex:chainheight"`
-	Chain     Chain
-	TxIndexed bool
+	ID                  uint
+	TimeStamp           time.Time
+	Height              int64 `gorm:"uniqueIndex:chainheight"`
+	ChainID             uint  `gorm:"uniqueIndex:chainheight"`
+	Chain               Chain
+	ProposerConsAddress string
+	TxIndexed           bool
 	// TODO: Should block event indexing be split out or rolled up?
 	BlockEventsIndexed bool
 }
