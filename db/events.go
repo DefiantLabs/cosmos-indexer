@@ -16,6 +16,18 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 			return err
 		}
 
+		consAddress := blockDBWrapper.Block.ProposerConsAddress
+
+		// create cons address if it doesn't exist
+		if err := dbTransaction.Where(&consAddress).FirstOrCreate(&consAddress).Error; err != nil {
+			config.Log.Error("Error getting/creating cons address DB object.", err)
+			return err
+		}
+
+		// create block if it doesn't exist
+		blockDBWrapper.Block.ProposerConsAddressID = consAddress.ID
+		blockDBWrapper.Block.ProposerConsAddress = consAddress
+
 		// create block if it doesn't exist
 		blockDBWrapper.Block.BlockEventsIndexed = true
 

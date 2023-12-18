@@ -35,7 +35,7 @@ func ProcessBlock(blockData *ctypes.ResultBlock, blockResultsData *ctypes.Result
 		return block, err
 	}
 
-	block.ProposerConsAddress = propAddressFromHex.String()
+	block.ProposerConsAddress = models.Address{Address: propAddressFromHex.String()}
 	block.TimeStamp = blockData.Block.Time
 
 	return block, nil

@@ -230,7 +230,17 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 			return err
 		}
 
+		consAddress := block.ProposerConsAddress
+
+		// create cons address if it doesn't exist
+		if err := dbTransaction.Where(&consAddress).FirstOrCreate(&consAddress).Error; err != nil {
+			config.Log.Error("Error getting/creating cons address DB object.", err)
+			return err
+		}
+
 		// create block if it doesn't exist
+		block.ProposerConsAddressID = consAddress.ID
+		block.ProposerConsAddress = consAddress
 		block.TxIndexed = true
 		if err := dbTransaction.
 			Where(models.Block{Height: block.Height, ChainID: block.ChainID}).
