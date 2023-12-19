@@ -151,7 +151,13 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 			return currTxDbWrappers, blockTime, err
 		}
 
-		processedTx.SignerAddress = models.Address{Address: txFull.FeePayer().String()}
+		signers, err := ProcessSigners(cl, txFull.AuthInfo, txFull.GetSigners())
+		if err != nil {
+			return currTxDbWrappers, blockTime, err
+		}
+
+		processedTx.Tx.SignerAddresses = signers
+
 		currTxDbWrappers[txIdx] = processedTx
 	}
 
@@ -159,7 +165,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 }
 
 // ProcessRPCTXs - Given an RPC response, build out the more specific data used by the parser.
-func ProcessRPCTXs(db *gorm.DB, txEventResp *cosmosTx.GetTxsEventResponse) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.GetTxsEventResponse) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	currTxDbWrappers := make([]dbTypes.TxDBWrapper, len(txEventResp.Txs))
 	var blockTime *time.Time
 
@@ -224,7 +230,13 @@ func ProcessRPCTXs(db *gorm.DB, txEventResp *cosmosTx.GetTxsEventResponse) ([]db
 			blockTime = &txTime
 		}
 
-		processedTx.SignerAddress = models.Address{Address: currTx.FeePayer().String()}
+		signers, err := ProcessSigners(cl, currTx.AuthInfo, currTx.GetSigners())
+		if err != nil {
+			return currTxDbWrappers, blockTime, err
+		}
+
+		processedTx.Tx.SignerAddresses = signers
+
 		currTxDbWrappers[txIdx] = processedTx
 	}
 
@@ -267,6 +279,48 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	txDBWapper.UniqueMessageEventTypes = uniqueEventTypes
 
 	return txDBWapper, txTime, nil
+}
+
+func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers []types.AccAddress) ([]models.Address, error) {
+	signerAddressMap := make(map[string]models.Address)
+	for _, signer := range signers {
+		signerAddressMap[signer.String()] = models.Address{Address: signer.String()}
+	}
+
+	// If there is a fee payer, add it to the list of signers
+	if authInfo.Fee.GetPayer() != "" {
+		signerAddressMap[authInfo.Fee.GetPayer()] = models.Address{Address: authInfo.Fee.GetPayer()}
+	}
+
+	// If there is a signer info, get the address from the keys add it to the list of signers
+	// This probably isnt handling multisig txes properly
+	for _, signerInfo := range authInfo.SignerInfos {
+		if signerInfo.PublicKey != nil {
+			pubKey, err := cl.Codec.InterfaceRegistry.Resolve(signerInfo.PublicKey.TypeUrl)
+			if err != nil {
+				return nil, err
+			}
+			err = cl.Codec.InterfaceRegistry.UnpackAny(signerInfo.PublicKey, &pubKey)
+			if err != nil {
+				return nil, err
+			}
+
+			castPubKey, ok := pubKey.(cryptoTypes.PubKey)
+			if !ok {
+				return nil, err
+			}
+
+			address := types.AccAddress(castPubKey.Address().Bytes()).String()
+			signerAddressMap[address] = models.Address{Address: address}
+		}
+	}
+
+	var signerAddresses []models.Address
+	for _, signerAddress := range signerAddressMap {
+		signerAddresses = append(signerAddresses, signerAddress)
+	}
+
+	return signerAddresses, nil
 }
 
 // ProcessFees returns a comma delimited list of fee amount/denoms

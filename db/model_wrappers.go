@@ -31,7 +31,6 @@ type BlockEventDBWrapper struct {
 // Store transactions with their messages for easy database creation
 type TxDBWrapper struct {
 	Tx                         models.Tx
-	SignerAddress              models.Address
 	Messages                   []MessageDBWrapper
 	UniqueMessageTypes         map[string]models.MessageType
 	UniqueMessageEventTypes    map[string]models.MessageEventType

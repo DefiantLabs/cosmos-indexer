@@ -388,7 +388,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			var err error
 
 			if blockData.GetTxsResponse != nil {
-				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, blockData.GetTxsResponse)
+				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, blockData.GetTxsResponse)
 			} else if blockData.BlockResultsData != nil {
 				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, blockData.BlockData, blockData.BlockResultsData)
 			}

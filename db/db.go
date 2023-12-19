@@ -256,8 +256,10 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 		for _, tx := range txs {
 			tx.Tx.BlockID = block.ID
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
-			if tx.Tx.SignerAddress.Address != "" {
-				uniqueAddress[tx.Tx.SignerAddress.Address] = tx.Tx.SignerAddress
+			if len(tx.Tx.SignerAddresses) != 0 {
+				for _, signerAddress := range tx.Tx.SignerAddresses {
+					uniqueAddress[signerAddress.Address] = signerAddress
+				}
 			}
 			for _, fee := range tx.Tx.Fees {
 				uniqueAddress[fee.PayerAddress.Address] = fee.PayerAddress
@@ -288,12 +290,12 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 
 			var signerAddressID uint
 
-			if tx.SignerAddress.Address != "" {
-				signerAddressID = uniqueAddress[tx.SignerAddress.Address].ID
-				tx.SignerAddress = uniqueAddress[tx.SignerAddress.Address]
-				tx.SignerAddressID = &signerAddressID
-			} else {
-				tx.SignerAddressID = nil
+			if len(tx.SignerAddresses) != 0 {
+				for addressIndex := range tx.SignerAddresses {
+					signerAddressID = uniqueAddress[tx.SignerAddresses[addressIndex].Address].ID
+					tx.SignerAddresses[addressIndex] = uniqueAddress[tx.SignerAddresses[addressIndex].Address]
+					tx.SignerAddresses[addressIndex].ID = signerAddressID
+				}
 			}
 
 			for feeIndex := range tx.Fees {
@@ -306,7 +308,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 		if len(txesSlice) != 0 {
 			if err := dbTransaction.Clauses(clause.OnConflict{
 				Columns:   []clause.Column{{Name: "hash"}},
-				DoUpdates: clause.AssignmentColumns([]string{"code", "block_id", "signer_address_id"}),
+				DoUpdates: clause.AssignmentColumns([]string{"code", "block_id"}),
 			}).Create(txesSlice).Error; err != nil {
 				config.Log.Error("Error getting/creating txes.", err)
 				return err
