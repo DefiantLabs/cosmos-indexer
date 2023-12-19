@@ -12,8 +12,7 @@ type Tx struct {
 	Code            uint32
 	BlockID         uint
 	Block           Block
-	SignerAddressID *uint // *int allows foreign key to be null
-	SignerAddress   Address
+	SignerAddresses []Address `gorm:"many2many:tx_signer_addresses;"`
 	Fees            []Fee
 }
 
