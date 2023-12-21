@@ -7,6 +7,7 @@ drop table if exists chains cascade;
 drop table if exists denom_unit_aliases cascade;
 drop table if exists messages cascade;
 drop table if exists txes cascade;
+drop table if exists tx_signer_addresses cascade;
 drop table if exists taxable_event cascade;
 drop table if exists messages cascade;
 drop table if exists addresses cascade;
