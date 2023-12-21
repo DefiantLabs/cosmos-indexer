@@ -131,8 +131,6 @@ func setupIndexer() *Indexer {
 	var err error
 
 	// Setup chain specific stuff
-	core.SetupAddressRegex(indexer.cfg.Probe.AccountPrefix + "(valoper)?1[a-z0-9]{38}")
-	core.SetupAddressPrefix(indexer.cfg.Probe.AccountPrefix)
 	core.ChainSpecificMessageTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
 	core.ChainSpecificBeginBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
 	core.ChainSpecificEndBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)

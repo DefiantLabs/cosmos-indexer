@@ -253,6 +253,9 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 		// pull txes and insert them
 		uniqueTxes := make(map[string]models.Tx)
 		uniqueAddress := make(map[string]models.Address)
+
+		denomMap := make(map[string]models.Denom)
+
 		for _, tx := range txs {
 			tx.Tx.BlockID = block.ID
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
@@ -261,8 +264,23 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 					uniqueAddress[signerAddress.Address] = signerAddress
 				}
 			}
-			for _, fee := range tx.Tx.Fees {
+			for feeIndex, fee := range tx.Tx.Fees {
 				uniqueAddress[fee.PayerAddress.Address] = fee.PayerAddress
+
+				denom := fee.Denomination
+
+				if _, ok := denomMap[denom.Base]; !ok {
+					if err := dbTransaction.Where(&denom).FirstOrCreate(&denom).Error; err != nil {
+						config.Log.Error("Error getting/creating denom DB object.", err)
+						return err
+					}
+					denomMap[denom.Base] = denom
+				} else {
+					denom = denomMap[denom.Base]
+				}
+
+				tx.Tx.Fees[feeIndex].DenominationID = denom.ID
+				tx.Tx.Fees[feeIndex].Denomination = denom
 			}
 		}
 

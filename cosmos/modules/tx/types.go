@@ -43,7 +43,6 @@ type GetTxByBlockHeightResponse struct {
 type IndexerTx struct {
 	Body     Body `json:"body"`
 	AuthInfo cosmTx.AuthInfo
-	Signers  []sdk.AccAddress
 }
 
 type Response struct {

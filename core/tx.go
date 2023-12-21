@@ -141,7 +141,6 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		}
 
 		indexerTx.AuthInfo = *txFull.AuthInfo
-		indexerTx.Signers = txFull.GetSigners()
 		indexerMergedTx.TxResponse = indexerTxResp
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *txFull.AuthInfo
@@ -157,6 +156,13 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		}
 
 		processedTx.Tx.SignerAddresses = signers
+
+		fees, err := ProcessFees(db, indexerTx.AuthInfo, signers)
+		if err != nil {
+			return currTxDbWrappers, blockTime, err
+		}
+
+		processedTx.Tx.Fees = fees
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
@@ -216,7 +222,6 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 		}
 
 		indexerTx.AuthInfo = *currTx.AuthInfo
-		indexerTx.Signers = currTx.GetSigners()
 		indexerMergedTx.TxResponse = indexerTxResp
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *currTx.AuthInfo
@@ -234,8 +239,14 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
-
 		processedTx.Tx.SignerAddresses = signers
+
+		fees, err := ProcessFees(db, indexerTx.AuthInfo, signers)
+		if err != nil {
+			return currTxDbWrappers, blockTime, err
+		}
+
+		processedTx.Tx.Fees = fees
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
@@ -267,12 +278,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 		}
 	}
 
-	fees, err := ProcessFees(db, tx.Tx.AuthInfo, tx.Tx.Signers)
-	if err != nil {
-		return txDBWapper, txTime, err
-	}
-
-	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Fees: fees, Code: code}
+	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Code: code}
 	txDBWapper.Messages = messages
 	txDBWapper.UniqueMessageTypes = uniqueMessageTypes
 	txDBWapper.UniqueMessageAttributeKeys = uniqueEventAttributeKeys
@@ -281,16 +287,15 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	return txDBWapper, txTime, nil
 }
 
+// Processes signers in a deterministic order.
+// 1. Processes signers from the auth info
+// 2. Processes signers from the signers array
+// 3. Processes the fee payer
 func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers []types.AccAddress) ([]models.Address, error) {
+	// For unique checks
 	signerAddressMap := make(map[string]models.Address)
-	for _, signer := range signers {
-		signerAddressMap[signer.String()] = models.Address{Address: signer.String()}
-	}
-
-	// If there is a fee payer, add it to the list of signers
-	if authInfo.Fee.GetPayer() != "" {
-		signerAddressMap[authInfo.Fee.GetPayer()] = models.Address{Address: authInfo.Fee.GetPayer()}
-	}
+	// For deterministic output of signer values
+	var signerAddressArray []models.Address
 
 	// If there is a signer info, get the addresses from the keys add it to the list of signers
 	for _, signerInfo := range authInfo.SignerInfos {
@@ -309,6 +314,9 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers
 			if ok {
 				for _, key := range multisigKey.GetPubKeys() {
 					address := types.AccAddress(key.Address().Bytes()).String()
+					if _, ok := signerAddressMap[address]; !ok {
+						signerAddressArray = append(signerAddressArray, models.Address{Address: address})
+					}
 					signerAddressMap[address] = models.Address{Address: address}
 				}
 			} else {
@@ -318,22 +326,36 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers
 				}
 
 				address := types.AccAddress(castPubKey.Address().Bytes()).String()
+				if _, ok := signerAddressMap[address]; !ok {
+					signerAddressArray = append(signerAddressArray, models.Address{Address: address})
+				}
 				signerAddressMap[address] = models.Address{Address: address}
 			}
 
 		}
 	}
 
-	var signerAddresses []models.Address
-	for _, signerAddress := range signerAddressMap {
-		signerAddresses = append(signerAddresses, signerAddress)
+	for _, signer := range signers {
+		addressStr := signer.String()
+		if _, ok := signerAddressMap[addressStr]; !ok {
+			signerAddressArray = append(signerAddressArray, models.Address{Address: addressStr})
+		}
+		signerAddressMap[addressStr] = models.Address{Address: addressStr}
 	}
 
-	return signerAddresses, nil
+	// If there is a fee payer, add it to the list of signers
+	if authInfo.Fee.GetPayer() != "" {
+		if _, ok := signerAddressMap[authInfo.Fee.GetPayer()]; !ok {
+			signerAddressArray = append(signerAddressArray, models.Address{Address: authInfo.Fee.GetPayer()})
+		}
+		signerAddressMap[authInfo.Fee.GetPayer()] = models.Address{Address: authInfo.Fee.GetPayer()}
+	}
+
+	return signerAddressArray, nil
 }
 
-// ProcessFees returns a comma delimited list of fee amount/denoms
-func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAddress) ([]models.Fee, error) {
+// Processes fees into model form, applying denoms and addresses to them
+func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []models.Address) ([]models.Fee, error) {
 	feeCoins := authInfo.Fee.Amount
 	payer := authInfo.Fee.GetPayer()
 	fees := []models.Fee{}
@@ -341,43 +363,15 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []types.AccAdd
 	for _, coin := range feeCoins {
 		zeroFee := big.NewInt(0)
 
-		// There are chains like Osmosis that do not require TX fees for certain TXs
 		if zeroFee.Cmp(coin.Amount.BigInt()) != 0 {
 			amount := util.ToNumeric(coin.Amount.BigInt())
-			denom, err := dbTypes.GetDenomForBase(coin.Denom)
-			if err != nil {
-				// attempt to add missing denoms to the database
-				config.Log.Warnf("Denom lookup failed. Will be inserted as UNKNOWN. Denom Received: %v. Err: %v", coin.Denom, err)
-				denom, err = dbTypes.AddUnknownDenom(db, coin.Denom)
-				if err != nil {
-					config.Log.Error(fmt.Sprintf("There was an error adding a missing denom. Denom: %v", coin.Denom), err)
-					return nil, err
-				}
-			}
+			denom := models.Denom{Base: coin.Denom}
+
 			payerAddr := models.Address{}
 			if payer != "" {
 				payerAddr.Address = payer
-			} else {
-				if authInfo.SignerInfos[0].PublicKey == nil && len(signers) > 0 {
-					payerAddr.Address = signers[0].String()
-				} else {
-					var pubKey cryptoTypes.PubKey
-					cpk := authInfo.SignerInfos[0].PublicKey.GetCachedValue()
-
-					// if this is a multisig msg, handle it specially
-					if strings.Contains(authInfo.SignerInfos[0].ModeInfo.GetMulti().String(), "mode:SIGN_MODE_LEGACY_AMINO_JSON") {
-						pubKey = cpk.(*multisig.LegacyAminoPubKey).GetPubKeys()[0]
-					} else {
-						pubKey = cpk.(cryptoTypes.PubKey)
-					}
-					hexPub := hex.EncodeToString(pubKey.Bytes())
-					bechAddr, err := ParseSignerAddress(hexPub, "")
-					if err != nil {
-						config.Log.Error(fmt.Sprintf("Error parsing signer address '%v' for tx.", hexPub), err)
-					} else {
-						payerAddr.Address = bechAddr
-					}
-				}
+			} else if len(signers) > 0 {
+				payerAddr = signers[0]
 			}
 
 			fees = append(fees, models.Fee{Amount: amount, Denomination: denom, PayerAddress: payerAddr})
@@ -424,38 +418,3 @@ func ProcessMessage(messageIndex int, message types.Msg, txMessageEventLogs []tx
 	}
 	return currMessageType.MessageType, currMessageDBWrapper
 }
-
-// getDenom handles denom processing for both IBC denoms and native denoms.
-// If the denom begins with ibc/ we know this is an IBC denom trace, and it's not guaranteed there is an entry in
-// the Denom table.
-// func getDenom(denom string) (dbTypes.Denom, error) {
-// 	var (
-// 		denomSent dbTypes.Denom
-// 		err       error
-// 	)
-
-// 	// if this is an ibc denom trace, get the ibc denom then use the base denom to get the Denom from the db
-// 	if strings.HasPrefix(denom, "ibc/") {
-// 		ibcDenom, err := dbTypes.GetIBCDenom(denom)
-// 		if err != nil {
-// 			config.Log.Warnf("IBC Denom lookup failed for  %s, err: %v", denom, err)
-// 		} else {
-// 			denomSent, err = dbTypes.GetDenomForBase(ibcDenom.BaseDenom)
-// 			if err != nil {
-// 				config.Log.Warnf("Denom lookup failed for IBC base denom %s, err: %v", ibcDenom.BaseDenom, err)
-// 				return dbTypes.Denom{Base: ibcDenom.BaseDenom}, err
-// 			}
-// 		}
-// 	}
-
-// 	// if this is not an ibc denom trace or there was an issue querying the ibc denom trace in the other table,
-// 	// attempt to look up this denom in the regular Denom table
-// 	if denomSent.Base == "" {
-// 		denomSent, err = dbTypes.GetDenomForBase(denom)
-// 		if err != nil {
-// 			return dbTypes.Denom{Base: denom}, err
-// 		}
-// 	}
-
-// 	return denomSent, nil
-// }
