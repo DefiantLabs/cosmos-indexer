@@ -292,8 +292,7 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers
 		signerAddressMap[authInfo.Fee.GetPayer()] = models.Address{Address: authInfo.Fee.GetPayer()}
 	}
 
-	// If there is a signer info, get the address from the keys add it to the list of signers
-	// This probably isnt handling multisig txes properly
+	// If there is a signer info, get the addresses from the keys add it to the list of signers
 	for _, signerInfo := range authInfo.SignerInfos {
 		if signerInfo.PublicKey != nil {
 			pubKey, err := cl.Codec.InterfaceRegistry.Resolve(signerInfo.PublicKey.TypeUrl)
@@ -305,13 +304,23 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers
 				return nil, err
 			}
 
-			castPubKey, ok := pubKey.(cryptoTypes.PubKey)
-			if !ok {
-				return nil, err
+			multisigKey, ok := pubKey.(*multisig.LegacyAminoPubKey)
+
+			if ok {
+				for _, key := range multisigKey.GetPubKeys() {
+					address := types.AccAddress(key.Address().Bytes()).String()
+					signerAddressMap[address] = models.Address{Address: address}
+				}
+			} else {
+				castPubKey, ok := pubKey.(cryptoTypes.PubKey)
+				if !ok {
+					return nil, err
+				}
+
+				address := types.AccAddress(castPubKey.Address().Bytes()).String()
+				signerAddressMap[address] = models.Address{Address: address}
 			}
 
-			address := types.AccAddress(castPubKey.Address().Bytes()).String()
-			signerAddressMap[address] = models.Address{Address: address}
 		}
 	}
 
