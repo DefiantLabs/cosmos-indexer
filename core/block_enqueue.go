@@ -310,24 +310,23 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client 
 							config.Log.Debugf("Block %d already indexed, skipping", currBlock)
 							currBlock++
 							continue
-						} else {
-							config.Log.Debugf("Block %d needs indexing, adding to queue", currBlock)
-							blockChan <- &EnqueueData{
-								Height:            currBlock,
-								IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled && !block.BlockEventsIndexed,
-								IndexTransactions: cfg.Base.TransactionIndexingEnabled && !block.TxIndexed,
-							}
-
-							delete(blocksInDB, currBlock)
-
-							currBlock++
-
-							if cfg.Base.Throttling != 0 {
-								time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
-							}
-
-							continue
 						}
+						config.Log.Debugf("Block %d needs indexing, adding to queue", currBlock)
+						blockChan <- &EnqueueData{
+							Height:            currBlock,
+							IndexBlockEvents:  cfg.Base.BlockEventIndexingEnabled && !block.BlockEventsIndexed,
+							IndexTransactions: cfg.Base.TransactionIndexingEnabled && !block.TxIndexed,
+						}
+
+						delete(blocksInDB, currBlock)
+
+						currBlock++
+
+						if cfg.Base.Throttling != 0 {
+							time.Sleep(time.Second * time.Duration(cfg.Base.Throttling))
+						}
+
+						continue
 					}
 
 					// Add the new block to the queue

@@ -528,7 +528,8 @@ func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]
 
 func UpsertDenoms(db *gorm.DB, denoms []DenomDBWrapper) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		for _, denom := range denoms {
+		for i := range denoms {
+			denom := denoms[i]
 			if err := dbTransaction.Clauses(clause.OnConflict{
 				Columns:   []clause.Column{{Name: "base"}},
 				DoUpdates: clause.AssignmentColumns([]string{"symbol", "name"}),
@@ -536,7 +537,8 @@ func UpsertDenoms(db *gorm.DB, denoms []DenomDBWrapper) error {
 				return err
 			}
 
-			for _, denomUnit := range denom.DenomUnits {
+			for i := range denom.DenomUnits {
+				denomUnit := denom.DenomUnits[i]
 				denomUnit.DenomUnit.Denom = denom.Denom
 
 				if err := dbTransaction.Clauses(clause.OnConflict{

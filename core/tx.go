@@ -258,7 +258,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	txTime, err = time.Parse(time.RFC3339, tx.TxResponse.TimeStamp)
 	if err != nil {
 		config.Log.Error("Error parsing tx timestamp.", err)
-		return
+		return txDBWapper, txTime, err
 	}
 
 	code := tx.TxResponse.Code
