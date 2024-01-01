@@ -15,6 +15,7 @@ type IndexConfig struct {
 	Base               indexBase
 	Log                log
 	Probe              Probe
+	Flags              flags
 }
 
 type indexBase struct {
@@ -36,6 +37,11 @@ type indexBase struct {
 	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events"`
 	BlockEventFilterFile       string `mapstructure:"block-event-filter-file"`
 	Dry                        bool   `mapstructure:"dry"`
+}
+
+// Flags for specific, deeper indexing behavior
+type flags struct {
+	IndexTxMessageRaw bool `mapstructure:"index-tx-message-raw"`
 }
 
 func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
@@ -61,6 +67,9 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&conf.Base.ExitWhenCaughtUp, "base.exit-when-caught-up", false, "mainly used for Osmosis rewards indexing")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RequestRetryAttempts, "base.request-retry-attempts", 0, "number of RPC query retries to make")
 	cmd.PersistentFlags().Uint64Var(&conf.Base.RequestRetryMaxWait, "base.request-retry-max-wait", 30, "max retry incremental backoff wait time in seconds")
+
+	// flags
+	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexTxMessageRaw, "flags.index-tx-message-raw", false, "if true, this will index the raw message bytes. This will significantly increase the size of the database.")
 }
 
 func (conf *IndexConfig) Validate() error {

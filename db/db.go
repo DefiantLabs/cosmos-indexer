@@ -217,7 +217,7 @@ func UpsertFailedEventBlock(db *gorm.DB, blockHeight int64, chainID string, chai
 	})
 }
 
-func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
+func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerConfig config.IndexConfig) error {
 	// consider optimizing the transaction, but how? Ordering matters due to foreign key constraints
 	// Order required: Block -> (For each Tx: Signer Address -> Tx -> (For each Message: Message -> Taxable Events))
 	// Also, foreign key relations are struct value based so create needs to be called first to get right foreign key ID
@@ -374,13 +374,17 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper) error {
 					}
 				}
 
+				if !indexerConfig.Flags.IndexTxMessageRaw {
+					tx.Messages[messageIndex].Message.MessageBytes = nil
+				}
+
 				messagesSlice = append(messagesSlice, &tx.Messages[messageIndex].Message)
 			}
 
 			if len(messagesSlice) != 0 {
 				if err := dbTransaction.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "tx_id"}, {Name: "message_index"}},
-					DoUpdates: clause.AssignmentColumns([]string{"message_type_id"}),
+					DoUpdates: clause.AssignmentColumns([]string{"message_type_id", "message_bytes"}),
 				}).Create(messagesSlice).Error; err != nil {
 					config.Log.Error("Error getting/creating messages.", err)
 					return err

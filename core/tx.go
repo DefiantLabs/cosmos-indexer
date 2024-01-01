@@ -109,9 +109,12 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 			return nil, blockTime, fmt.Errorf("logs could not be parsed")
 		}
 
+		var messagesRaw [][]byte
+
 		// Get the Messages and Message Logs
 		for msgIdx, currMsg := range txFull.GetMsgs() {
 			if currMsg != nil {
+				messagesRaw = append(messagesRaw, txFull.Body.Messages[msgIdx].Value)
 				currMessages = append(currMessages, currMsg)
 				msgEvents := types.StringEvents{}
 				if txResult.Code == 0 {
@@ -145,7 +148,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *txFull.AuthInfo
 
-		processedTx, _, err := ProcessTx(db, indexerMergedTx)
+		processedTx, _, err := ProcessTx(db, indexerMergedTx, messagesRaw)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -182,12 +185,15 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 		var txBody txtypes.Body
 		var currMessages []types.Msg
 		var currLogMsgs []txtypes.LogMessage
+		var messagesRaw [][]byte
+
 		currTx := txEventResp.Txs[txIdx]
 		currTxResp := txEventResp.TxResponses[txIdx]
 
 		// Get the Messages and Message Logs
 		for msgIdx := range currTx.Body.Messages {
 			currMsg := currTx.Body.Messages[msgIdx].GetCachedValue()
+			messagesRaw = append(messagesRaw, currTx.Body.Messages[msgIdx].Value)
 			if currMsg != nil {
 				msg := currMsg.(types.Msg)
 				currMessages = append(currMessages, msg)
@@ -226,7 +232,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *currTx.AuthInfo
 
-		processedTx, txTime, err := ProcessTx(db, indexerMergedTx)
+		processedTx, txTime, err := ProcessTx(db, indexerMergedTx, messagesRaw)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -254,7 +260,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 	return currTxDbWrappers, blockTime, nil
 }
 
-func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
+func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
 	txTime, err = time.Parse(time.RFC3339, tx.TxResponse.TimeStamp)
 	if err != nil {
 		config.Log.Error("Error parsing tx timestamp.", err)
@@ -272,6 +278,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx) (txDBWapper dbTypes.TxDBWrapper
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
 			messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
+			currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
 			uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
 			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, messageType))
 			messages = append(messages, currMessageDBWrapper)
