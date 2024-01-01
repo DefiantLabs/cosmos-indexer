@@ -439,11 +439,11 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			// Note that this does not turn off certain reads or DB connections.
 			if !idxr.dryRun {
 				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
-				err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers)
+				err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
 				if err != nil {
 					// Do a single reattempt on failure
 					dbReattempts++
-					err = dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers)
+					err = dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
 					if err != nil {
 						config.Log.Fatal(fmt.Sprintf("Error indexing block %v.", data.block.Height), err)
 					}

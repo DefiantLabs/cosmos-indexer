@@ -54,6 +54,7 @@ type Message struct {
 	MessageTypeID uint `gorm:"foreignKey:MessageTypeID,index:idx_txid_typeid"`
 	MessageType   MessageType
 	MessageIndex  int `gorm:"uniqueIndex:messageIndex,priority:2"`
+	MessageBytes  []byte
 }
 
 type FailedMessage struct {
