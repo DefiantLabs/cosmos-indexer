@@ -50,7 +50,6 @@ func (f MessageTypeRegexFilter) Valid() (bool, error) {
 
 func NewRegexMessageTypeFilter(messageTypeRegexPattern string) (MessageTypeRegexFilter, error) {
 	messageTypeRegex, err := regexp.Compile(messageTypeRegexPattern)
-
 	if err != nil {
 		return MessageTypeRegexFilter{}, fmt.Errorf("error compiling message type regex: %s", err)
 	}

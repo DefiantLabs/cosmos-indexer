@@ -73,7 +73,6 @@ func ParseJSONFilterConfig(configJSON []byte) ([]filter.BlockEventFilter, []filt
 	}
 
 	messageTypeFilters, err := ParseTXMessageTypeConfig(config.MessageTypeFilters)
-
 	if err != nil {
 		newErr := fmt.Errorf("error parsing message_type_filters: %s", err)
 		return nil, nil, nil, nil, nil, newErr
