@@ -35,7 +35,7 @@ type indexBase struct {
 	TransactionIndexingEnabled bool   `mapstructure:"index-transactions"`
 	ExitWhenCaughtUp           bool   `mapstructure:"exit-when-caught-up"`
 	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events"`
-	BlockEventFilterFile       string `mapstructure:"block-event-filter-file"`
+	FilterFile                 string `mapstructure:"filter-file"`
 	Dry                        bool   `mapstructure:"dry"`
 }
 
@@ -56,7 +56,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&conf.Base.TransactionIndexingEnabled, "base.index-transactions", false, "enable transaction indexing?")
 	cmd.PersistentFlags().BoolVar(&conf.Base.BlockEventIndexingEnabled, "base.index-block-events", false, "enable block beginblocker and endblocker event indexing?")
 	// filter configs
-	cmd.PersistentFlags().StringVar(&conf.Base.BlockEventFilterFile, "base.block-event-filter-file", "", "path to a file containing a JSON list of block event filters to apply to beginblocker and endblocker events")
+	cmd.PersistentFlags().StringVar(&conf.Base.FilterFile, "base.filter-file", "", "path to a file containing a JSON config of block event and message type filters to apply to beginblocker events, endblocker events and TX messages")
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
 	cmd.PersistentFlags().StringVar(&conf.Base.API, "base.api", "", "node api endpoint")
@@ -108,10 +108,10 @@ func (conf *IndexConfig) Validate() error {
 		}
 	}
 
-	if conf.Base.BlockEventIndexingEnabled && conf.Base.BlockEventFilterFile != "" {
+	if conf.Base.BlockEventIndexingEnabled && conf.Base.FilterFile != "" {
 		// check if file exists
-		if _, err := os.Stat(conf.Base.BlockEventFilterFile); os.IsNotExist(err) {
-			return fmt.Errorf("base.block-event-filter-file %s does not exist", conf.Base.BlockEventFilterFile)
+		if _, err := os.Stat(conf.Base.FilterFile); os.IsNotExist(err) {
+			return fmt.Errorf("base.filter-file %s does not exist", conf.Base.FilterFile)
 		}
 	}
 
@@ -146,6 +146,10 @@ func CheckSuperfluousIndexKeys(keys []string) []string {
 	}
 
 	for _, key := range getValidConfigKeys(retryBase{}, "base") {
+		validKeys[key] = struct{}{}
+	}
+
+	for _, key := range getValidConfigKeys(flags{}, "flags") {
 		validKeys[key] = struct{}{}
 	}
 

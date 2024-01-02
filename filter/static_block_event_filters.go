@@ -37,7 +37,7 @@ func (f DefaultBlockEventTypeFilter) Valid() (bool, error) {
 		return true, nil
 	}
 
-	return true, errors.New("EventType must be set")
+	return false, errors.New("EventType must be set")
 }
 
 type RegexBlockEventTypeFilter struct {
@@ -59,7 +59,7 @@ func (f RegexBlockEventTypeFilter) Valid() (bool, error) {
 		return true, nil
 	}
 
-	return true, errors.New("EventTypeRegexPattern must be set")
+	return false, errors.New("EventTypeRegexPattern must be set")
 }
 
 type DefaultBlockEventTypeAndAttributeValueFilter struct {
