@@ -13,6 +13,7 @@ import (
 	txtypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -66,7 +67,7 @@ func getUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
-func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	if len(blockResults.Block.Txs) != len(resultBlockRes.TxsResults) {
 		config.Log.Fatalf("blockResults & resultBlockRes: different length")
 	}
@@ -86,15 +87,22 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		var currLogMsgs []txtypes.LogMessage
 
 		txDecoder := cl.Codec.TxConfig.TxDecoder()
+
 		txBasic, err := txDecoder(tendermintTx)
+		var txFull *cosmosTx.Tx
 		if err != nil {
-			return nil, blockTime, fmt.Errorf("ProcessRPCBlockByHeightTXs: TX cannot be parsed from block %v. Err: %v", blockResults.Block.Height, err)
+			txBasic, err = InAppTxDecoder(cl.Codec)(tendermintTx)
+			if err != nil {
+				return nil, blockTime, fmt.Errorf("ProcessRPCBlockByHeightTXs: TX cannot be parsed from block %v. This is usually a proto definition error. Err: %v", blockResults.Block.Height, err)
+			}
+			txFull = txBasic.(*cosmosTx.Tx)
+		} else {
+			// This is a hack, but as far as I can tell necessary. "wrapper" struct is private in Cosmos SDK.
+			field := reflect.ValueOf(txBasic).Elem().FieldByName("tx")
+			iTx := getUnexportedField(field)
+			txFull = iTx.(*cosmosTx.Tx)
 		}
 
-		// This is a hack, but as far as I can tell necessary. "wrapper" struct is private in Cosmos SDK.
-		field := reflect.ValueOf(txBasic).Elem().FieldByName("tx")
-		iTx := getUnexportedField(field)
-		txFull := iTx.(*cosmosTx.Tx)
 		logs := types.ABCIMessageLogs{}
 
 		// Failed TXs do not have proper JSON in the .Log field, causing ParseABCILogs to fail to unmarshal the logs
@@ -112,10 +120,38 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 		var messagesRaw [][]byte
 
 		// Get the Messages and Message Logs
-		for msgIdx, currMsg := range txFull.GetMsgs() {
+		for msgIdx := range txFull.Body.Messages {
+			filterData := filter.MessageTypeData{
+				MessageType: txFull.Body.Messages[msgIdx].TypeUrl,
+			}
+			matches := false
+			for _, messageTypeFilter := range messageTypeFilters {
+				typeMatch, err := messageTypeFilter.MessageTypeMatches(filterData)
+				if err != nil {
+					return nil, blockTime, err
+				}
+				if typeMatch {
+					matches = true
+					break
+				}
+			}
+
+			if !matches {
+				config.Log.Debug(fmt.Sprintf("[Block: %v] Skipping msg of type '%v'.", blockResults.Block.Height, txFull.Body.Messages[msgIdx].TypeUrl))
+				// To maintain ordering, append nils
+				currMessages = append(currMessages, nil)
+				currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
+					MessageIndex: msgIdx,
+				})
+				continue
+			}
+
+			currMsg := txFull.Body.Messages[msgIdx].GetCachedValue()
+
 			if currMsg != nil {
+				msg := currMsg.(types.Msg)
 				messagesRaw = append(messagesRaw, txFull.Body.Messages[msgIdx].Value)
-				currMessages = append(currMessages, currMsg)
+				currMessages = append(currMessages, msg)
 				msgEvents := types.StringEvents{}
 				if txResult.Code == 0 {
 					msgEvents = logs[msgIdx].Events
@@ -153,7 +189,14 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 			return currTxDbWrappers, blockTime, err
 		}
 
-		signers, err := ProcessSigners(cl, txFull.AuthInfo, txFull.GetSigners())
+		filteredSigners := []types.AccAddress{}
+		for _, filteredMessage := range txBody.Messages {
+			if filteredMessage != nil {
+				filteredSigners = append(filteredSigners, filteredMessage.GetSigners()...)
+			}
+		}
+
+		signers, err := ProcessSigners(cl, txFull.AuthInfo, filteredSigners)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -174,7 +217,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, blockResult
 }
 
 // ProcessRPCTXs - Given an RPC response, build out the more specific data used by the parser.
-func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.GetTxsEventResponse) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, txEventResp *cosmosTx.GetTxsEventResponse) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	currTxDbWrappers := make([]dbTypes.TxDBWrapper, len(txEventResp.Txs))
 	var blockTime *time.Time
 
@@ -192,8 +235,50 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 
 		// Get the Messages and Message Logs
 		for msgIdx := range currTx.Body.Messages {
+			filterData := filter.MessageTypeData{
+				MessageType: currTx.Body.Messages[msgIdx].TypeUrl,
+			}
+			matches := false
+			for _, messageTypeFilter := range messageTypeFilters {
+				typeMatch, err := messageTypeFilter.MessageTypeMatches(filterData)
+				if err != nil {
+					return nil, blockTime, err
+				}
+				if typeMatch {
+					matches = true
+					break
+				}
+			}
+
+			if !matches {
+				config.Log.Debug(fmt.Sprintf("[Block: %v] Skipping msg of type '%v'.", currTxResp.Height, currTx.Body.Messages[msgIdx].TypeUrl))
+				// To maintain ordering, append nils
+				currMessages = append(currMessages, nil)
+				currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
+					MessageIndex: msgIdx,
+				})
+				continue
+			}
+
 			currMsg := currTx.Body.Messages[msgIdx].GetCachedValue()
 			messagesRaw = append(messagesRaw, currTx.Body.Messages[msgIdx].Value)
+
+			// If we reached here, unpacking the entire TX raw was not successful
+			// Attempt to unpack the message individually.
+			if currMsg == nil {
+				var currMsgUnpack types.Msg
+				err := cl.Codec.InterfaceRegistry.UnpackAny(currTx.Body.Messages[msgIdx], &currMsgUnpack)
+				if err != nil || currMsgUnpack == nil {
+					return nil, blockTime, fmt.Errorf("tx message could not be processed. Unpacking protos failed and CachedValue is not present. TX Hash: %s, Msg type: %s, Msg index: %d, Code: %d",
+						currTxResp.TxHash,
+						currTx.Body.Messages[msgIdx].TypeUrl,
+						msgIdx,
+						currTxResp.Code,
+					)
+				}
+				currMsg = currMsgUnpack
+			}
+
 			if currMsg != nil {
 				msg := currMsg.(types.Msg)
 				currMessages = append(currMessages, msg)
@@ -205,13 +290,6 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 					}
 					currLogMsgs = append(currLogMsgs, currTxLog)
 				}
-			} else {
-				return nil, blockTime, fmt.Errorf("tx message could not be processed. CachedValue is not present. TX Hash: %s, Msg type: %s, Msg index: %d, Code: %d",
-					currTxResp.TxHash,
-					currTx.Body.Messages[msgIdx].TypeUrl,
-					msgIdx,
-					currTxResp.Code,
-				)
 			}
 		}
 
@@ -241,7 +319,19 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, txEventResp *cosmosTx.Ge
 			blockTime = &txTime
 		}
 
-		signers, err := ProcessSigners(cl, currTx.AuthInfo, currTx.GetSigners())
+		filteredSigners := []types.AccAddress{}
+		for _, filteredMessage := range txBody.Messages {
+			if filteredMessage != nil {
+				filteredSigners = append(filteredSigners, filteredMessage.GetSigners()...)
+			}
+		}
+
+		err = currTx.AuthInfo.UnpackInterfaces(cl.Codec.InterfaceRegistry)
+		if err != nil {
+			return currTxDbWrappers, blockTime, err
+		}
+
+		signers, err := ProcessSigners(cl, currTx.AuthInfo, filteredSigners)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -277,11 +367,13 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 	// non-zero code means the Tx was unsuccessful. We will still need to account for fees in both cases though.
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
-			messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
-			currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
-			uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
-			config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, messageType))
-			messages = append(messages, currMessageDBWrapper)
+			if message != nil {
+				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
+				currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
+				uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
+				config.Log.Debug(fmt.Sprintf("[Block: %v] Found msg of type '%v'.", tx.TxResponse.Height, messageType))
+				messages = append(messages, currMessageDBWrapper)
+			}
 		}
 	}
 
@@ -298,7 +390,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 // 1. Processes signers from the auth info
 // 2. Processes signers from the signers array
 // 3. Processes the fee payer
-func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers []types.AccAddress) ([]models.Address, error) {
+func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, messageSigners []types.AccAddress) ([]models.Address, error) {
 	// For unique checks
 	signerAddressMap := make(map[string]models.Address)
 	// For deterministic output of signer values
@@ -342,7 +434,7 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, signers
 		}
 	}
 
-	for _, signer := range signers {
+	for _, signer := range messageSigners {
 		addressStr := signer.String()
 		if _, ok := signerAddressMap[addressStr]; !ok {
 			signerAddressArray = append(signerAddressArray, models.Address{Address: addressStr})

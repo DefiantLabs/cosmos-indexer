@@ -33,6 +33,7 @@ type Indexer struct {
 	scheduler                  *gocron.Scheduler
 	blockEnqueueFunction       func(chan *core.EnqueueData) error
 	blockEventFilterRegistries blockEventFilterRegistries
+	messageTypeFilters         []filter.MessageTypeFilter
 }
 
 type blockEventFilterRegistries struct {
@@ -104,10 +105,10 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 		endBlockEventFilterRegistry:   &filter.StaticBlockEventFilterRegistry{},
 	}
 
-	if indexer.cfg.Base.BlockEventFilterFile != "" {
-		f, err := os.Open(indexer.cfg.Base.BlockEventFilterFile)
+	if indexer.cfg.Base.FilterFile != "" {
+		f, err := os.Open(indexer.cfg.Base.FilterFile)
 		if err != nil {
-			config.Log.Fatalf("Failed to open block event filter file %s: %s", indexer.cfg.Base.BlockEventFilterFile, err)
+			config.Log.Fatalf("Failed to open block event filter file %s: %s", indexer.cfg.Base.FilterFile, err)
 		}
 
 		b, err := io.ReadAll(f)
@@ -115,7 +116,12 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 			config.Log.Fatal("Failed to parse block event filter config", err)
 		}
 
-		indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.BlockEventFilters, indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.RollingWindowEventFilters, indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.BlockEventFilters, indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.RollingWindowEventFilters, err = config.ParseJSONFilterConfig(b)
+		indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.BlockEventFilters,
+			indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.RollingWindowEventFilters,
+			indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.BlockEventFilters,
+			indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.RollingWindowEventFilters,
+			indexer.messageTypeFilters,
+			err = config.ParseJSONFilterConfig(b)
 
 		if err != nil {
 			config.Log.Fatal("Failed to parse block event filter config", err)
@@ -386,9 +392,9 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			var err error
 
 			if blockData.GetTxsResponse != nil {
-				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, blockData.GetTxsResponse)
+				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse)
 			} else if blockData.BlockResultsData != nil {
-				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, blockData.BlockData, blockData.BlockResultsData)
+				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData)
 			}
 
 			if err != nil {
