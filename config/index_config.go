@@ -108,7 +108,7 @@ func (conf *IndexConfig) Validate() error {
 		}
 	}
 
-	if conf.Base.BlockEventIndexingEnabled && conf.Base.FilterFile != "" {
+	if conf.Base.FilterFile != "" {
 		// check if file exists
 		if _, err := os.Stat(conf.Base.FilterFile); os.IsNotExist(err) {
 			return fmt.Errorf("base.filter-file %s does not exist", conf.Base.FilterFile)
