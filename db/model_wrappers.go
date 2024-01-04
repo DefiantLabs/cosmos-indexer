@@ -48,10 +48,5 @@ type MessageEventDBWrapper struct {
 }
 
 type DenomDBWrapper struct {
-	Denom      models.Denom
-	DenomUnits []DenomUnitDBWrapper
-}
-
-type DenomUnitDBWrapper struct {
-	DenomUnit models.DenomUnit
+	Denom models.Denom
 }

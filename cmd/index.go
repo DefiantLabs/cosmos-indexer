@@ -19,7 +19,6 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
-	"github.com/DefiantLabs/cosmos-indexer/tasks"
 	"github.com/spf13/cobra"
 
 	"gorm.io/gorm"
@@ -94,10 +93,6 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 
 	indexer.scheduler = gocron.NewScheduler(time.UTC)
 
-	// We should stop relying on the denom cache now that we are running this as a CLI tool only
-	dbTypes.CacheDenoms(db)
-	dbTypes.CacheIBCDenoms(db)
-
 	indexer.dryRun = indexer.cfg.Base.Dry
 
 	indexer.blockEventFilterRegistries = blockEventFilterRegistries{
@@ -143,18 +138,6 @@ func setupIndexer() *Indexer {
 
 	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
-	// Setup scheduler to periodically update denoms
-	if indexer.cfg.Base.API != "" {
-		_, err = indexer.scheduler.Every(6).Hours().Do(tasks.IBCDenomUpsertTask, indexer.cfg.Base.API, indexer.db)
-		if err != nil {
-			config.Log.Error("Error scheduling ibc denom upsert task. Err: ", err)
-		}
-
-		indexer.scheduler.StartAsync()
-	}
-
-	// Some chains do not have the denom metadata URL available on chain, so we do chain specific downloads instead.
-	tasks.DoChainSpecificUpsertDenoms(indexer.db, indexer.cfg.Probe.ChainID, indexer.cfg.Base.RequestRetryAttempts, indexer.cfg.Base.RequestRetryMaxWait)
 	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe)
 
 	// Depending on the app configuration, wait for the chain to catch up
@@ -392,8 +375,10 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 			var err error
 
 			if blockData.GetTxsResponse != nil {
+				config.Log.Debug("Processing TXs from RPC TX Search response")
 				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse)
 			} else if blockData.BlockResultsData != nil {
+				config.Log.Debug("Processing TXs from BlockResults search response")
 				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData)
 			}
 
