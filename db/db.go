@@ -84,7 +84,6 @@ func migrateBlockModels(db *gorm.DB) error {
 func migrateDenomModels(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.Denom{},
-		&models.DenomUnit{},
 	)
 }
 
@@ -528,45 +527,4 @@ func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]
 	}
 
 	return fullUniqueMessageEventAttributeKeys, nil
-}
-
-func UpsertDenoms(db *gorm.DB, denoms []DenomDBWrapper) error {
-	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		for i := range denoms {
-			denom := denoms[i]
-			if err := dbTransaction.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "base"}},
-				DoUpdates: clause.AssignmentColumns([]string{"symbol", "name"}),
-			}).Create(&denom.Denom).Error; err != nil {
-				return err
-			}
-
-			for i := range denom.DenomUnits {
-				denomUnit := denom.DenomUnits[i]
-				denomUnit.DenomUnit.Denom = denom.Denom
-
-				if err := dbTransaction.Clauses(clause.OnConflict{
-					DoNothing: true,
-				}).Create(&denomUnit.DenomUnit).Error; err != nil {
-					return err
-				}
-
-			}
-		}
-		return nil
-	})
-}
-
-func UpsertIBCDenoms(db *gorm.DB, denoms []models.IBCDenom) error {
-	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		for i := range denoms {
-			if err := dbTransaction.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "hash"}},
-				DoUpdates: clause.AssignmentColumns([]string{"path", "base_denom"}),
-			}).Create(&denoms[i]).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
 }

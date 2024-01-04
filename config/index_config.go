@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -23,7 +22,6 @@ type indexBase struct {
 	retryBase
 	ReindexMessageType         string `mapstructure:"reindex-message-type"`
 	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks"`
-	API                        string `mapstructure:"api"`
 	StartBlock                 int64  `mapstructure:"start-block"`
 	EndBlock                   int64  `mapstructure:"end-block"`
 	BlockInputFile             string `mapstructure:"block-input-file"`
@@ -59,7 +57,6 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&conf.Base.FilterFile, "base.filter-file", "", "path to a file containing a JSON config of block event and message type filters to apply to beginblocker events, endblocker events and TX messages")
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
-	cmd.PersistentFlags().StringVar(&conf.Base.API, "base.api", "", "node api endpoint")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RPCWorkers, "base.rpc-workers", 1, "rpc workers")
 	cmd.PersistentFlags().BoolVar(&conf.Base.WaitForChain, "base.wait-for-chain", false, "wait for chain to be in sync?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.WaitForChainDelay, "base.wait-for-chain-delay", 10, "seconds to wait between each check for node to catch up to the chain")
@@ -112,17 +109,6 @@ func (conf *IndexConfig) Validate() error {
 		// check if file exists
 		if _, err := os.Stat(conf.Base.FilterFile); os.IsNotExist(err) {
 			return fmt.Errorf("base.filter-file %s does not exist", conf.Base.FilterFile)
-		}
-	}
-
-	// Check if API is provided, and if so, set default ports if not set
-	if conf.Base.API != "" {
-		if strings.Count(conf.Base.API, ":") != 2 {
-			if strings.HasPrefix(conf.Base.API, "https:") {
-				conf.Base.API = fmt.Sprintf("%s:443", conf.Base.API)
-			} else if strings.HasPrefix(conf.Base.API, "http:") {
-				conf.Base.API = fmt.Sprintf("%s:80", conf.Base.API)
-			}
 		}
 	}
 
