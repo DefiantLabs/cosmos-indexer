@@ -216,11 +216,11 @@ func UpsertFailedEventBlock(db *gorm.DB, blockHeight int64, chainID string, chai
 	})
 }
 
-func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerConfig config.IndexConfig) error {
+func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerConfig config.IndexConfig) (models.Block, []TxDBWrapper, error) {
 	// consider optimizing the transaction, but how? Ordering matters due to foreign key constraints
 	// Order required: Block -> (For each Tx: Signer Address -> Tx -> (For each Message: Message -> Taxable Events))
 	// Also, foreign key relations are struct value based so create needs to be called first to get right foreign key ID
-	return db.Transaction(func(dbTransaction *gorm.DB) error {
+	err := db.Transaction(func(dbTransaction *gorm.DB) error {
 		// remove from failed blocks if exists
 		if err := dbTransaction.
 			Exec("DELETE FROM failed_blocks WHERE height = ? AND blockchain_id = ?", block.Height, block.ChainID).
@@ -354,8 +354,9 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 		// This complex set of loops is to ensure that foreign key relations are created and attached to downstream models before batch insertion is executed.
 		// We are trading off in-app performance for batch insertion here and should consider complexity increase vs performance increase.
-		for _, tx := range txs {
+		for txIndex, tx := range txs {
 			tx.Tx = uniqueTxes[tx.Tx.Hash]
+			txs[txIndex].Tx = tx.Tx
 			var messagesSlice []*models.Message
 			for messageIndex := range tx.Messages {
 				tx.Messages[messageIndex].Message.TxID = tx.Tx.ID
@@ -435,6 +436,9 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 		return nil
 	})
+
+	// Contract: ensure that block and txs have been loaded with the indexed data before returning
+	return block, txs, err
 }
 
 func indexMessageTypes(db *gorm.DB, txs []TxDBWrapper) (map[string]models.MessageType, error) {

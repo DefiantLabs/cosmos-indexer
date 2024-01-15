@@ -7,8 +7,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, identifierLoggingString string) error {
-	return db.Transaction(func(dbTransaction *gorm.DB) error {
+func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, identifierLoggingString string) (*BlockDBWrapper, error) {
+	err := db.Transaction(func(dbTransaction *gorm.DB) error {
 		if err := dbTransaction.
 			Exec("DELETE FROM failed_event_blocks WHERE height = ? AND blockchain_id = ?", blockDBWrapper.Block.Height, blockDBWrapper.Block.ChainID).
 			Error; err != nil {
@@ -128,7 +128,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 				return err
 			}
 
-			var allAttributes []models.BlockEventAttribute
+			var allAttributes []*models.BlockEventAttribute
 			for index := range blockDBWrapper.BeginBlockEvents {
 				currAttributes := blockDBWrapper.BeginBlockEvents[index].Attributes
 				for attrIndex := range currAttributes {
@@ -136,7 +136,9 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 					currAttributes[attrIndex].BlockEvent = blockDBWrapper.BeginBlockEvents[index].BlockEvent
 					currAttributes[attrIndex].BlockEventAttributeKey = blockDBWrapper.UniqueBlockEventAttributeKeys[currAttributes[attrIndex].BlockEventAttributeKey.Key]
 				}
-				allAttributes = append(allAttributes, currAttributes...)
+				for ii := range currAttributes {
+					allAttributes = append(allAttributes, &currAttributes[ii])
+				}
 			}
 
 			for index := range blockDBWrapper.EndBlockEvents {
@@ -146,7 +148,9 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 					currAttributes[attrIndex].BlockEvent = blockDBWrapper.EndBlockEvents[index].BlockEvent
 					currAttributes[attrIndex].BlockEventAttributeKey = blockDBWrapper.UniqueBlockEventAttributeKeys[currAttributes[attrIndex].BlockEventAttributeKey.Key]
 				}
-				allAttributes = append(allAttributes, currAttributes...)
+				for ii := range currAttributes {
+					allAttributes = append(allAttributes, &currAttributes[ii])
+				}
 			}
 
 			if len(allAttributes) != 0 {
@@ -163,4 +167,7 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 
 		return nil
 	})
+
+	// Contract: ensure that wrapper has been loaded with all data before returning
+	return blockDBWrapper, err
 }
