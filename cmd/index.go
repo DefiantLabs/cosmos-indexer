@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/DefiantLabs/probe/client"
-	"github.com/go-co-op/gocron"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
+	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/spf13/cobra"
@@ -25,14 +25,18 @@ import (
 )
 
 type Indexer struct {
-	cfg                        *config.IndexConfig
-	dryRun                     bool
-	db                         *gorm.DB
-	cl                         *client.ChainClient
-	scheduler                  *gocron.Scheduler
-	blockEnqueueFunction       func(chan *core.EnqueueData) error
-	blockEventFilterRegistries blockEventFilterRegistries
-	messageTypeFilters         []filter.MessageTypeFilter
+	cfg                                 *config.IndexConfig
+	dryRun                              bool
+	db                                  *gorm.DB
+	cl                                  *client.ChainClient
+	blockEnqueueFunction                func(chan *core.EnqueueData) error
+	blockEventFilterRegistries          blockEventFilterRegistries
+	messageTypeFilters                  []filter.MessageTypeFilter
+	customBeginBlockEventParserRegistry map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in BeginBlock events
+	customEndBlockEventParserRegistry   map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in EndBlock events
+	customBeginBlockParserTrackers      map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
+	customEndBlockParserTrackers        map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
+	customModels                        []any
 }
 
 type blockEventFilterRegistries struct {
@@ -63,6 +67,62 @@ var indexCmd = &cobra.Command{
 	Run:     index,
 }
 
+func RegisterCustomBeginBlockEventParser(eventKey string, parser parsers.BlockEventParser) {
+	var err error
+	indexer.customBeginBlockEventParserRegistry, indexer.customBeginBlockParserTrackers, err = customBlockEventRegistration(
+		indexer.customBeginBlockEventParserRegistry,
+		indexer.customBeginBlockParserTrackers,
+		eventKey,
+		parser,
+		models.BeginBlockEvent,
+	)
+
+	if err != nil {
+		config.Log.Fatal("Error registering BeginBlock custom parser", err)
+	}
+}
+
+func RegisterCustomEndBlockEventParser(eventKey string, parser parsers.BlockEventParser) {
+	var err error
+	indexer.customEndBlockEventParserRegistry, indexer.customEndBlockParserTrackers, err = customBlockEventRegistration(
+		indexer.customEndBlockEventParserRegistry,
+		indexer.customEndBlockParserTrackers,
+		eventKey,
+		parser,
+		models.EndBlockEvent,
+	)
+
+	if err != nil {
+		config.Log.Fatal("Error registering EndBlock custom parser", err)
+	}
+}
+
+func customBlockEventRegistration(registry map[string][]parsers.BlockEventParser, tracker map[string]models.BlockEventParser, eventKey string, parser parsers.BlockEventParser, lifecycleValue models.BlockLifecyclePosition) (map[string][]parsers.BlockEventParser, map[string]models.BlockEventParser, error) {
+	if registry == nil {
+		registry = make(map[string][]parsers.BlockEventParser)
+	}
+
+	if tracker == nil {
+		tracker = make(map[string]models.BlockEventParser)
+	}
+
+	registry[eventKey] = append(registry[eventKey], parser)
+
+	if _, ok := tracker[parser.Identifier()]; ok {
+		return registry, tracker, fmt.Errorf("found duplicate block event parser with identifier \"%s\", parsers must be uniquely identified", parser.Identifier())
+	}
+
+	tracker[parser.Identifier()] = models.BlockEventParser{
+		Identifier:             parser.Identifier(),
+		BlockLifecyclePosition: lifecycleValue,
+	}
+	return registry, tracker, nil
+}
+
+func RegisterCustomModels(models []any) {
+	indexer.customModels = models
+}
+
 func setupIndex(cmd *cobra.Command, args []string) error {
 	bindFlags(cmd, viperConf)
 
@@ -90,8 +150,6 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	}
 
 	indexer.db = db
-
-	indexer.scheduler = gocron.NewScheduler(time.UTC)
 
 	indexer.dryRun = indexer.cfg.Base.Dry
 
@@ -123,6 +181,27 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 		}
 
 	}
+
+	if len(indexer.customModels) != 0 {
+		err = dbTypes.MigrateInterfaces(indexer.db, indexer.customModels)
+		if err != nil {
+			config.Log.Fatal("Failed to migrate custom models", err)
+		}
+	}
+
+	if len(indexer.customBeginBlockParserTrackers) != 0 {
+		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customBeginBlockParserTrackers)
+		if err != nil {
+			config.Log.Fatal("Failed to migrate custom block event parsers", err)
+		}
+	}
+
+	if len(indexer.customEndBlockParserTrackers) != 0 {
+		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customEndBlockParserTrackers)
+		if err != nil {
+			config.Log.Fatal("Failed to migrate custom block event parsers", err)
+		}
+	}
 	return nil
 }
 
@@ -133,8 +212,6 @@ func setupIndexer() *Indexer {
 
 	// Setup chain specific stuff
 	core.ChainSpecificMessageTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
-	core.ChainSpecificBeginBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
-	core.ChainSpecificEndBlockerEventTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
 
 	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
@@ -253,8 +330,6 @@ func index(cmd *cobra.Command, args []string) {
 
 	close(blockEnqueueChan)
 
-	// If we error out in the main loop, this will block. Meaning we may not know of an error for 6 hours until last scheduled task stops
-	idxr.scheduler.Stop()
 	wg.Wait()
 }
 
@@ -333,7 +408,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 
 		if blockData.IndexBlockEvents && !blockData.BlockEventRequestsFailed {
 			config.Log.Info("Parsing block events")
-			blockDBWrapper, err := core.ProcessRPCBlockResults(block, blockData.BlockResultsData)
+			blockDBWrapper, err := core.ProcessRPCBlockResults(*indexer.cfg, block, blockData.BlockResultsData, indexer.customBeginBlockEventParserRegistry, indexer.customEndBlockEventParserRegistry)
 			if err != nil {
 				config.Log.Errorf("Failed to process block events during block %d event processing, adding to failed block events table", currentHeight)
 				failedBlockHandler(currentHeight, core.FailedBlockEventHandling, err)
@@ -465,16 +540,17 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			config.Log.Info(fmt.Sprintf("Indexing %v Block Events from block %d", numEvents, eventData.blockDBWrapper.Block.Height))
 			identifierLoggingString := fmt.Sprintf("block %d", eventData.blockDBWrapper.Block.Height)
 
-			_, err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockDBWrapper, identifierLoggingString)
+			indexedDataset, err := dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockDBWrapper, identifierLoggingString)
 			if err != nil {
-				// TODO: Should we reattempt here still?
-				// Do a single reattempt on failure
-				// dbReattempts++
-				// err = dbTypes.IndexBlockEvents(idxr.db, idxr.dryRun, eventData.blockHeight, eventData.blockTime, eventData.blockDBWrapper, dbChainID, idxr.cfg.Probe.ChainName, identifierLoggingString)
-				// if err != nil {
 				config.Log.Fatal(fmt.Sprintf("Error indexing block events for %s.", identifierLoggingString), err)
-				// }
 			}
+
+			err = dbTypes.IndexCustomBlockEvents(*idxr.cfg, idxr.db, idxr.dryRun, indexedDataset, identifierLoggingString, idxr.customBeginBlockParserTrackers, idxr.customEndBlockParserTrackers)
+
+			if err != nil {
+				config.Log.Fatal(fmt.Sprintf("Error indexing custom block events for %s.", identifierLoggingString), err)
+			}
+
 			config.Log.Info(fmt.Sprintf("Finished indexing %v Block Events from block %d", numEvents, eventData.blockDBWrapper.Block.Height))
 		}
 	}
