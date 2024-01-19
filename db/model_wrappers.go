@@ -1,6 +1,9 @@
 package db
 
-import "github.com/DefiantLabs/cosmos-indexer/db/models"
+import (
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/DefiantLabs/cosmos-indexer/parsers"
+)
 
 const (
 	OsmosisRewardDistribution uint = iota
@@ -24,8 +27,9 @@ type BlockDBWrapper struct {
 }
 
 type BlockEventDBWrapper struct {
-	BlockEvent models.BlockEvent
-	Attributes []models.BlockEventAttribute
+	BlockEvent               models.BlockEvent
+	Attributes               []models.BlockEventAttribute
+	BlockEventParsedDatasets []parsers.BlockEventParsedData
 }
 
 // Store transactions with their messages for easy database creation

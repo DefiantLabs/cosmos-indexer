@@ -5,27 +5,15 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
+	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
-// TODO: This is a stub, for use when we have begin blocker events in generic manner
-// var (
-// 	beginBlockerEventTypeHandlers = map[string][]func() eventTypes.CosmosEvent{}
-// 	endBlockerEventTypeHandlers   = map[string][]func() eventTypes.CosmosEvent{}
-// )
-
-func ChainSpecificEndBlockerEventTypeHandlerBootstrap(chainID string) {
-	// Stub, for use when we have begin blocker events
-}
-
-func ChainSpecificBeginBlockerEventTypeHandlerBootstrap(chainID string) {
-	// Stub, for use when we have begin blocker events
-}
-
-func ProcessRPCBlockResults(block models.Block, blockResults *ctypes.ResultBlockResults) (*db.BlockDBWrapper, error) {
+func ProcessRPCBlockResults(conf config.IndexConfig, block models.Block, blockResults *ctypes.ResultBlockResults, customBeginBlockParsers map[string][]parsers.BlockEventParser, customEndBlockParsers map[string][]parsers.BlockEventParser) (*db.BlockDBWrapper, error) {
 	var blockDBWrapper db.BlockDBWrapper
 
 	blockDBWrapper.Block = &block
@@ -34,13 +22,13 @@ func ProcessRPCBlockResults(block models.Block, blockResults *ctypes.ResultBlock
 	blockDBWrapper.UniqueBlockEventTypes = make(map[string]models.BlockEventType)
 
 	var err error
-	blockDBWrapper.BeginBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.BeginBlockEvents, models.BeginBlockEvent, blockDBWrapper.UniqueBlockEventTypes, blockDBWrapper.UniqueBlockEventAttributeKeys)
+	blockDBWrapper.BeginBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.BeginBlockEvents, models.BeginBlockEvent, blockDBWrapper.UniqueBlockEventTypes, blockDBWrapper.UniqueBlockEventAttributeKeys, customBeginBlockParsers, conf)
 
 	if err != nil {
 		return nil, err
 	}
 
-	blockDBWrapper.EndBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.EndBlockEvents, models.EndBlockEvent, blockDBWrapper.UniqueBlockEventTypes, blockDBWrapper.UniqueBlockEventAttributeKeys)
+	blockDBWrapper.EndBlockEvents, err = ProcessRPCBlockEvents(blockDBWrapper.Block, blockResults.EndBlockEvents, models.EndBlockEvent, blockDBWrapper.UniqueBlockEventTypes, blockDBWrapper.UniqueBlockEventAttributeKeys, customEndBlockParsers, conf)
 
 	if err != nil {
 		return nil, err
@@ -49,7 +37,7 @@ func ProcessRPCBlockResults(block models.Block, blockResults *ctypes.ResultBlock
 	return &blockDBWrapper, nil
 }
 
-func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockLifecyclePosition models.BlockLifecyclePosition, uniqueEventTypes map[string]models.BlockEventType, uniqueAttributeKeys map[string]models.BlockEventAttributeKey) ([]db.BlockEventDBWrapper, error) {
+func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockLifecyclePosition models.BlockLifecyclePosition, uniqueEventTypes map[string]models.BlockEventType, uniqueAttributeKeys map[string]models.BlockEventAttributeKey, customParsers map[string][]parsers.BlockEventParser, conf config.IndexConfig) ([]db.BlockEventDBWrapper, error) {
 	beginBlockEvents := make([]db.BlockEventDBWrapper, len(blockEvents))
 
 	for index, event := range blockEvents {
@@ -92,6 +80,20 @@ func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockL
 
 			uniqueAttributeKeys[key.Key] = key
 
+		}
+
+		if customParsers != nil {
+			if customBlockEventParsers, ok := customParsers[event.Type]; ok {
+				for index, customParser := range customBlockEventParsers {
+					// We deliberately ignore the error here, as we want to continue processing the block events even if a custom parser fails
+					parsedData, err := customParser.ParseBlockEvent(event, conf)
+					beginBlockEvents[index].BlockEventParsedDatasets = append(beginBlockEvents[index].BlockEventParsedDatasets, parsers.BlockEventParsedData{
+						Data:   parsedData,
+						Error:  err,
+						Parser: &customBlockEventParsers[index],
+					})
+				}
+			}
 		}
 
 	}

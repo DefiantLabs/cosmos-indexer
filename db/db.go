@@ -60,6 +60,10 @@ func MigrateModels(db *gorm.DB) error {
 		return err
 	}
 
+	if err := migrateParserModels(db); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -101,6 +105,17 @@ func migrateTXModels(db *gorm.DB) error {
 		&models.MessageEventAttribute{},
 		&models.MessageEventAttributeKey{},
 	)
+}
+
+func migrateParserModels(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.BlockEventParser{},
+		&models.BlockEventParserError{},
+	)
+}
+
+func MigrateInterfaces(db *gorm.DB, interfaces []any) error {
+	return db.AutoMigrate(interfaces...)
 }
 
 func GetFailedBlocks(db *gorm.DB, chainID uint) []models.FailedBlock {
