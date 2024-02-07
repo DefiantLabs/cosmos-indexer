@@ -5,7 +5,23 @@ import (
 	"gorm.io/gorm"
 )
 
-func FindOrCreateCustomParsers(db *gorm.DB, parsers map[string]models.BlockEventParser) error {
+func FindOrCreateCustomBlockEventParsers(db *gorm.DB, parsers map[string]models.BlockEventParser) error {
+	err := db.Transaction(func(dbTransaction *gorm.DB) error {
+		for key := range parsers {
+			currParser := parsers[key]
+			res := db.FirstOrCreate(&currParser, &currParser)
+
+			if res.Error != nil {
+				return res.Error
+			}
+			parsers[key] = currParser
+		}
+		return nil
+	})
+	return err
+}
+
+func FindOrCreateCustomMessageParsers(db *gorm.DB, parsers map[string]models.MessageParser) error {
 	err := db.Transaction(func(dbTransaction *gorm.DB) error {
 		for key := range parsers {
 			currParser := parsers[key]

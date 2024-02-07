@@ -36,6 +36,8 @@ type Indexer struct {
 	customEndBlockEventParserRegistry   map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in EndBlock events
 	customBeginBlockParserTrackers      map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
 	customEndBlockParserTrackers        map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
+	customMessageParserRegistry         map[string][]parsers.MessageParser    // Used for associating parsers to message types
+	customMessageParserTrackers         map[string]models.MessageParser       // Used for tracking message parsers in the database
 	customModels                        []any
 }
 
@@ -94,6 +96,26 @@ func RegisterCustomEndBlockEventParser(eventKey string, parser parsers.BlockEven
 
 	if err != nil {
 		config.Log.Fatal("Error registering EndBlock custom parser", err)
+	}
+}
+
+func RegisterCustomMessageParser(messageKey string, parser parsers.MessageParser) {
+	if indexer.customMessageParserRegistry == nil {
+		indexer.customMessageParserRegistry = make(map[string][]parsers.MessageParser)
+	}
+
+	if indexer.customMessageParserTrackers == nil {
+		indexer.customMessageParserTrackers = make(map[string]models.MessageParser)
+	}
+
+	indexer.customMessageParserRegistry[messageKey] = append(indexer.customMessageParserRegistry[messageKey], parser)
+
+	if _, ok := indexer.customMessageParserTrackers[parser.Identifier()]; ok {
+		config.Log.Fatalf("Found duplicate message parser with identifier \"%s\", parsers must be uniquely identified", parser.Identifier())
+	}
+
+	indexer.customMessageParserTrackers[parser.Identifier()] = models.MessageParser{
+		Identifier: parser.Identifier(),
 	}
 }
 
@@ -190,18 +212,27 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(indexer.customBeginBlockParserTrackers) != 0 {
-		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customBeginBlockParserTrackers)
+		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.db, indexer.customBeginBlockParserTrackers)
 		if err != nil {
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
 
 	if len(indexer.customEndBlockParserTrackers) != 0 {
-		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customEndBlockParserTrackers)
+		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.db, indexer.customEndBlockParserTrackers)
 		if err != nil {
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
+
+	if len(indexer.customMessageParserTrackers) != 0 {
+		err = dbTypes.FindOrCreateCustomMessageParsers(indexer.db, indexer.customMessageParserTrackers)
+		if err != nil {
+			config.Log.Fatal("Failed to migrate custom message parsers", err)
+		}
+
+	}
+
 	return nil
 }
 

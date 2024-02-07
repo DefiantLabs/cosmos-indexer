@@ -111,6 +111,8 @@ func migrateParserModels(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.BlockEventParser{},
 		&models.BlockEventParserError{},
+		&models.MessageParser{},
+		&models.MessageParserError{},
 	)
 }
 
