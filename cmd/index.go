@@ -482,10 +482,10 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 
 			if blockData.GetTxsResponse != nil {
 				config.Log.Debug("Processing TXs from RPC TX Search response")
-				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse)
+				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.cfg, idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse, indexer.customMessageParserRegistry)
 			} else if blockData.BlockResultsData != nil {
 				config.Log.Debug("Processing TXs from BlockResults search response")
-				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData)
+				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.cfg, idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData, indexer.customMessageParserRegistry)
 			}
 
 			if err != nil {
