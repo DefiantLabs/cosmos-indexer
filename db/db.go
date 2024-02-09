@@ -247,10 +247,10 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			return err
 		}
 
-		consAddress := block.ProposerConsAddress
+		consAddress, err := FindOrCreateAddressByAddress(dbTransaction, block.ProposerConsAddress.Address)
 
 		// create cons address if it doesn't exist
-		if err := dbTransaction.Where(&consAddress).FirstOrCreate(&consAddress).Error; err != nil {
+		if err != nil {
 			config.Log.Error("Error getting/creating cons address DB object.", err)
 			return err
 		}
@@ -287,7 +287,8 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				denom := fee.Denomination
 
 				if _, ok := denomMap[denom.Base]; !ok {
-					if err := dbTransaction.Where(&denom).FirstOrCreate(&denom).Error; err != nil {
+					denom, err = FindOrCreateDenomByBase(dbTransaction, denom.Base)
+					if err != nil {
 						config.Log.Error("Error getting/creating denom DB object.", err)
 						return err
 					}
