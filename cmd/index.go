@@ -536,7 +536,7 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			// Note that this does not turn off certain reads or DB connections.
 			if !idxr.dryRun {
 				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
-				_, _, err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
+				_, indexedDataset, err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
 				if err != nil {
 					// Do a single reattempt on failure
 					dbReattempts++
@@ -545,6 +545,14 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 						config.Log.Fatal(fmt.Sprintf("Error indexing block %v.", data.block.Height), err)
 					}
 				}
+
+				err = dbTypes.IndexCustomMessages(*idxr.cfg, idxr.db, idxr.dryRun, indexedDataset, idxr.customMessageParserTrackers)
+
+				if err != nil {
+					config.Log.Fatal(fmt.Sprintf("Error indexing custom messages for block %d", data.block.Height), err)
+				}
+
+				config.Log.Info(fmt.Sprintf("Finished indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
 			} else {
 				config.Log.Info(fmt.Sprintf("Processing block %d (dry run, block data will not be stored in DB).", data.block.Height))
 			}

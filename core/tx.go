@@ -392,7 +392,6 @@ func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messag
 				currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
 				uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Found msg of type '%v'.", tx.TxResponse.Height, tx.TxResponse.TxHash, messageType))
-				messages = append(messages, currMessageDBWrapper)
 
 				if customParsers != nil {
 					if customMessageParsers, ok := customParsers[messageType]; ok {
@@ -408,6 +407,8 @@ func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messag
 						}
 					}
 				}
+
+				messages = append(messages, currMessageDBWrapper)
 			}
 		}
 	}

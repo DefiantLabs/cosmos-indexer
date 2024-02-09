@@ -37,12 +37,24 @@ func FindOrCreateCustomMessageParsers(db *gorm.DB, parsers map[string]models.Mes
 	return err
 }
 
-func CreateParserError(db *gorm.DB, blockEvent models.BlockEvent, parser models.BlockEventParser, parserError error) error {
+func CreateBlockEventParserError(db *gorm.DB, blockEvent models.BlockEvent, parser models.BlockEventParser, parserError error) error {
 	err := db.Transaction(func(dbTransaction *gorm.DB) error {
 		res := db.Create(&models.BlockEventParserError{
 			BlockEventParser: parser,
 			BlockEvent:       blockEvent,
 			Error:            parserError.Error(),
+		})
+		return res.Error
+	})
+	return err
+}
+
+func CreateMessageParserError(db *gorm.DB, message models.Message, parser models.MessageParser, parserError error) error {
+	err := db.Transaction(func(dbTransaction *gorm.DB) error {
+		res := db.Create(&models.MessageParserError{
+			Error:         parserError.Error(),
+			MessageParser: parser,
+			Message:       message,
 		})
 		return res.Error
 	})
