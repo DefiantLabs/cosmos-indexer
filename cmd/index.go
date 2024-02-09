@@ -36,6 +36,8 @@ type Indexer struct {
 	customEndBlockEventParserRegistry   map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in EndBlock events
 	customBeginBlockParserTrackers      map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
 	customEndBlockParserTrackers        map[string]models.BlockEventParser    // Used for tracking block event parsers in the database
+	customMessageParserRegistry         map[string][]parsers.MessageParser    // Used for associating parsers to message types
+	customMessageParserTrackers         map[string]models.MessageParser       // Used for tracking message parsers in the database
 	customModels                        []any
 }
 
@@ -94,6 +96,26 @@ func RegisterCustomEndBlockEventParser(eventKey string, parser parsers.BlockEven
 
 	if err != nil {
 		config.Log.Fatal("Error registering EndBlock custom parser", err)
+	}
+}
+
+func RegisterCustomMessageParser(messageKey string, parser parsers.MessageParser) {
+	if indexer.customMessageParserRegistry == nil {
+		indexer.customMessageParserRegistry = make(map[string][]parsers.MessageParser)
+	}
+
+	if indexer.customMessageParserTrackers == nil {
+		indexer.customMessageParserTrackers = make(map[string]models.MessageParser)
+	}
+
+	indexer.customMessageParserRegistry[messageKey] = append(indexer.customMessageParserRegistry[messageKey], parser)
+
+	if _, ok := indexer.customMessageParserTrackers[parser.Identifier()]; ok {
+		config.Log.Fatalf("Found duplicate message parser with identifier \"%s\", parsers must be uniquely identified", parser.Identifier())
+	}
+
+	indexer.customMessageParserTrackers[parser.Identifier()] = models.MessageParser{
+		Identifier: parser.Identifier(),
 	}
 }
 
@@ -190,18 +212,27 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(indexer.customBeginBlockParserTrackers) != 0 {
-		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customBeginBlockParserTrackers)
+		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.db, indexer.customBeginBlockParserTrackers)
 		if err != nil {
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
 
 	if len(indexer.customEndBlockParserTrackers) != 0 {
-		err = dbTypes.FindOrCreateCustomParsers(indexer.db, indexer.customEndBlockParserTrackers)
+		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.db, indexer.customEndBlockParserTrackers)
 		if err != nil {
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
+
+	if len(indexer.customMessageParserTrackers) != 0 {
+		err = dbTypes.FindOrCreateCustomMessageParsers(indexer.db, indexer.customMessageParserTrackers)
+		if err != nil {
+			config.Log.Fatal("Failed to migrate custom message parsers", err)
+		}
+
+	}
+
 	return nil
 }
 
@@ -451,10 +482,10 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 
 			if blockData.GetTxsResponse != nil {
 				config.Log.Debug("Processing TXs from RPC TX Search response")
-				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse)
+				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.cfg, idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse, indexer.customMessageParserRegistry)
 			} else if blockData.BlockResultsData != nil {
 				config.Log.Debug("Processing TXs from BlockResults search response")
-				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData)
+				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.cfg, idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData, indexer.customMessageParserRegistry)
 			}
 
 			if err != nil {
@@ -505,7 +536,7 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 			// Note that this does not turn off certain reads or DB connections.
 			if !idxr.dryRun {
 				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
-				_, _, err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
+				_, indexedDataset, err := dbTypes.IndexNewBlock(idxr.db, data.block, data.txDBWrappers, *idxr.cfg)
 				if err != nil {
 					// Do a single reattempt on failure
 					dbReattempts++
@@ -514,6 +545,14 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 						config.Log.Fatal(fmt.Sprintf("Error indexing block %v.", data.block.Height), err)
 					}
 				}
+
+				err = dbTypes.IndexCustomMessages(*idxr.cfg, idxr.db, idxr.dryRun, indexedDataset, idxr.customMessageParserTrackers)
+
+				if err != nil {
+					config.Log.Fatal(fmt.Sprintf("Error indexing custom messages for block %d", data.block.Height), err)
+				}
+
+				config.Log.Info(fmt.Sprintf("Finished indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
 			} else {
 				config.Log.Info(fmt.Sprintf("Processing block %d (dry run, block data will not be stored in DB).", data.block.Height))
 			}

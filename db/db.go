@@ -7,6 +7,7 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -111,6 +112,8 @@ func migrateParserModels(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.BlockEventParser{},
 		&models.BlockEventParserError{},
+		&models.MessageParser{},
+		&models.MessageParserError{},
 	)
 }
 
@@ -546,4 +549,39 @@ func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]
 	}
 
 	return fullUniqueMessageEventAttributeKeys, nil
+}
+
+func IndexCustomMessages(conf config.IndexConfig, db *gorm.DB, dryRun bool, blockDBWrapper []TxDBWrapper, messageParserTrackers map[string]models.MessageParser) error {
+	return db.Transaction(func(dbTransaction *gorm.DB) error {
+		for _, tx := range blockDBWrapper {
+			for _, message := range tx.Messages {
+				if len(message.MessageParsedDatasets) != 0 {
+					for _, parsedData := range message.MessageParsedDatasets {
+						if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
+
+							// to avoid an import cyrcle, this intermediate type was required. It may be possible to remove it by changing the belongs-to relation to a one-to-many relation on the two models.
+							combinedEventsWithAttribues := []parsers.MessageEventWithAttributes{}
+							for _, event := range message.MessageEvents {
+								attrs := event.Attributes
+								combinedEventsWithAttribues = append(combinedEventsWithAttribues, parsers.MessageEventWithAttributes{Event: event.MessageEvent, Attributes: attrs})
+							}
+							err := (*parsedData.Parser).IndexMessage(parsedData.Data, dbTransaction, message.Message, combinedEventsWithAttribues, conf)
+							if err != nil {
+								config.Log.Error("Error indexing message.", err)
+								return err
+							}
+						} else if parsedData.Error != nil {
+							err := CreateMessageParserError(db, message.Message, messageParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
+							if err != nil {
+								config.Log.Error("Error inserting message parser error.", err)
+								return err
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }

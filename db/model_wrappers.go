@@ -42,8 +42,9 @@ type TxDBWrapper struct {
 }
 
 type MessageDBWrapper struct {
-	Message       models.Message
-	MessageEvents []MessageEventDBWrapper
+	Message               models.Message
+	MessageEvents         []MessageEventDBWrapper
+	MessageParsedDatasets []parsers.MessageParsedData
 }
 
 type MessageEventDBWrapper struct {

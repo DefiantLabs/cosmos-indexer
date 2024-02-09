@@ -14,6 +14,7 @@ import (
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
+	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -67,7 +68,7 @@ func getUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
-func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	if len(blockResults.Block.Txs) != len(resultBlockRes.TxsResults) {
 		config.Log.Fatalf("blockResults & resultBlockRes: different length")
 	}
@@ -124,7 +125,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 		// Get the Messages and Message Logs
 		for msgIdx := range txFull.Body.Messages {
 
-			shouldIndex, err := messageTypeShouldIndex(txFull.Body.Messages[msgIdx].TypeUrl, messageTypeFilters)
+			shouldIndex, err := messageTypeShouldIndex(txFull.Body.Messages[msgIdx].TypeUrl, messageTypeFilters, customParsers)
 			if err != nil {
 				return nil, blockTime, err
 			}
@@ -176,7 +177,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *txFull.AuthInfo
 
-		processedTx, _, err := ProcessTx(db, indexerMergedTx, messagesRaw)
+		processedTx, _, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, customParsers)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -213,7 +214,7 @@ func tendermintHashToHex(hash []byte) string {
 }
 
 // ProcessRPCTXs - Given an RPC response, build out the more specific data used by the parser.
-func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, txEventResp *cosmosTx.GetTxsEventResponse) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, txEventResp *cosmosTx.GetTxsEventResponse, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	currTxDbWrappers := make([]dbTypes.TxDBWrapper, len(txEventResp.Txs))
 	var blockTime *time.Time
 
@@ -232,7 +233,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 		// Get the Messages and Message Logs
 		for msgIdx := range currTx.Body.Messages {
 
-			shouldIndex, err := messageTypeShouldIndex(currTx.Body.Messages[msgIdx].TypeUrl, messageTypeFilters)
+			shouldIndex, err := messageTypeShouldIndex(currTx.Body.Messages[msgIdx].TypeUrl, messageTypeFilters, customParsers)
 			if err != nil {
 				return nil, blockTime, err
 			}
@@ -297,7 +298,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *currTx.AuthInfo
 
-		processedTx, txTime, err := ProcessTx(db, indexerMergedTx, messagesRaw)
+		processedTx, txTime, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, customParsers)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -337,7 +338,14 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 	return currTxDbWrappers, blockTime, nil
 }
 
-func messageTypeShouldIndex(messageType string, filters []filter.MessageTypeFilter) (bool, error) {
+func messageTypeShouldIndex(messageType string, filters []filter.MessageTypeFilter, customParsers map[string][]parsers.MessageParser) (bool, error) {
+	// Always index if a custom parser for the message type is present
+	if len(customParsers) != 0 {
+		if customParsers[messageType] != nil {
+			return true, nil
+		}
+	}
+
 	if len(filters) != 0 {
 		filterData := filter.MessageTypeData{
 			MessageType: messageType,
@@ -361,7 +369,7 @@ func messageTypeShouldIndex(messageType string, filters []filter.MessageTypeFilt
 	return true, nil
 }
 
-func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
+func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte, customParsers map[string][]parsers.MessageParser) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
 	txTime, err = time.Parse(time.RFC3339, tx.TxResponse.TimeStamp)
 	if err != nil {
 		config.Log.Error("Error parsing tx timestamp.", err)
@@ -379,10 +387,27 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
 			if message != nil {
-				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
+				messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
+				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, messageLog, uniqueEventTypes, uniqueEventAttributeKeys)
 				currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
 				uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Found msg of type '%v'.", tx.TxResponse.Height, tx.TxResponse.TxHash, messageType))
+
+				if customParsers != nil {
+					if customMessageParsers, ok := customParsers[messageType]; ok {
+						for index, customParser := range customMessageParsers {
+							// We deliberately ignore the error here, as we want to continue processing the message even if a custom parser fails
+							parsedData, err := customParser.ParseMessage(message, messageLog, *cfg)
+
+							currMessageDBWrapper.MessageParsedDatasets = append(currMessageDBWrapper.MessageParsedDatasets, parsers.MessageParsedData{
+								Data:   parsedData,
+								Error:  err,
+								Parser: &customMessageParsers[index],
+							})
+						}
+					}
+				}
+
 				messages = append(messages, currMessageDBWrapper)
 			}
 		}
@@ -491,14 +516,13 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []models.Addre
 	return fees, nil
 }
 
-func ProcessMessage(messageIndex int, message types.Msg, txMessageEventLogs []txtypes.LogMessage, uniqueEventTypes map[string]models.MessageEventType, uniqueEventAttributeKeys map[string]models.MessageEventAttributeKey) (string, dbTypes.MessageDBWrapper) {
+func ProcessMessage(messageIndex int, message types.Msg, messageLog *txtypes.LogMessage, uniqueEventTypes map[string]models.MessageEventType, uniqueEventAttributeKeys map[string]models.MessageEventAttributeKey) (string, dbTypes.MessageDBWrapper) {
 	var currMessage models.Message
 	var currMessageType models.MessageType
 	currMessage.MessageIndex = messageIndex
 
 	// Get the message log that corresponds to the current message
 	var currMessageDBWrapper dbTypes.MessageDBWrapper
-	messageLog := txtypes.GetMessageLogForIndex(txMessageEventLogs, messageIndex)
 
 	currMessageType.MessageType = types.MsgTypeURL(message)
 	currMessage.MessageType = currMessageType

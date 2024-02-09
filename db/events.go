@@ -184,7 +184,7 @@ func IndexCustomBlockEvents(conf config.IndexConfig, db *gorm.DB, dryRun bool, b
 							return err
 						}
 					} else if parsedData.Error != nil {
-						err := CreateParserError(db, beginBlockEvents.BlockEvent, beginBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
+						err := CreateBlockEventParserError(db, beginBlockEvents.BlockEvent, beginBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
 						if err != nil {
 							config.Log.Error("Error indexing block event error.", err)
 							return err
@@ -203,9 +203,9 @@ func IndexCustomBlockEvents(conf config.IndexConfig, db *gorm.DB, dryRun bool, b
 							config.Log.Error("Error indexing block event.", err)
 						}
 					} else if parsedData.Error != nil {
-						err := CreateParserError(db, endBlockEvents.BlockEvent, endBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
+						err := CreateBlockEventParserError(db, endBlockEvents.BlockEvent, endBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
 						if err != nil {
-							config.Log.Error("Error indexing block event error.", err)
+							config.Log.Error("Error inserting block event error.", err)
 							return err
 						}
 					}

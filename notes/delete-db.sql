@@ -26,3 +26,7 @@ drop table if exists message_events cascade;
 drop table if exists message_event_types cascade;
 drop table if exists message_event_attributes cascade;
 drop table if exists message_event_attribute_keys cascade;
+drop table if exists block_event_parsers cascade;
+drop table if exists block_event_parser_errors cascade;
+drop table if exists message_parsers cascade;
+drop table if exists message_parser_errors cascade;
