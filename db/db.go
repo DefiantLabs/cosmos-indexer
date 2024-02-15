@@ -557,6 +557,16 @@ func IndexCustomMessages(conf config.IndexConfig, db *gorm.DB, dryRun bool, bloc
 			for _, message := range tx.Messages {
 				if len(message.MessageParsedDatasets) != 0 {
 					for _, parsedData := range message.MessageParsedDatasets {
+
+						// Pre clear old errors
+						if parsedData.Parser != nil {
+							err := DeleteCustomMessageParserError(db, message.Message, messageParserTrackers[(*parsedData.Parser).Identifier()])
+							if err != nil {
+								config.Log.Error("Error clearing block event error.", err)
+								return err
+							}
+						}
+
 						if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
 
 							// to avoid an import cyrcle, this intermediate type was required. It may be possible to remove it by changing the belongs-to relation to a one-to-many relation on the two models.

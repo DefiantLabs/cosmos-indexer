@@ -176,6 +176,16 @@ func IndexCustomBlockEvents(conf config.IndexConfig, db *gorm.DB, dryRun bool, b
 		for _, beginBlockEvents := range blockDBWrapper.BeginBlockEvents {
 			if len(beginBlockEvents.BlockEventParsedDatasets) != 0 {
 				for _, parsedData := range beginBlockEvents.BlockEventParsedDatasets {
+
+					// Pre clear old errors
+					if parsedData.Parser != nil {
+						err := DeleteCustomBlockEventParserError(db, beginBlockEvents.BlockEvent, beginBlockParserTrackers[(*parsedData.Parser).Identifier()])
+						if err != nil {
+							config.Log.Error("Error clearing block event error.", err)
+							return err
+						}
+					}
+
 					if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
 						err := (*parsedData.Parser).IndexBlockEvent(parsedData.Data, dbTransaction, *blockDBWrapper.Block, beginBlockEvents.BlockEvent, beginBlockEvents.Attributes, conf)
 						if err != nil {
@@ -196,6 +206,16 @@ func IndexCustomBlockEvents(conf config.IndexConfig, db *gorm.DB, dryRun bool, b
 		for _, endBlockEvents := range blockDBWrapper.EndBlockEvents {
 			if len(endBlockEvents.BlockEventParsedDatasets) != 0 {
 				for _, parsedData := range endBlockEvents.BlockEventParsedDatasets {
+
+					// Pre clear old errors
+					if parsedData.Parser != nil {
+						err := DeleteCustomBlockEventParserError(db, endBlockEvents.BlockEvent, endBlockParserTrackers[(*parsedData.Parser).Identifier()])
+						if err != nil {
+							config.Log.Error("Error clearing block event error.", err)
+							return err
+						}
+					}
+
 					if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
 						err := (*parsedData.Parser).IndexBlockEvent(parsedData.Data, dbTransaction, *blockDBWrapper.Block, endBlockEvents.BlockEvent, endBlockEvents.Attributes, conf)
 						if err != nil {
