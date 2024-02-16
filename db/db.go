@@ -3,7 +3,6 @@ package db
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -121,36 +120,6 @@ func MigrateInterfaces(db *gorm.DB, interfaces []any) error {
 	return db.AutoMigrate(interfaces...)
 }
 
-func GetFailedBlocks(db *gorm.DB, chainID uint) []models.FailedBlock {
-	var failedBlocks []models.FailedBlock
-	db.Table("failed_blocks").Where("chain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
-	return failedBlocks
-}
-
-func GetFirstMissingBlockInRange(db *gorm.DB, start, end int64, chainID uint) int64 {
-	// Find the highest block we have indexed so far
-	currMax := GetHighestIndexedBlock(db, chainID)
-
-	// If this is after the start date, fine the first missing block between the desired start, and the highest we have indexed +1
-	if currMax.Height > start {
-		end = currMax.Height + 1
-	}
-
-	var firstMissingBlock int64
-	err := db.Raw(`SELECT s.i AS missing_blocks
-						FROM generate_series($1::int,$2::int) s(i)
-						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND chain_id = $3::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
-						ORDER BY s.i ASC LIMIT 1;`, start, end, chainID).Row().Scan(&firstMissingBlock)
-	if err != nil {
-		if !strings.Contains(err.Error(), "no rows in result set") {
-			config.Log.Fatalf("Unable to find start block. Err: %v", err)
-		}
-		firstMissingBlock = start
-	}
-
-	return firstMissingBlock
-}
-
 func GetDBChainID(db *gorm.DB, chain models.Chain) (uint, error) {
 	if err := db.Where("chain_id = ?", chain.ChainID).FirstOrCreate(&chain).Error; err != nil {
 		config.Log.Error("Error getting/creating chain DB object.", err)
@@ -192,12 +161,6 @@ func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error
 	}
 
 	return block, err
-}
-
-func BlockEventsAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) (bool, error) {
-	var exists bool
-	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND block_events_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
-	return exists, err
 }
 
 func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {

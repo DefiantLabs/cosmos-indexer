@@ -19,7 +19,7 @@ repos:
       # - id: go-cyclo
         # args: [-over=15]
       - id: validate-toml
-      - id: no-go-testing
+      # - id: no-go-testing
       # - id: go-critic
       # - id: go-unit-tests
       - id: go-build
