@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -362,48 +361,6 @@ func index(cmd *cobra.Command, args []string) {
 	close(blockEnqueueChan)
 
 	wg.Wait()
-}
-
-func GetBlockEventsStartIndexHeight(db *gorm.DB, chainID uint) int64 {
-	block, err := dbTypes.GetHighestEventIndexedBlock(db, chainID)
-	if err != nil && err.Error() != "record not found" {
-		log.Fatalf("Cannot retrieve highest indexed block event. Err: %v", err)
-	}
-
-	return block.Height
-}
-
-// GetIndexerStartingHeight will determine which block to start at
-// if start block is set to -1, it will start at the highest block indexed
-// otherwise, it will start at the first missing block between the start and end height
-func (idxr *Indexer) GetIndexerStartingHeight(chainID uint) int64 {
-	// If the start height is set to -1, resume from the highest block already indexed
-	if idxr.cfg.Base.StartBlock == -1 {
-		latestBlock, err := rpc.GetLatestBlockHeight(idxr.cl)
-		if err != nil {
-			log.Fatalf("Error getting blockchain latest height. Err: %v", err)
-		}
-
-		fmt.Println("Found latest block", latestBlock)
-		highestIndexedBlock := dbTypes.GetHighestIndexedBlock(idxr.db, chainID)
-		if highestIndexedBlock.Height < latestBlock {
-			return highestIndexedBlock.Height + 1
-		}
-	}
-
-	// if we are re-indexing, just start at the configured start block
-	if idxr.cfg.Base.ReIndex {
-		return idxr.cfg.Base.StartBlock
-	}
-
-	maxStart := idxr.cfg.Base.EndBlock
-	if maxStart == -1 {
-		heighestBlock := dbTypes.GetHighestIndexedBlock(idxr.db, chainID)
-		maxStart = heighestBlock.Height
-	}
-
-	// Otherwise, start at the first block after the configured start block that we have not yet indexed.
-	return dbTypes.GetFirstMissingBlockInRange(idxr.db, idxr.cfg.Base.StartBlock, maxStart, chainID)
 }
 
 type dbData struct {
