@@ -23,5 +23,4 @@ jobs:
       - uses: actions/checkout@v3
       - name: test code
         run: |
-          cd db
-          go test -v ./...
+          go test -timeout 30m -v ./...

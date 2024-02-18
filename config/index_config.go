@@ -9,12 +9,11 @@ import (
 )
 
 type IndexConfig struct {
-	Database           Database
-	ConfigFileLocation string
-	Base               indexBase
-	Log                log
-	Probe              Probe
-	Flags              flags
+	Database Database
+	Base     indexBase
+	Log      log
+	Probe    Probe
+	Flags    flags
 }
 
 type indexBase struct {
