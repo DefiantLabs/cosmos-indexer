@@ -14,18 +14,3 @@ type BlockEventParserError struct {
 	BlockEvent         BlockEvent
 	Error              string
 }
-
-type MessageParser struct {
-	ID uint
-	// Should the message type be added here for clarity purposes?
-	Identifier string `gorm:"uniqueIndex:idx_message_parser_identifier"`
-}
-
-type MessageParserError struct {
-	ID              uint
-	MessageParserID uint
-	MessageParser   MessageParser
-	MessageID       uint
-	Message         Message
-	Error           string
-}

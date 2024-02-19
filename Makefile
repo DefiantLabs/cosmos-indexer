@@ -15,6 +15,14 @@ endif
 # default value, overide with: make -e FQCN="foo"
 FQCN = ghcr.io/defiantlabs/cosmos-indexer
 
+grpc_gen:
+	protoc proto/*.proto \
+        --go_out=./proto \
+        --go_opt=paths=source_relative \
+        --go-grpc_out=./proto \
+        --go-grpc_opt=paths=source_relative \
+        --proto_path=./proto
+
 all: install
 
 install: go.sum

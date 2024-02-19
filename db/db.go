@@ -3,10 +3,10 @@ package db
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
-	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -111,13 +111,41 @@ func migrateParserModels(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.BlockEventParser{},
 		&models.BlockEventParserError{},
-		&models.MessageParser{},
-		&models.MessageParserError{},
 	)
 }
 
 func MigrateInterfaces(db *gorm.DB, interfaces []any) error {
 	return db.AutoMigrate(interfaces...)
+}
+
+func GetFailedBlocks(db *gorm.DB, chainID uint) []models.FailedBlock {
+	var failedBlocks []models.FailedBlock
+	db.Table("failed_blocks").Where("chain_id = ?::int", chainID).Order("height asc").Scan(&failedBlocks)
+	return failedBlocks
+}
+
+func GetFirstMissingBlockInRange(db *gorm.DB, start, end int64, chainID uint) int64 {
+	// Find the highest block we have indexed so far
+	currMax := GetHighestIndexedBlock(db, chainID)
+
+	// If this is after the start date, fine the first missing block between the desired start, and the highest we have indexed +1
+	if currMax.Height > start {
+		end = currMax.Height + 1
+	}
+
+	var firstMissingBlock int64
+	err := db.Raw(`SELECT s.i AS missing_blocks
+						FROM generate_series($1::int,$2::int) s(i)
+						WHERE NOT EXISTS (SELECT 1 FROM blocks WHERE height = s.i AND chain_id = $3::int AND tx_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z')
+						ORDER BY s.i ASC LIMIT 1;`, start, end, chainID).Row().Scan(&firstMissingBlock)
+	if err != nil {
+		if !strings.Contains(err.Error(), "no rows in result set") {
+			config.Log.Fatalf("Unable to find start block. Err: %v", err)
+		}
+		firstMissingBlock = start
+	}
+
+	return firstMissingBlock
 }
 
 func GetDBChainID(db *gorm.DB, chain models.Chain) (uint, error) {
@@ -161,6 +189,12 @@ func GetHighestEventIndexedBlock(db *gorm.DB, chainID uint) (models.Block, error
 	}
 
 	return block, err
+}
+
+func BlockEventsAlreadyIndexed(blockHeight int64, chainID uint, db *gorm.DB) (bool, error) {
+	var exists bool
+	err := db.Raw(`SELECT count(*) > 0 FROM blocks WHERE height = ?::int AND chain_id = ?::int AND block_events_indexed = true AND time_stamp != '0001-01-01T00:00:00.000Z';`, blockHeight, chainID).Row().Scan(&exists)
+	return exists, err
 }
 
 func UpsertFailedBlock(db *gorm.DB, blockHeight int64, chainID string, chainName string) error {
@@ -210,9 +244,10 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			return err
 		}
 
-		consAddress, err := FindOrCreateAddressByAddress(dbTransaction, block.ProposerConsAddress.Address)
+		consAddress := block.ProposerConsAddress
+
 		// create cons address if it doesn't exist
-		if err != nil {
+		if err := dbTransaction.Where(&consAddress).FirstOrCreate(&consAddress).Error; err != nil {
 			config.Log.Error("Error getting/creating cons address DB object.", err)
 			return err
 		}
@@ -249,8 +284,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				denom := fee.Denomination
 
 				if _, ok := denomMap[denom.Base]; !ok {
-					denom, err = FindOrCreateDenomByBase(dbTransaction, denom.Base)
-					if err != nil {
+					if err := dbTransaction.Where(&denom).FirstOrCreate(&denom).Error; err != nil {
 						config.Log.Error("Error getting/creating denom DB object.", err)
 						return err
 					}
@@ -512,49 +546,4 @@ func indexMessageEventAttributeKeys(db *gorm.DB, txs []TxDBWrapper) (map[string]
 	}
 
 	return fullUniqueMessageEventAttributeKeys, nil
-}
-
-func IndexCustomMessages(conf config.IndexConfig, db *gorm.DB, dryRun bool, blockDBWrapper []TxDBWrapper, messageParserTrackers map[string]models.MessageParser) error {
-	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		for _, tx := range blockDBWrapper {
-			for _, message := range tx.Messages {
-				if len(message.MessageParsedDatasets) != 0 {
-					for _, parsedData := range message.MessageParsedDatasets {
-
-						// Pre clear old errors
-						if parsedData.Parser != nil {
-							err := DeleteCustomMessageParserError(db, message.Message, messageParserTrackers[(*parsedData.Parser).Identifier()])
-							if err != nil {
-								config.Log.Error("Error clearing block event error.", err)
-								return err
-							}
-						}
-
-						if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
-
-							// to avoid an import cyrcle, this intermediate type was required. It may be possible to remove it by changing the belongs-to relation to a one-to-many relation on the two models.
-							combinedEventsWithAttribues := []parsers.MessageEventWithAttributes{}
-							for _, event := range message.MessageEvents {
-								attrs := event.Attributes
-								combinedEventsWithAttribues = append(combinedEventsWithAttribues, parsers.MessageEventWithAttributes{Event: event.MessageEvent, Attributes: attrs})
-							}
-							err := (*parsedData.Parser).IndexMessage(parsedData.Data, dbTransaction, message.Message, combinedEventsWithAttribues, conf)
-							if err != nil {
-								config.Log.Error("Error indexing message.", err)
-								return err
-							}
-						} else if parsedData.Error != nil {
-							err := CreateMessageParserError(db, message.Message, messageParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
-							if err != nil {
-								config.Log.Error("Error inserting message parser error.", err)
-								return err
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return nil
-	})
 }

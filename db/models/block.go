@@ -15,6 +15,7 @@ type Block struct {
 	TxIndexed             bool
 	// TODO: Should block event indexing be split out or rolled up?
 	BlockEventsIndexed bool
+	BlockHash          string
 }
 
 // Used to keep track of BeginBlock and EndBlock events

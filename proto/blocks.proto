@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option go_package = "/blocks";
+
+package blocks;
+
+import "google/protobuf/timestamp.proto";
+
+service BlocksService {
+  rpc BlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse) {}
+  rpc BlockValidators(GetBlockValidatorsRequest) returns (GetBlockValidatorsResponse) {}
+}
+
+message Block {
+  int64 block_height = 1;
+  string proposed_validator = 2;
+  google.protobuf.Timestamp generation_time = 3;
+  string total_fees = 5;
+  string tx_hash=6;
+}
+
+message GetBlockInfoRequest {
+  int32 block_number = 1;
+  int32 chain_id = 2;
+}
+
+message GetBlockInfoResponse {
+  int32 block_number = 1;
+  int32 chain_id = 2;
+  Block info = 3;
+}
+
+message GetBlockValidatorsRequest {
+  int32 block_number = 1;
+  int32 chain_id = 2;
+}
+
+message GetBlockValidatorsResponse {
+  int32 block_number = 1;
+  int32 chain_id = 2;
+  repeated string validators_list = 3;
+}
