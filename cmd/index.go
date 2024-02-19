@@ -312,14 +312,14 @@ func index(cmd *cobra.Command, args []string) {
 	lc := net.ListenConfig{}
 	listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("localhost:%d", idxr.cfg.Server.Port))
 	if err != nil {
-		log.Fatal(err)
+		config.Log.Fatal("Unable to run listener", err)
 	}
 
 	dbDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		idxr.cfg.Database.User, idxr.cfg.Database.Password, idxr.cfg.Database.Host, idxr.cfg.Database.Port, idxr.cfg.Database.Database)
 	dbConnEmcd, err := connectPgxPool(ctx, dbDSN)
 	if err != nil {
-		log.Fatal(err)
+		config.Log.Fatal("Error connecting DB", err)
 	}
 	repoBlocks := repository.NewBlocks(dbConnEmcd)
 	srvBlocks := service.NewBlocks(repoBlocks)
