@@ -25,6 +25,6 @@ func (s *blocks) BlockInfo(ctx context.Context, block int32, chainID int32) (*mo
 }
 
 func (s *blocks) BlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error) {
-	//return s.blocksRepo.GetBlockInfo(ctx, block, chainID)
+	// return s.blocksRepo.GetBlockInfo(ctx, block, chainID)
 	return []string{}, nil
 }

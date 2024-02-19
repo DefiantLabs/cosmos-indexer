@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/shopspring/decimal"
 
@@ -37,7 +38,6 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (
 		&o.ProposedValidatorAddress,
 		&o.GenerationTime,
 		&o.BlockHash)
-
 	if err != nil {
 		return nil, fmt.Errorf("exec %v", err)
 	}

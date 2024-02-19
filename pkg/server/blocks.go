@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/service"
 	"google.golang.org/protobuf/types/known/timestamppb"

@@ -1,10 +1,11 @@
 package models
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"time"
 )
 
 type Tx struct {
@@ -15,7 +16,7 @@ type Tx struct {
 	Block           Block
 	SignerAddresses []Address `gorm:"many2many:tx_signer_addresses;"`
 	Fees            []Fee
-	//Signatures      [][]byte
+	// Signatures      [][]byte
 	Timestamp time.Time
 }
 
