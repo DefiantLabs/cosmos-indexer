@@ -18,6 +18,7 @@ services:
     environment:
       - POSTGRES_USER=taxuser
       - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
     ports:
       - 5432:5432/tcp
     healthcheck:
@@ -33,9 +34,14 @@ services:
 
   indexer:
     restart: "no"
-    image: ghcr.io/defiantlabs/cosmos-indexer:main
+    #image: ghcr.io/defiantlabs/cosmos-indexer:main
+    build:
+      context: .
+      dockerfile: Dockerfile
     user: defiant
     stop_grace_period: 10s
+    ports:
+      - 9002:9002/tcp
     volumes:
       # - indexer:/var/lib/cosmos-indexer-index
       - /etc/localtime:/etc/localtime:ro
@@ -53,46 +59,25 @@ services:
     - /bin/sh
     - -c
     - |
-      cosmos-indexer update-denoms \
-      --update-all \
-      --log.pretty = true \
-      --log.level = debug \
-      --base.index-chain = false \
-      --base.start-block 11569404 \
-      --base.end-block -1 \
-      --base.throttling 2.005 \
-      --base.rpc-workers 1 \
-      --base.reindex true \
-      --base.prevent-reattempts true \
-      --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.account-prefix osmo \
-      --probe.chain-id osmosis-1 \
-      --probe.chain-name osmosis \
-      --database.host postgres \
-      --database.database postgres \
-      --database.user taxuser \
-      --database.password password
-
       cosmos-indexer index \
       --log.pretty = true \
       --log.level = debug \
-      --base.index-chain = false \
-      --base.start-block 11569404 \
+      --base.start-block 17875364 \
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \
       --base.reindex true \
-      --base.prevent-reattempts true \
-      --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.account-prefix osmo \
+      --base.index-transactions true \
+      --base.index-block-events true \
+      --probe.rpc https://cosmos-rpc.publicnode.com:443  \
+      --probe.account-prefix cosmos \
       --probe.chain-id osmosis-1 \
       --probe.chain-name osmosis \
       --database.host postgres \
       --database.database postgres \
       --database.user taxuser \
-      --database.password password
+      --database.password password \
+      --server.port 9002
 
   # client:
   #   restart: "unless-stopped"

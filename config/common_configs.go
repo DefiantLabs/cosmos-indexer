@@ -33,6 +33,10 @@ type Probe struct {
 	ChainName     string `mapstructure:"chain-name"`
 }
 
+type Server struct {
+	Port int
+}
+
 type throttlingBase struct {
 	Throttling float64 `mapstructure:"throttling"`
 }
@@ -62,6 +66,10 @@ func SetupProbeFlags(probeConf *Probe, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&probeConf.AccountPrefix, "probe.account-prefix", "", "probe account prefix")
 	cmd.PersistentFlags().StringVar(&probeConf.ChainID, "probe.chain-id", "", "probe chain ID")
 	cmd.PersistentFlags().StringVar(&probeConf.ChainName, "probe.chain-name", "", "probe chain name")
+}
+
+func SetupServerFlags(serverConf *Server, cmd *cobra.Command) {
+	cmd.PersistentFlags().IntVar(&serverConf.Port, "server.port", 9002, "inbound grpc port")
 }
 
 func SetupThrottlingFlag(throttlingValue *float64, cmd *cobra.Command) {

@@ -16,9 +16,10 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 			return err
 		}
 
-		consAddress, err := FindOrCreateAddressByAddress(dbTransaction, blockDBWrapper.Block.ProposerConsAddress.Address)
+		consAddress := blockDBWrapper.Block.ProposerConsAddress
+
 		// create cons address if it doesn't exist
-		if err != nil {
+		if err := dbTransaction.Where(&consAddress).FirstOrCreate(&consAddress).Error; err != nil {
 			config.Log.Error("Error getting/creating cons address DB object.", err)
 			return err
 		}
@@ -173,54 +174,45 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 
 func IndexCustomBlockEvents(conf config.IndexConfig, db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, identifierLoggingString string, beginBlockParserTrackers map[string]models.BlockEventParser, endBlockParserTrackers map[string]models.BlockEventParser) error {
 	return db.Transaction(func(dbTransaction *gorm.DB) error {
-		// call generic function below
-		err := indexLifecycleCustomBlockEvents(dbTransaction, conf, blockDBWrapper, blockDBWrapper.BeginBlockEvents, beginBlockParserTrackers)
-		if err != nil {
-			config.Log.Error("Error indexing begin block events.", err)
-			return err
-		}
-
-		// do the same here
-		err = indexLifecycleCustomBlockEvents(dbTransaction, conf, blockDBWrapper, blockDBWrapper.EndBlockEvents, endBlockParserTrackers)
-		if err != nil {
-			config.Log.Error("Error indexing end block events.", err)
-			return err
-		}
-
-		return nil
-	})
-}
-
-func indexLifecycleCustomBlockEvents(db *gorm.DB, conf config.IndexConfig, blockDBWrapper *BlockDBWrapper, events []BlockEventDBWrapper, parserTrackers map[string]models.BlockEventParser) error {
-	for _, blockEvent := range events {
-		if len(blockEvent.BlockEventParsedDatasets) != 0 {
-			for _, parsedData := range blockEvent.BlockEventParsedDatasets {
-
-				// Pre clear old errors
-				if parsedData.Parser != nil {
-					err := DeleteCustomBlockEventParserError(db, blockEvent.BlockEvent, parserTrackers[(*parsedData.Parser).Identifier()])
-					if err != nil {
-						config.Log.Error("Error clearing block event error.", err)
-						return err
-					}
-				}
-
-				if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
-					err := (*parsedData.Parser).IndexBlockEvent(parsedData.Data, db, *blockDBWrapper.Block, blockEvent.BlockEvent, blockEvent.Attributes, conf)
-					if err != nil {
-						config.Log.Error("Error indexing block event.", err)
-						return err
-					}
-				} else if parsedData.Error != nil {
-					err := CreateBlockEventParserError(db, blockEvent.BlockEvent, parserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
-					if err != nil {
-						config.Log.Error("Error indexing block event error.", err)
-						return err
+		for _, beginBlockEvents := range blockDBWrapper.BeginBlockEvents {
+			if len(beginBlockEvents.BlockEventParsedDatasets) != 0 {
+				for _, parsedData := range beginBlockEvents.BlockEventParsedDatasets {
+					if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
+						err := (*parsedData.Parser).IndexBlockEvent(parsedData.Data, dbTransaction, *blockDBWrapper.Block, beginBlockEvents.BlockEvent, beginBlockEvents.Attributes, conf)
+						if err != nil {
+							config.Log.Error("Error indexing block event.", err)
+							return err
+						}
+					} else if parsedData.Error != nil {
+						err := CreateParserError(db, beginBlockEvents.BlockEvent, beginBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
+						if err != nil {
+							config.Log.Error("Error indexing block event error.", err)
+							return err
+						}
 					}
 				}
 			}
 		}
-	}
 
-	return nil
+		for _, endBlockEvents := range blockDBWrapper.EndBlockEvents {
+			if len(endBlockEvents.BlockEventParsedDatasets) != 0 {
+				for _, parsedData := range endBlockEvents.BlockEventParsedDatasets {
+					if parsedData.Error == nil && parsedData.Data != nil && parsedData.Parser != nil {
+						err := (*parsedData.Parser).IndexBlockEvent(parsedData.Data, dbTransaction, *blockDBWrapper.Block, endBlockEvents.BlockEvent, endBlockEvents.Attributes, conf)
+						if err != nil {
+							config.Log.Error("Error indexing block event.", err)
+						}
+					} else if parsedData.Error != nil {
+						err := CreateParserError(db, endBlockEvents.BlockEvent, endBlockParserTrackers[(*parsedData.Parser).Identifier()], parsedData.Error)
+						if err != nil {
+							config.Log.Error("Error indexing block event error.", err)
+							return err
+						}
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }
