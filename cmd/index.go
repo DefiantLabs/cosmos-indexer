@@ -240,9 +240,6 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 func setupIndexer() *Indexer {
 	var err error
 
-	// Setup chain specific stuff
-	core.ChainSpecificMessageTypeHandlerBootstrap(indexer.cfg.Probe.ChainID)
-
 	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
 	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe)

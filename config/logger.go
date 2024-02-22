@@ -15,10 +15,6 @@ type Logger struct{}
 // Log is exposed on the config as a drop-in replacement for our old logger
 var Log *Logger
 
-func (l *Logger) ZDeubg() *zerolog.Event {
-	return zlog.Debug()
-}
-
 // These functions are provided to reduce refactoring.
 func (l *Logger) Debug(msg string, err ...error) {
 	if len(err) == 1 {
@@ -30,10 +26,6 @@ func (l *Logger) Debug(msg string, err ...error) {
 
 func (l *Logger) Debugf(msg string, args ...interface{}) {
 	zlog.Debug().Msg(fmt.Sprintf(msg, args...))
-}
-
-func (l *Logger) ZInfo() *zerolog.Event {
-	return zlog.Info()
 }
 
 func (l *Logger) Info(msg string, err ...error) {
@@ -82,18 +74,6 @@ func (l *Logger) Fatal(msg string, err ...error) {
 
 func (l *Logger) Fatalf(msg string, args ...interface{}) {
 	zlog.Fatal().Msg(fmt.Sprintf(msg, args...))
-}
-
-func (l *Logger) Panic(msg string, err ...error) {
-	if len(err) == 1 {
-		zlog.Panic().Err(err[0]).Msg(msg)
-		return
-	}
-	zlog.Panic().Msg(msg)
-}
-
-func (l *Logger) Panicf(msg string, args ...interface{}) {
-	zlog.Panic().Msg(fmt.Sprintf(msg, args...))
 }
 
 func DoConfigureLogger(logPath string, logLevel string, prettyLogging bool) {

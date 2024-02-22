@@ -1,44 +1,10 @@
 package tx
 
 import (
-	parsingTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules"
 	cosmTx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-type GetTxsEventResponseWrapper struct {
-	CosmosGetTxsEventResponse *cosmTx.GetTxsEventResponse
-	Height                    int64
-}
-
-type GetBlockByHeightResponse struct {
-	BlockID BlockID       `json:"block_id"`
-	Block   BlockResponse `json:"block"`
-}
-
-type BlockResponse struct {
-	BlockData   BlockData   `json:"data"`
-	BlockHeader BlockHeader `json:"header"`
-}
-
-type BlockID struct {
-	Hash string `json:"hash"`
-}
-
-type BlockData struct {
-	Txs []string `json:"txs"`
-}
-
-type BlockHeader struct {
-	Height string `json:"height"`
-}
-
-type GetTxByBlockHeightResponse struct {
-	Txs         []IndexerTx `json:"txs"`
-	TxResponses []Response  `json:"tx_responses"`
-	Pagination  Pagination  `json:"pagination"`
-}
 
 type IndexerTx struct {
 	Body     Body `json:"body"`
@@ -121,36 +87,8 @@ type PublicKey struct {
 	Key  string `json:"key"`
 }
 
-type Pagination struct {
-	NextKey string `json:"next_key"`
-	Total   string `json:"total"`
-}
-
 // In the json, TX data is split into 2 arrays, used to merge the full dataset
 type MergedTx struct {
 	Tx         IndexerTx
 	TxResponse Response
-}
-
-type GetLatestBlockResponse struct {
-	BlockID BlockID       `json:"block_id"`
-	Block   BlockResponse `json:"block"`
-}
-
-type Message struct {
-	Type string `json:"@type"`
-}
-
-func (sf *Message) GetType() string {
-	return sf.Type
-}
-
-// CosmosMessage represents a Cosmos blockchain Message (part of a transaction).
-// CosmUnmarshal() unmarshals the specific cosmos message type (e.g. MsgSend).
-// First arg must always be the message type itself, as this won't be parsed in CosmUnmarshal.
-type CosmosMessage interface {
-	HandleMsg(string, sdk.Msg, *LogMessage) error
-	ParseRelevantData() []parsingTypes.MessageRelevantInformation
-	GetType() string
-	String() string
 }

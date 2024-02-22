@@ -25,26 +25,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Unmarshal JSON to a particular type. There can be more than one handler for each type.
-// TODO: Remove this map and replace with a more generic solution
-var messageTypeHandler = map[string][]func() txtypes.CosmosMessage{}
-
-// var messageTypeIgnorer = map[string]interface{}{}
-
-// Merge the chain specific message type handlers into the core message type handler map.
-// Chain specific handlers will be registered BEFORE any generic handlers.
-// TODO: Remove this function and replace with a more generic solution
-func ChainSpecificMessageTypeHandlerBootstrap(chainID string) {
-	var chainSpecificMessageTpeHandler map[string][]func() txtypes.CosmosMessage
-	for key, value := range chainSpecificMessageTpeHandler {
-		if list, ok := messageTypeHandler[key]; ok {
-			messageTypeHandler[key] = append(value, list...)
-		} else {
-			messageTypeHandler[key] = value
-		}
-	}
-}
-
 func toAttributes(attrs []types.Attribute) []txtypes.Attribute {
 	list := []txtypes.Attribute{}
 	for _, attr := range attrs {
