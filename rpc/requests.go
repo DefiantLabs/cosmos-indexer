@@ -12,29 +12,6 @@ import (
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
-var apiEndpoints = map[string]string{
-	"blocks_endpoint":              "/cosmos/base/cometbft/v1beta1/blocks/%d",
-	"latest_block_endpoint":        "/blocks/latest",
-	"txs_by_block_height_endpoint": "/cosmos/tx/v1beta1/txs?events=tx.height=%d&pagination.limit=100&order_by=ORDER_BY_UNSPECIFIED",
-	"denoms_metadata":              "/cosmos/bank/v1beta1/denoms_metadata",
-}
-
-func GetEndpoint(key string) string {
-	return apiEndpoints[key]
-}
-
-// GetBlockByHeight makes a request to the Cosmos RPC API and returns all the transactions for a specific block
-func GetBlockByHeight(cl *probeClient.ChainClient, height int64) (*coretypes.ResultBlockResults, error) {
-	options := probeQuery.QueryOptions{Height: height}
-	query := probeQuery.Query{Client: cl, Options: &options}
-	resp, err := query.BlockResults()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
 // GetBlockTimestamp
 func GetBlock(cl *probeClient.ChainClient, height int64) (*coretypes.ResultBlock, error) {
 	options := probeQuery.QueryOptions{Height: height}

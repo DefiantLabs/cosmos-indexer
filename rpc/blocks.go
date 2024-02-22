@@ -140,28 +140,6 @@ func validateResponseID(id interface{}) error {
 	return nil
 }
 
-func (c *URIClient) DoBlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
-	result := new(ctypes.ResultBlockSearch)
-	params := map[string]interface{}{
-		"query":    query,
-		"order_by": orderBy,
-	}
-
-	if page != nil {
-		params["page"] = page
-	}
-	if perPage != nil {
-		params["per_page"] = perPage
-	}
-
-	_, err := c.DoHTTPGet(ctx, "block_search", params, result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
 func (c *URIClient) DoBlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 	result := new(ctypes.ResultBlockResults)
 	params := make(map[string]interface{})
