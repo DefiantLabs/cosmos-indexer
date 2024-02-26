@@ -389,7 +389,7 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 		}
 	}
 
-	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Code: code}
+	txDBWapper.Tx = models.Tx{Hash: tx.TxResponse.TxHash, Code: code, Timestamp: txTime}
 	txDBWapper.Messages = messages
 	txDBWapper.UniqueMessageTypes = uniqueMessageTypes
 	txDBWapper.UniqueMessageAttributeKeys = uniqueEventAttributeKeys

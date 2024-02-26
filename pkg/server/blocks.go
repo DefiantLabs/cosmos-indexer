@@ -13,11 +13,12 @@ import (
 
 type BlocksServer struct {
 	pb.UnimplementedBlocksServiceServer
-	srv service.Blocks
+	srv   service.Blocks
+	srvTx service.Txs
 }
 
-func NewBlocksServer(srv service.Blocks) *BlocksServer {
-	return &BlocksServer{srv: srv}
+func NewBlocksServer(srv service.Blocks, srvTx service.Txs) *BlocksServer {
+	return &BlocksServer{srv: srv, srvTx: srvTx}
 }
 
 func (r *BlocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
@@ -30,12 +31,12 @@ func (r *BlocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 }
 
 func (r *BlocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
-	_, err := r.srv.BlockInfo(ctx, in.BlockNumber, in.ChainId)
+	res, err := r.srv.BlockValidators(ctx, in.BlockNumber, in.ChainId)
 	if err != nil {
 		return &pb.GetBlockValidatorsResponse{}, err
 	}
 
-	return &pb.GetBlockValidatorsResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId}, nil
+	return &pb.GetBlockValidatorsResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, ValidatorsList: res}, nil
 }
 
 func (r *BlocksServer) toProto(in *model.BlockInfo) *pb.Block {
@@ -46,4 +47,20 @@ func (r *BlocksServer) toProto(in *model.BlockInfo) *pb.Block {
 		TotalFees:         in.TotalFees.String(),
 		TxHash:            in.BlockHash,
 	}
+}
+
+func (r *BlocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequest) (*pb.TxChartByDayResponse, error) {
+	res, err := r.srvTx.ChartTxByDay(ctx, in.From.AsTime(), in.To.AsTime())
+	if err != nil {
+		return &pb.TxChartByDayResponse{}, err
+	}
+	data := make([]*pb.TxByDay, 0)
+	for _, tx := range res {
+		data = append(data, &pb.TxByDay{
+			TxNum: tx.TxNum,
+			Day:   timestamppb.New(tx.Day),
+		})
+	}
+
+	return &pb.TxChartByDayResponse{TxByDay: data}, nil
 }
