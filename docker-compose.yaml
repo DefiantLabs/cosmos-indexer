@@ -20,7 +20,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=postgres
     ports:
-      - 5432:5432/tcp
+      - "5432:5432/tcp"
     healthcheck:
       test: ["CMD", "nc", "-z", "-v", "localhost", "5432"]
       interval: 5s
@@ -41,7 +41,7 @@ services:
     user: defiant
     stop_grace_period: 10s
     ports:
-      - 9002:9002/tcp
+      - "9002:9002/tcp"
     volumes:
       # - indexer:/var/lib/cosmos-indexer-index
       - /etc/localtime:/etc/localtime:ro
@@ -61,8 +61,8 @@ services:
     - |
       cosmos-indexer index \
       --log.pretty = true \
-      --log.level = debug \
-      --base.start-block 17875364 \
+      --log.level = info \
+      --base.start-block 19239803 \
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \

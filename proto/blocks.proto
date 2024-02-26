@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 service BlocksService {
   rpc BlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse) {}
   rpc BlockValidators(GetBlockValidatorsRequest) returns (GetBlockValidatorsResponse) {}
+  rpc TxChartByDay(TxChartByDayRequest) returns (TxChartByDayResponse) {}
 }
 
 message Block {
@@ -39,4 +40,18 @@ message GetBlockValidatorsResponse {
   int32 block_number = 1;
   int32 chain_id = 2;
   repeated string validators_list = 3;
+}
+
+message TxByDay{
+  int32 tx_num = 1;
+  google.protobuf.Timestamp day = 2;
+}
+
+message TxChartByDayRequest {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message TxChartByDayResponse {
+  repeated TxByDay tx_by_day = 1;
 }

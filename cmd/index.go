@@ -309,31 +309,35 @@ func index(cmd *cobra.Command, args []string) {
 	// inbound grpc server
 	ctx := context.Background()
 
-	lc := net.ListenConfig{}
-	listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("localhost:%d", idxr.cfg.Server.Port))
+	grpcServUrl := fmt.Sprintf(":%d", idxr.cfg.Server.Port)
+	listener, err := net.Listen("tcp", grpcServUrl)
 	if err != nil {
 		config.Log.Fatal("Unable to run listener", err)
 	}
 
 	dbDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		idxr.cfg.Database.User, idxr.cfg.Database.Password, idxr.cfg.Database.Host, idxr.cfg.Database.Port, idxr.cfg.Database.Database)
-	dbConnEmcd, err := connectPgxPool(ctx, dbDSN)
+	dbConnRepo, err := connectPgxPool(ctx, dbDSN)
 	if err != nil {
 		config.Log.Fatal("Error connecting DB", err)
 	}
-	repoBlocks := repository.NewBlocks(dbConnEmcd)
+	repoBlocks := repository.NewBlocks(dbConnRepo)
 	srvBlocks := service.NewBlocks(repoBlocks)
-	blocksServer := server.NewBlocksServer(srvBlocks)
+
+	repoTxs := repository.NewTxs(dbConnRepo)
+	srvTxs := service.NewTxs(repoTxs)
+
+	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs)
 	grpcServer := grpc.NewServer()
 	blocks.RegisterBlocksServiceServer(grpcServer, blocksServer)
 	go func() {
+		log.Println("blocks server started: " + grpcServUrl)
 		if err = grpcServer.Serve(listener); err != nil {
 			log.Fatal(err)
 			grpcServer.GracefulStop()
 			return
 		}
 	}()
-	log.Println("blocks server started")
 
 	wg.Add(1)
 	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID, indexer.blockEventFilterRegistries)

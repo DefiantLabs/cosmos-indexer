@@ -1,6 +1,6 @@
 module github.com/DefiantLabs/cosmos-indexer
 
-go 1.19
+go 1.21
 
 require (
 	github.com/DefiantLabs/probe v0.0.0-20240104015908-02d561c503a8
