@@ -62,17 +62,17 @@ services:
       cosmos-indexer index \
       --log.pretty = true \
       --log.level = info \
-      --base.start-block 19239803 \
+      --base.start-block 861425 \
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \
       --base.reindex true \
       --base.index-transactions true \
       --base.index-block-events true \
-      --probe.rpc https://cosmos-rpc.publicnode.com:443  \
-      --probe.account-prefix cosmos \
-      --probe.chain-id osmosis-1 \
-      --probe.chain-name osmosis \
+      --probe.rpc https://celestia-rpc.publicnode.com:443  \
+      --probe.account-prefix celestia \
+      --probe.chain-id mocha-4 \
+      --probe.chain-name celestia \
       --database.host postgres \
       --database.database postgres \
       --database.user taxuser \
