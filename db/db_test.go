@@ -1,12 +1,12 @@
-package db
+package db_test
 
 import (
-	"log"
 	"testing"
 	"time"
 
+	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
-	"github.com/ory/dockertest/v3"
+	testUtils "github.com/DefiantLabs/cosmos-indexer/test/utils"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 )
@@ -20,11 +20,11 @@ type DBTestSuite struct {
 }
 
 func (suite *DBTestSuite) SetupTest() {
-	clean, db, err := SetupTestDatabase()
+	conf, err := testUtils.SetupTestDatabase()
 	suite.Require().NoError(err)
 
-	suite.db = db
-	suite.clean = clean
+	suite.db = conf.GormDB
+	suite.clean = conf.Clean
 }
 
 func (suite *DBTestSuite) TearDownTest() {
@@ -37,12 +37,12 @@ func (suite *DBTestSuite) TearDownTest() {
 }
 
 func (suite *DBTestSuite) TestMigrateModels() {
-	err := MigrateModels(suite.db)
+	err := dbTypes.MigrateModels(suite.db)
 	suite.Require().NoError(err)
 }
 
 func (suite *DBTestSuite) TestGetDBChainID() {
-	err := MigrateModels(suite.db)
+	err := dbTypes.MigrateModels(suite.db)
 	suite.Require().NoError(err)
 
 	initChain := models.Chain{
@@ -52,47 +52,9 @@ func (suite *DBTestSuite) TestGetDBChainID() {
 	err = suite.db.Create(&initChain).Error
 	suite.Require().NoError(err)
 
-	chainID, err := GetDBChainID(suite.db, initChain)
+	chainID, err := dbTypes.GetDBChainID(suite.db, initChain)
 	suite.Require().NoError(err)
 	suite.Assert().NotZero(chainID)
-}
-
-func SetupTestDatabase() (func(), *gorm.DB, error) {
-	// TODO: allow environment overrides to skip creating mock database
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = pool.Client.Ping()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	resource, err := pool.Run("postgres", "15-alpine", []string{"POSTGRES_USER=test", "POSTGRES_PASSWORD=test", "POSTGRES_DB=test"})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var db *gorm.DB
-	if err := pool.Retry(func() error {
-		var err error
-		db, err = PostgresDbConnect(resource.GetBoundIP("5432/tcp"), resource.GetPort("5432/tcp"), "test", "test", "test", "debug")
-		if err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, nil, err
-	}
-
-	clean := func() {
-		if err := pool.Purge(resource); err != nil {
-			log.Fatalf("Could not purge resource: %s", err)
-		}
-	}
-
-	return clean, db, nil
 }
 
 func createMockBlock(mockDb *gorm.DB, chain models.Chain, address models.Address, height int64, txIndexed bool, eventIndexed bool) (models.Block, error) {
@@ -110,7 +72,7 @@ func createMockBlock(mockDb *gorm.DB, chain models.Chain, address models.Address
 }
 
 func (suite *DBTestSuite) TestGetHighestBlockFunctions() {
-	err := MigrateModels(suite.db)
+	err := dbTypes.MigrateModels(suite.db)
 	suite.Require().NoError(err)
 
 	initChain := models.Chain{
@@ -130,8 +92,8 @@ func (suite *DBTestSuite) TestGetHighestBlockFunctions() {
 	block1, err := createMockBlock(suite.db, initChain, initConsAddress, 1, true, true)
 	suite.Require().NoError(err)
 
-	txBlock := GetHighestIndexedBlock(suite.db, initChain.ID)
-	eventBlock, err := GetHighestEventIndexedBlock(suite.db, initChain.ID)
+	txBlock := dbTypes.GetHighestIndexedBlock(suite.db, initChain.ID)
+	eventBlock, err := dbTypes.GetHighestEventIndexedBlock(suite.db, initChain.ID)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(block1.Height, txBlock.Height)
@@ -140,8 +102,8 @@ func (suite *DBTestSuite) TestGetHighestBlockFunctions() {
 	_, err = createMockBlock(suite.db, initChain, initConsAddress, 2, false, false)
 	suite.Require().NoError(err)
 
-	txBlock = GetHighestIndexedBlock(suite.db, initChain.ID)
-	eventBlock, err = GetHighestEventIndexedBlock(suite.db, initChain.ID)
+	txBlock = dbTypes.GetHighestIndexedBlock(suite.db, initChain.ID)
+	eventBlock, err = dbTypes.GetHighestEventIndexedBlock(suite.db, initChain.ID)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(block1.Height, txBlock.Height)
@@ -150,8 +112,8 @@ func (suite *DBTestSuite) TestGetHighestBlockFunctions() {
 	block3, err := createMockBlock(suite.db, initChain, initConsAddress, 3, true, true)
 	suite.Require().NoError(err)
 
-	txBlock = GetHighestIndexedBlock(suite.db, initChain.ID)
-	eventBlock, err = GetHighestEventIndexedBlock(suite.db, initChain.ID)
+	txBlock = dbTypes.GetHighestIndexedBlock(suite.db, initChain.ID)
+	eventBlock, err = dbTypes.GetHighestEventIndexedBlock(suite.db, initChain.ID)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(block3.Height, txBlock.Height)

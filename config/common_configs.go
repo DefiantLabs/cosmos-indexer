@@ -12,34 +12,34 @@ import (
 
 // These configs are used across multiple commands, and are not specific to a single command
 type log struct {
-	Level  string
-	Path   string
-	Pretty bool
+	Level  string `toml:"level"`
+	Path   string `toml:"path"`
+	Pretty bool   `toml:"pretty"`
 }
 
 type Database struct {
-	Host     string
-	Port     string
-	Database string
-	User     string
-	Password string
-	LogLevel string `mapstructure:"log-level"`
+	Host     string `toml:"host"`
+	Port     string `toml:"port"`
+	Database string `toml:"database"`
+	User     string `toml:"user"`
+	Password string `toml:"password"`
+	LogLevel string `mapstructure:"log-level" toml:"log-level"`
 }
 
 type Probe struct {
-	RPC           string
-	AccountPrefix string `mapstructure:"account-prefix"`
-	ChainID       string `mapstructure:"chain-id"`
-	ChainName     string `mapstructure:"chain-name"`
+	RPC           string `toml:"rpc"`
+	AccountPrefix string `mapstructure:"account-prefix" toml:"account-prefix"`
+	ChainID       string `mapstructure:"chain-id" toml:"chain-id"`
+	ChainName     string `mapstructure:"chain-name" toml:"chain-name"`
 }
 
 type throttlingBase struct {
-	Throttling float64 `mapstructure:"throttling"`
+	Throttling float64 `mapstructure:"throttling" toml:"throttling"`
 }
 
 type retryBase struct {
-	RequestRetryAttempts int64  `mapstructure:"request-retry-attempts"`
-	RequestRetryMaxWait  uint64 `mapstructure:"request-retry-max-wait"`
+	RequestRetryAttempts int64  `mapstructure:"request-retry-attempts" toml:"request-retry-attempts"`
+	RequestRetryMaxWait  uint64 `mapstructure:"request-retry-max-wait" toml:"request-retry-max-wait"`
 }
 
 func SetupLogFlags(logConf *log, cmd *cobra.Command) {

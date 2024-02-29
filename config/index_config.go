@@ -19,26 +19,26 @@ type IndexConfig struct {
 type indexBase struct {
 	throttlingBase
 	retryBase
-	ReindexMessageType         string `mapstructure:"reindex-message-type"`
-	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks"`
-	StartBlock                 int64  `mapstructure:"start-block"`
-	EndBlock                   int64  `mapstructure:"end-block"`
-	BlockInputFile             string `mapstructure:"block-input-file"`
-	ReIndex                    bool   `mapstructure:"reindex"`
-	RPCWorkers                 int64  `mapstructure:"rpc-workers"`
-	BlockTimer                 int64  `mapstructure:"block-timer"`
-	WaitForChain               bool   `mapstructure:"wait-for-chain"`
-	WaitForChainDelay          int64  `mapstructure:"wait-for-chain-delay"`
-	TransactionIndexingEnabled bool   `mapstructure:"index-transactions"`
-	ExitWhenCaughtUp           bool   `mapstructure:"exit-when-caught-up"`
-	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events"`
-	FilterFile                 string `mapstructure:"filter-file"`
-	Dry                        bool   `mapstructure:"dry"`
+	ReindexMessageType         string `mapstructure:"reindex-message-type" toml:"reindex-message-type"`
+	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks" toml:"reattempt-failed-blocks"`
+	StartBlock                 int64  `mapstructure:"start-block" toml:"start-block"`
+	EndBlock                   int64  `mapstructure:"end-block" toml:"end-block"`
+	BlockInputFile             string `mapstructure:"block-input-file" toml:"block-input-file"`
+	ReIndex                    bool   `mapstructure:"reindex" toml:"reindex"`
+	RPCWorkers                 int64  `mapstructure:"rpc-workers" toml:"rpc-workers"`
+	BlockTimer                 int64  `mapstructure:"block-timer" toml:"block-timer"`
+	WaitForChain               bool   `mapstructure:"wait-for-chain" toml:"wait-for-chain"`
+	WaitForChainDelay          int64  `mapstructure:"wait-for-chain-delay" toml:"wait-for-chain-delay"`
+	TransactionIndexingEnabled bool   `mapstructure:"index-transactions" toml:"index-transactions"`
+	ExitWhenCaughtUp           bool   `mapstructure:"exit-when-caught-up" toml:"exit-when-caught-up"`
+	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events" toml:"index-block-events"`
+	FilterFile                 string `mapstructure:"filter-file" toml:"filter-file"`
+	Dry                        bool   `mapstructure:"dry" toml:"dry"`
 }
 
 // Flags for specific, deeper indexing behavior
 type flags struct {
-	IndexTxMessageRaw bool `mapstructure:"index-tx-message-raw"`
+	IndexTxMessageRaw bool `mapstructure:"index-tx-message-raw" toml:"index-tx-message-raw"`
 }
 
 func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {

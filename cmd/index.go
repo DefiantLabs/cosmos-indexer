@@ -12,6 +12,7 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/core"
+	"github.com/DefiantLabs/cosmos-indexer/cosmos"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
@@ -48,14 +49,20 @@ type blockEventFilterRegistries struct {
 var indexer Indexer
 
 func init() {
-	indexer.cfg = &config.IndexConfig{}
+	cfg := &config.IndexConfig{}
+	SetIndexConfig(cfg)
+
+	rootCmd.AddCommand(indexCmd)
+}
+
+func SetIndexConfig(cfg *config.IndexConfig) {
+	indexer.cfg = cfg
+
 	config.SetupLogFlags(&indexer.cfg.Log, indexCmd)
 	config.SetupDatabaseFlags(&indexer.cfg.Database, indexCmd)
 	config.SetupProbeFlags(&indexer.cfg.Probe, indexCmd)
 	config.SetupThrottlingFlag(&indexer.cfg.Base.Throttling, indexCmd)
 	config.SetupIndexSpecificFlags(indexer.cfg, indexCmd)
-
-	rootCmd.AddCommand(indexCmd)
 }
 
 var indexCmd = &cobra.Command{
@@ -240,7 +247,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 func setupIndexer() *Indexer {
 	var err error
 
-	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
+	cosmos.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
 	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe)
 
