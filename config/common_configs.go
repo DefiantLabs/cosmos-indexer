@@ -33,11 +33,11 @@ type Probe struct {
 	ChainName     string `mapstructure:"chain-name" toml:"chain-name"`
 }
 
-type throttlingBase struct {
+type ThrottlingBase struct {
 	Throttling float64 `mapstructure:"throttling" toml:"throttling"`
 }
 
-type retryBase struct {
+type RetryBase struct {
 	RequestRetryAttempts int64  `mapstructure:"request-retry-attempts" toml:"request-retry-attempts"`
 	RequestRetryMaxWait  uint64 `mapstructure:"request-retry-max-wait" toml:"request-retry-max-wait"`
 }
@@ -113,7 +113,7 @@ func validateProbeConf(probeConf Probe) (Probe, error) {
 	return probeConf, nil
 }
 
-func validateThrottlingConf(throttlingConf throttlingBase) error {
+func validateThrottlingConf(throttlingConf ThrottlingBase) error {
 	if throttlingConf.Throttling < 0 {
 		return errors.New("throttling must be a positive number or 0")
 	}

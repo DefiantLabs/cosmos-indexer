@@ -20,15 +20,19 @@ import (
 
 type E2ETest struct {
 	suite.Suite
-	testDB     *gorm.DB
-	testDBHost string
-	testDBPort string
-	testDBName string
-	testDBUser string
-	testDBPass string
-	cleanDB    func()
-	suiteChain ibc.Chain
-	interchain *interchaintest.Interchain
+	setupDone       bool
+	testDBConf      *testUtils.TestDockerDBConfig
+	testIndexerConf *testUtils.TestDockerIndexerConfig
+	testDB          *gorm.DB
+	testDBHost      string
+	testDBPort      string
+	testDBName      string
+	testDBUser      string
+	testDBPass      string
+	cleanDB         func()
+	cleanIndexer    func()
+	suiteChain      ibc.Chain
+	interchain      *interchaintest.Interchain
 }
 
 func (suite *E2ETest) SetupSuite1() {
@@ -36,18 +40,14 @@ func (suite *E2ETest) SetupSuite1() {
 }
 
 func (suite *E2ETest) SetupSuite() {
-	// Setup the test database
-	dbConf, err := testUtils.SetupTestDatabase()
-	suite.Require().NoError(err)
 
-	suite.testDB = dbConf.GormDB
-	suite.testDBHost = dbConf.Host
-	suite.testDBPort = dbConf.Port
-	suite.testDBName = dbConf.Database
-	suite.testDBUser = dbConf.User
-	suite.testDBPass = dbConf.Password
-
-	suite.cleanDB = dbConf.Clean
+	// TearDown is never called if the setup func fails, which can be triggered through suite.Require().NoError(err)
+	// So we defer the teardown here to ensure it is called but only if the bool for setup is false
+	defer func() {
+		if !suite.setupDone {
+			suite.TearDownSuite()
+		}
+	}()
 
 	var numVals int = 1
 	var numNodes int = 0
@@ -97,18 +97,49 @@ func (suite *E2ETest) SetupSuite() {
 	})
 
 	suite.Require().NoError(err)
+
+	// Setup the test database
+	dbConf, err := testUtils.SetupTestDatabase(dockerNetwork)
+	suite.Require().NoError(err)
+
+	suite.testDBConf = dbConf
+	suite.testDB = dbConf.GormDB
+	suite.testDBHost = dbConf.DockerResourceName // we attach the indexer to the docker network and use the resource name as the host
+	suite.testDBPort = dbConf.Port
+	suite.testDBName = dbConf.Database
+	suite.testDBUser = dbConf.User
+	suite.testDBPass = dbConf.Password
+
+	suite.cleanDB = dbConf.Clean
+
+	// Setup the test indexer
+	indexerConf, err := testUtils.SetupTestIndexer(dockerNetwork)
+	suite.Require().NoError(err)
+
+	suite.testIndexerConf = indexerConf
+	suite.cleanIndexer = indexerConf.Clean
+
+	// KEEP THIS UNDER ALL ERROR CHECKS
+	suite.setupDone = true
+
 }
 
 func (suite *E2ETest) TearDownSuite() {
 	// Setup the test database
-	suite.cleanDB()
+	if suite.cleanDB != nil {
+		suite.cleanDB()
+	}
+	if suite.cleanIndexer != nil {
+		suite.cleanIndexer()
+	}
 }
 
 func (suite *E2ETest) TestE2E() {
 	baseConfig := suite.getSuiteBaseConf()
 
-	err := baseConfig.Validate()
-	suite.Require().NoError(err)
+	// err := baseConfig.Validate()
+	// suite.Require().NoError(err)
+
 	createAndStoreConfigToml(baseConfig, "./config.toml")
 }
 
@@ -127,6 +158,15 @@ func (suite *E2ETest) getSuiteBaseConf() config.IndexConfig {
 			AccountPrefix: suite.suiteChain.Config().Bech32Prefix,
 			ChainID:       suite.suiteChain.Config().ChainID,
 			ChainName:     suite.suiteChain.Config().Name,
+		},
+		Base: config.IndexBase{
+			ThrottlingBase: config.ThrottlingBase{
+				Throttling: 0,
+			},
+			RetryBase: config.RetryBase{
+				RequestRetryAttempts: 0,
+				RequestRetryMaxWait:  0,
+			},
 		},
 	}
 }

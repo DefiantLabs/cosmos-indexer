@@ -10,15 +10,15 @@ import (
 
 type IndexConfig struct {
 	Database Database
-	Base     indexBase
+	Base     IndexBase
 	Log      log
 	Probe    Probe
 	Flags    flags
 }
 
-type indexBase struct {
-	throttlingBase
-	retryBase
+type IndexBase struct {
+	ThrottlingBase
+	RetryBase
 	ReindexMessageType         string `mapstructure:"reindex-message-type" toml:"reindex-message-type"`
 	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks" toml:"reattempt-failed-blocks"`
 	StartBlock                 int64  `mapstructure:"start-block" toml:"start-block"`
@@ -84,7 +84,7 @@ func (conf *IndexConfig) Validate() error {
 
 	conf.Probe = probeConf
 
-	err = validateThrottlingConf(conf.Base.throttlingBase)
+	err = validateThrottlingConf(conf.Base.ThrottlingBase)
 
 	if err != nil {
 		return err
@@ -122,15 +122,15 @@ func CheckSuperfluousIndexKeys(keys []string) []string {
 	addProbeConfigKeys(validKeys)
 
 	// add base keys
-	for _, key := range getValidConfigKeys(indexBase{}, "base") {
+	for _, key := range getValidConfigKeys(IndexBase{}, "base") {
 		validKeys[key] = struct{}{}
 	}
 
-	for _, key := range getValidConfigKeys(throttlingBase{}, "base") {
+	for _, key := range getValidConfigKeys(ThrottlingBase{}, "base") {
 		validKeys[key] = struct{}{}
 	}
 
-	for _, key := range getValidConfigKeys(retryBase{}, "base") {
+	for _, key := range getValidConfigKeys(RetryBase{}, "base") {
 		validKeys[key] = struct{}{}
 	}
 

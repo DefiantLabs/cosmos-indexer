@@ -1,0 +1,11 @@
+config.toml
+.git
+.github
+.vscode
+env
+cosmos-indexer
+log.txt
+my-files
+notes
+docs
+**/__debug*

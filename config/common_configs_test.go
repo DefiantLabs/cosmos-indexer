@@ -72,7 +72,7 @@ func (suite *ConfigTestSuite) TestValidateProbeConf() {
 }
 
 func (suite *ConfigTestSuite) TestValidateThrottlingConf() {
-	conf := throttlingBase{
+	conf := ThrottlingBase{
 		Throttling: -1,
 	}
 

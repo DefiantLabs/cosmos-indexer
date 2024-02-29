@@ -20,7 +20,7 @@ type DBTestSuite struct {
 }
 
 func (suite *DBTestSuite) SetupTest() {
-	conf, err := testUtils.SetupTestDatabase()
+	conf, err := testUtils.SetupTestDatabase("")
 	suite.Require().NoError(err)
 
 	suite.db = conf.GormDB
