@@ -1,15 +1,19 @@
 package e2e_test
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
-	"log"
-	"os"
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/BurntSushi/toml"
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	testUtils "github.com/DefiantLabs/cosmos-indexer/test/utils"
+	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/strangelove-ventures/interchaintest/v8"
 	"github.com/strangelove-ventures/interchaintest/v8/ibc"
 	"github.com/stretchr/testify/suite"
@@ -105,6 +109,7 @@ func (suite *E2ETest) SetupSuite() {
 	suite.testDBConf = dbConf
 	suite.testDB = dbConf.GormDB
 	suite.testDBHost = dbConf.DockerResourceName // we attach the indexer to the docker network and use the resource name as the host
+	// BUG: The ports here are currently the mapped ports. Since the indexer is running in-network, it needs to use the host + non-mapped port
 	suite.testDBPort = dbConf.Port
 	suite.testDBName = dbConf.Database
 	suite.testDBUser = dbConf.User
@@ -139,8 +144,10 @@ func (suite *E2ETest) TestE2E() {
 
 	// err := baseConfig.Validate()
 	// suite.Require().NoError(err)
+	err := uploadConfigFileToContainer(baseConfig, suite.testIndexerConf.DockerPool, suite.testIndexerConf.DockerResourceName, "/go/src/app/")
+	suite.Require().NoError(err)
 
-	createAndStoreConfigToml(baseConfig, "./config.toml")
+	fmt.Println(baseConfig)
 }
 
 func (suite *E2ETest) getSuiteBaseConf() config.IndexConfig {
@@ -154,7 +161,7 @@ func (suite *E2ETest) getSuiteBaseConf() config.IndexConfig {
 			LogLevel: "silent",
 		},
 		Probe: config.Probe{
-			RPC:           suite.suiteChain.GetHostRPCAddress(),
+			RPC:           suite.suiteChain.GetRPCAddress(),
 			AccountPrefix: suite.suiteChain.Config().Bech32Prefix,
 			ChainID:       suite.suiteChain.Config().ChainID,
 			ChainName:     suite.suiteChain.Config().Name,
@@ -171,23 +178,66 @@ func (suite *E2ETest) getSuiteBaseConf() config.IndexConfig {
 	}
 }
 
-func createAndStoreConfigToml(conf config.IndexConfig, path string) error {
-
-	f, err := os.Create(path)
+func uploadConfigFileToContainer(conf config.IndexConfig, pool *dockertest.Pool, dockerResourceName string, path string) error {
+	gzipFile, err := encodeConfigTomlToTarGz(conf)
 	if err != nil {
-		// failed to create/open the file
-		log.Fatal(err)
+		return err
 	}
-	if err := toml.NewEncoder(f).Encode(conf); err != nil {
-		// failed to encode
-		log.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		// failed to close the file
-		log.Fatal(err)
 
+	r, err := gzip.NewReader(&gzipFile)
+	if err != nil {
+		return err
 	}
-	return nil
+
+	uploadOptions := docker.UploadToContainerOptions{
+		InputStream: r,
+		Path:        path,
+		Context:     context.Background(),
+	}
+
+	err = pool.Client.UploadToContainer(dockerResourceName, uploadOptions)
+
+	return err
+}
+
+// Required by dockertest's UploadToContainer function which uses the docker archive upload API
+func encodeConfigTomlToTarGz(conf config.IndexConfig) (bytes.Buffer, error) {
+
+	var b bytes.Buffer
+	if err := toml.NewEncoder(&b).Encode(conf); err != nil {
+		// failed to encode
+		return b, err
+	}
+
+	var tarB bytes.Buffer
+	tw := tar.NewWriter(&tarB)
+	tarHeader := &tar.Header{
+		Name: "config.toml",
+		Size: int64(b.Len()),
+	}
+
+	if err := tw.WriteHeader(tarHeader); err != nil {
+		// failed to write header
+		return b, err
+	}
+
+	if _, err := tw.Write(b.Bytes()); err != nil {
+		// failed to write
+		return b, err
+	}
+
+	tw.Close()
+
+	var gzipB bytes.Buffer
+	gz := gzip.NewWriter(&gzipB)
+	if _, err := gz.Write(tarB.Bytes()); err != nil {
+		// failed to write
+		return b, err
+	}
+
+	gz.Close()
+
+	return gzipB, nil
 }
 
 func TestE2ETest(t *testing.T) {

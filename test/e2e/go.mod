@@ -14,6 +14,7 @@ replace github.com/DefiantLabs/cosmos-indexer => ../../
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/DefiantLabs/cosmos-indexer v0.0.0-00010101000000-000000000000
+	github.com/ory/dockertest/v3 v3.10.0
 	github.com/strangelove-ventures/interchaintest/v8 v8.1.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
@@ -198,7 +199,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/opencontainers/runc v1.1.5 // indirect
-	github.com/ory/dockertest/v3 v3.10.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/petermattis/goid v0.0.0-20230904192822-1876fd5063bc // indirect

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	dockertest "github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 )
 
 func SetupTestIndexer(optionalDockerNetworkID string) (*TestDockerIndexerConfig, error) {
@@ -44,6 +45,13 @@ func SetupTestIndexer(optionalDockerNetworkID string) (*TestDockerIndexerConfig,
 	buildOpts := &dockertest.BuildOptions{
 		ContextDir: "../..",
 		Dockerfile: "Dockerfile.test",
+		// How to improve this? Need to get current os and arch
+		BuildArgs: []docker.BuildArg{
+			{
+				Name:  "TARGETPLATFORM",
+				Value: "linux/amd64",
+			},
+		},
 	}
 
 	resource, err := pool.BuildAndRunWithBuildOptions(buildOpts, runOpts)
@@ -64,9 +72,10 @@ func SetupTestIndexer(optionalDockerNetworkID string) (*TestDockerIndexerConfig,
 	}
 
 	conf := TestDockerIndexerConfig{
-		DockerResourceName: resource.Container.Name,
+		DockerResourceName: resourceName,
 		DockerNetwork:      networkName,
 		DockerResource:     resource,
+		DockerPool:         pool,
 		Clean:              clean,
 	}
 
@@ -78,5 +87,6 @@ type TestDockerIndexerConfig struct {
 	DockerResourceName string
 	DockerNetwork      string
 	DockerResource     *dockertest.Resource
+	DockerPool         *dockertest.Pool
 	Clean              func()
 }
