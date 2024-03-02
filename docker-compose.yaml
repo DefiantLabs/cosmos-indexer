@@ -27,9 +27,8 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      default:
-        aliases:
-          - defiant
+      vpcbr-2:
+        ipv4_address: 10.5.0.8
     <<: *logging
 
   indexer:
@@ -51,9 +50,8 @@ services:
     links:
       - postgres
     networks:
-      default:
-        aliases:
-          - defiant
+      vpcbr-2:
+        ipv4_address: 10.5.0.7
     <<: *logging
     command:
     - /bin/sh
@@ -79,6 +77,10 @@ services:
       --database.password password \
       --server.port 9002
 
+networks:
+  vpcbr-2:
+    external:
+      name: vpcbr
   # client:
   #   restart: "unless-stopped"
   #   image: ghcr.io/defiantlabs/cosmos-indexer:sha-56866e1
