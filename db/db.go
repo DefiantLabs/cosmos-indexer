@@ -219,6 +219,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 		for _, tx := range txs {
 			tx.Tx.BlockID = block.ID
+			tx.Tx.Block = block
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
 			if len(tx.Tx.SignerAddresses) != 0 {
 				for _, signerAddress := range tx.Tx.SignerAddresses {
