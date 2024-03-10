@@ -68,6 +68,10 @@ var indexCmd = &cobra.Command{
 	Run:     index,
 }
 
+func RegisterMessageTypeFilter(filter filter.MessageTypeFilter) {
+	indexer.messageTypeFilters = append(indexer.messageTypeFilters, filter)
+}
+
 func RegisterCustomBeginBlockEventParser(eventKey string, parser parsers.BlockEventParser) {
 	var err error
 	indexer.customBeginBlockEventParserRegistry, indexer.customBeginBlockParserTrackers, err = customBlockEventRegistration(
@@ -190,17 +194,20 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 			config.Log.Fatal("Failed to parse block event filter config", err)
 		}
 
+		var fileMessageTypeFilters []filter.MessageTypeFilter
+
 		indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.BlockEventFilters,
 			indexer.blockEventFilterRegistries.beginBlockEventFilterRegistry.RollingWindowEventFilters,
 			indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.BlockEventFilters,
 			indexer.blockEventFilterRegistries.endBlockEventFilterRegistry.RollingWindowEventFilters,
-			indexer.messageTypeFilters,
+			fileMessageTypeFilters,
 			err = config.ParseJSONFilterConfig(b)
 
 		if err != nil {
 			config.Log.Fatal("Failed to parse block event filter config", err)
 		}
 
+		indexer.messageTypeFilters = append(indexer.messageTypeFilters, fileMessageTypeFilters...)
 	}
 
 	if len(indexer.customModels) != 0 {
