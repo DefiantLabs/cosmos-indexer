@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"strconv"
+	"time"
 
 	"errors"
 
@@ -17,6 +19,7 @@ import (
 	govV1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govV1Beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // This defines the custom message parser for the governance vote message type
@@ -122,7 +125,7 @@ func (c *MsgVoteParser) IndexMessage(dataset *any, db *gorm.DB, message models.M
 	}
 
 	var proposal Proposal
-	err = db.Where(&proposal).FirstOrCreate(&proposal).Error
+	err = db.Where(&Proposal{ProposalID: vote.Proposal.ProposalID}).FirstOrCreate(&proposal).Error
 
 	if err != nil {
 		return err
@@ -136,6 +139,95 @@ func (c *MsgVoteParser) IndexMessage(dataset *any, db *gorm.DB, message models.M
 	vote.Proposal = proposal
 
 	err = db.Where(&vote).FirstOrCreate(&vote).Error
+	return err
+}
+
+type MsgSubmitProposalParser struct {
+	Id string
+}
+
+func (c *MsgSubmitProposalParser) Identifier() string {
+	return c.Id
+}
+
+func (c *MsgSubmitProposalParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexerTxTypes.LogMessage, cfg config.IndexConfig) (*any, error) {
+	msgV1Beta1, okV1Beta1 := cosmosMsg.(*govV1Beta1.MsgSubmitProposal)
+	msgV1, okV1 := cosmosMsg.(*govV1.MsgSubmitProposal)
+
+	if !okV1Beta1 && !okV1 {
+		return nil, errors.New("not a submit proposal message")
+	}
+
+	var val Proposal
+
+	// get event log for submit_proposal event, this contains the created proposal's id
+	evts := indexerTxTypes.GetEventsWithType("submit_proposal", log)
+
+	if len(evts) == 0 {
+		return nil, errors.New("submit_proposal event not found")
+	}
+
+	proposalIDStr, err := indexerTxTypes.GetValueForAttribute("proposal_id", &evts[0])
+
+	if err != nil {
+		return nil, err
+	}
+
+	proposalID, err := strconv.ParseUint(proposalIDStr, 10, 64)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if okV1Beta1 {
+		val = Proposal{
+			ProposalID: proposalID,
+			ProposerAddress: &models.Address{
+				Address: msgV1Beta1.Proposer,
+			},
+		}
+	} else {
+		val = Proposal{
+			ProposalID:          proposalID,
+			ProposalDescription: msgV1.Title,
+			ProposerAddress: &models.Address{
+				Address: msgV1.Proposer,
+			},
+		}
+	}
+
+	storageVal := any(val)
+
+	return &storageVal, nil
+}
+
+func (c *MsgSubmitProposalParser) IndexMessage(dataset *any, db *gorm.DB, message models.Message, messageEvents []parsers.MessageEventWithAttributes, cfg config.IndexConfig) error {
+	// Create or update the proposal by proposal ID
+
+	proposal, ok := (*dataset).(Proposal)
+
+	if !ok {
+		return errors.New("invalid proposal type")
+	}
+
+	var err error
+	var proposer models.Address
+
+	proposer, err = dbTypes.FindOrCreateAddressByAddress(db, proposal.ProposerAddress.Address)
+
+	if err != nil {
+		return err
+	}
+
+	proposal.ProposerAddressID = &proposer.ID
+	proposal.ProposerAddress = &proposer
+	proposal.ProposalSubmitTime = &message.Tx.Block.TimeStamp
+
+	err = db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "proposal_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"proposer_address_id", "proposal_description", "proposal_submit_time"}),
+	}).Create(&proposal).Error
+
 	return err
 }
 
@@ -163,8 +255,12 @@ type Vote struct {
 }
 
 type Proposal struct {
-	ID         uint
-	ProposalID uint64
+	ID                  uint
+	ProposalID          uint64 `gorm:"unique"`
+	ProposerAddress     *models.Address
+	ProposerAddressID   *uint
+	ProposalDescription string
+	ProposalSubmitTime  *time.Time
 }
 
 type GovernanceVotingMessageTypeFilter struct {
@@ -177,10 +273,16 @@ func main() {
 	customModels = append(customModels, Vote{})
 	customModels = append(customModels, Proposal{})
 
-	// This indexer is only concerned with vote messages, so we create a regex filter to only index those messages.
+	// This indexer is only concerned with vote and proposal messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
 	// We use a regex because the message type can be different between v1 and v1beta1 of the gov module.
-	govRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgVote$")
+	govVoteRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgVote$")
+
+	if err != nil {
+		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
+	}
+
+	govSubmitProposalRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgSubmitProposal$")
 
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
@@ -188,14 +290,19 @@ func main() {
 
 	// Register the custom types that will modify the behavior of the indexer
 	cmd.RegisterCustomModels(customModels)
-	cmd.RegisterMessageTypeFilter(govRegexMessageTypeFilter)
+	cmd.RegisterMessageTypeFilter(govVoteRegexMessageTypeFilter)
+	cmd.RegisterMessageTypeFilter(govSubmitProposalRegexMessageTypeFilter)
 
 	// Register the custom message parser for the vote message types. Our parser can handle both v1 and v1beta1 vote messages.
 	// However, they must be uniquely identified by the Identifier() method. This will make identifying any parser errors easier.
-	v1Beta1Parser := &MsgVoteParser{Id: "vote-v1beta1"}
-	v1Parser := &MsgVoteParser{Id: "vote-v1"}
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgVote", v1Beta1Parser)
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1.MsgVote", v1Parser)
+	v1Beta1VoteParser := &MsgVoteParser{Id: "vote-v1beta1"}
+	v1VoteParser := &MsgVoteParser{Id: "vote-v1"}
+	v1Beta1SubmitParser := &MsgSubmitProposalParser{Id: "submit-proposal-v1beta1"}
+	v1SubmitParser := &MsgSubmitProposalParser{Id: "submit-proposal-v1"}
+	cmd.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgVote", v1Beta1VoteParser)
+	cmd.RegisterCustomMessageParser("/cosmos.gov.v1.MsgVote", v1VoteParser)
+	cmd.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgSubmitProposal", v1Beta1SubmitParser)
+	cmd.RegisterCustomMessageParser("/cosmos.gov.v1.MsgSubmitProposal", v1SubmitParser)
 
 	// Execute the root command to start the indexer.
 	err = cmd.Execute()
