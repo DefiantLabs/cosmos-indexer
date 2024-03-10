@@ -1,11 +1,10 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"strconv"
 	"time"
-
-	"errors"
 
 	"github.com/DefiantLabs/cosmos-indexer/cmd"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -33,7 +32,6 @@ func (c *MsgVoteParser) Identifier() string {
 }
 
 func (c *MsgVoteParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexerTxTypes.LogMessage, cfg config.IndexConfig) (*any, error) {
-
 	msgV1Beta1, okV1Beta1 := cosmosMsg.(*govV1Beta1.MsgVote)
 	msgV1, okV1 := cosmosMsg.(*govV1.MsgVote)
 
@@ -63,7 +61,6 @@ func (c *MsgVoteParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexerTxTypes
 				ProposalID: msgV1.ProposalId,
 			},
 		}
-
 	}
 
 	storageVal := any(val)
@@ -168,13 +165,11 @@ func (c *MsgSubmitProposalParser) ParseMessage(cosmosMsg stdTypes.Msg, log *inde
 	}
 
 	proposalIDStr, err := indexerTxTypes.GetValueForAttribute("proposal_id", &evts[0])
-
 	if err != nil {
 		return nil, err
 	}
 
 	proposalID, err := strconv.ParseUint(proposalIDStr, 10, 64)
-
 	if err != nil {
 		return nil, err
 	}
@@ -263,11 +258,9 @@ type Proposal struct {
 	ProposalSubmitTime  *time.Time
 }
 
-type GovernanceVotingMessageTypeFilter struct {
-}
+type GovernanceVotingMessageTypeFilter struct{}
 
 func main() {
-
 	// Register the custom database models. They will be migrated and included in the database when the indexer finishes setup.
 	customModels := []any{}
 	customModels = append(customModels, Vote{})
@@ -277,13 +270,11 @@ func main() {
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
 	// We use a regex because the message type can be different between v1 and v1beta1 of the gov module.
 	govVoteRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgVote$")
-
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
 	govSubmitProposalRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgSubmitProposal$")
-
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
