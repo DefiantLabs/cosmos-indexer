@@ -52,6 +52,8 @@ type Response struct {
 	Code      uint32       `json:"code"`
 	RawLog    string       `json:"raw_log"`
 	Log       []LogMessage `json:"logs"`
+	GasUsed   int64        `json:"gas_used"`
+	GasWanted int64        `json:"gas_wanted"`
 }
 
 // TxLogMessage:

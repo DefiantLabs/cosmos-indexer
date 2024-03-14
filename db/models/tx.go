@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/lib/pq"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -9,15 +10,60 @@ import (
 )
 
 type Tx struct {
-	ID              uint
-	Hash            string `gorm:"uniqueIndex"`
-	Code            uint32
-	BlockID         uint
-	Block           Block
-	SignerAddresses []Address `gorm:"many2many:tx_signer_addresses;"`
-	Fees            []Fee
-	// Signatures      [][]byte
-	Timestamp time.Time
+	ID                          uint
+	Hash                        string `gorm:"uniqueIndex"`
+	Code                        uint32
+	BlockID                     uint
+	Block                       Block
+	SignerAddresses             []Address `gorm:"many2many:tx_signer_addresses;"`
+	Fees                        []Fee
+	Signatures                  pq.ByteaArray `gorm:"type:bytea[]" json:"signatures"`
+	Timestamp                   time.Time
+	Memo                        string
+	TimeoutHeight               uint64
+	ExtensionOptions            pq.StringArray `gorm:"type:text[]" json:"extension_options"`
+	NonCriticalExtensionOptions pq.StringArray `gorm:"type:text[]" json:"non_critical_options"`
+	AuthInfo                    AuthInfo       `gorm:"foreignKey:ID"`
+}
+
+type AuthInfo struct {
+	ID          uint         `gorm:"primaryKey"`
+	Fee         AuthInfoFee  `gorm:"foreignKey:ID"`
+	Tip         Tip          `gorm:"foreignKey:ID"`
+	SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
+}
+
+type AuthInfoFee struct {
+	ID       uint          `gorm:"primaryKey"`
+	Amount   InfoFeeAmount `gorm:"foreignKey:ID"`
+	GasLimit uint64
+	Payer    string
+	Granter  string
+}
+
+type InfoFeeAmount struct {
+	ID           uint            `gorm:"primaryKey"`
+	Amount       decimal.Decimal `gorm:"type:decimal(78,0);"`
+	Denomination Denom           `gorm:"foreignKey:ID"`
+}
+
+type Tip struct {
+	ID     uint `gorm:"primaryKey"`
+	Tipper string
+	Amount TipAmount `gorm:"foreignKey:ID"`
+}
+
+type TipAmount struct {
+	ID           uint            `gorm:"primaryKey"`
+	Amount       decimal.Decimal `gorm:"type:decimal(78,0);"`
+	Denomination Denom           `gorm:"foreignKey:ID"`
+}
+
+type SignerInfo struct {
+	ID        uint `gorm:"primaryKey"`
+	PublicKey string
+	ModeInfo  string
+	Sequence  uint64
 }
 
 type FailedTx struct {

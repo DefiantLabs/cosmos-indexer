@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	pb "github.com/DefiantLabs/cosmos-indexer/proto"
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
@@ -44,4 +45,11 @@ func (r *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([
 	}
 
 	return data, nil
+}
+
+func (r *txs) GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashResponse, error) {
+	query := `select id, hash, code, block_id, timestamp from txes where hash=$1`
+	_ = r.db.QueryRow(ctx, query, txHash)
+
+	return nil, nil
 }

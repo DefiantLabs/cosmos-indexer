@@ -169,6 +169,8 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			RawLog:    txResult.Log,
 			Log:       currLogMsgs,
 			Code:      txResult.Code,
+			GasUsed:   txResult.GasUsed,
+			GasWanted: txResult.GasWanted,
 		}
 
 		indexerTx.AuthInfo = *txFull.AuthInfo
@@ -290,6 +292,8 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			RawLog:    currTxResp.RawLog,
 			Log:       currLogMsgs,
 			Code:      currTxResp.Code,
+			GasUsed:   currTxResp.GasUsed,
+			GasWanted: currTxResp.GasWanted,
 		}
 
 		indexerTx.AuthInfo = *currTx.AuthInfo
@@ -330,7 +334,22 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 		}
 
 		processedTx.Tx.Fees = fees
-		// processedTx.Tx.Signatures = currTx.Signatures
+
+		processedTx.Tx.Signatures = currTx.Signatures
+		processedTx.Tx.Memo = currTx.Body.Memo
+		processedTx.Tx.TimeoutHeight = currTx.Body.TimeoutHeight
+
+		extensionOptions := make([]string, 0)
+		for _, opt := range currTx.Body.ExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.ExtensionOptions = extensionOptions
+
+		nonExtensionOptions := make([]string, 0)
+		for _, opt := range currTx.Body.NonCriticalExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.NonCriticalExtensionOptions = nonExtensionOptions
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
