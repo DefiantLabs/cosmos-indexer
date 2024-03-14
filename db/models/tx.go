@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/lib/pq"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -23,7 +24,7 @@ type Tx struct {
 	TimeoutHeight               uint64
 	ExtensionOptions            pq.StringArray `gorm:"type:text[]" json:"extension_options"`
 	NonCriticalExtensionOptions pq.StringArray `gorm:"type:text[]" json:"non_critical_options"`
-	AuthInfo                    AuthInfo       `gorm:"foreignKey:ID"`
+	AuthInfo                    *AuthInfo      `gorm:"many2many:auth_info;"`
 }
 
 type AuthInfo struct {
@@ -34,29 +35,29 @@ type AuthInfo struct {
 }
 
 type AuthInfoFee struct {
-	ID       uint          `gorm:"primaryKey"`
-	Amount   InfoFeeAmount `gorm:"foreignKey:ID"`
+	ID       uint            `gorm:"primaryKey"`
+	Amount   []InfoFeeAmount `gorm:"foreignKey:ID"`
 	GasLimit uint64
 	Payer    string
 	Granter  string
 }
 
 type InfoFeeAmount struct {
-	ID           uint            `gorm:"primaryKey"`
-	Amount       decimal.Decimal `gorm:"type:decimal(78,0);"`
-	Denomination Denom           `gorm:"foreignKey:ID"`
+	ID     uint            `gorm:"primaryKey"`
+	Amount decimal.Decimal `gorm:"type:decimal(78,0);"`
+	Denom  string
 }
 
 type Tip struct {
 	ID     uint `gorm:"primaryKey"`
 	Tipper string
-	Amount TipAmount `gorm:"foreignKey:ID"`
+	Amount []TipAmount `gorm:"foreignKey:ID"`
 }
 
 type TipAmount struct {
-	ID           uint            `gorm:"primaryKey"`
-	Amount       decimal.Decimal `gorm:"type:decimal(78,0);"`
-	Denomination Denom           `gorm:"foreignKey:ID"`
+	ID     uint            `gorm:"primaryKey"`
+	Amount decimal.Decimal `gorm:"type:decimal(78,0);"`
+	Denom  string
 }
 
 type SignerInfo struct {
