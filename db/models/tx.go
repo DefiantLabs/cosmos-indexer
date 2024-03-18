@@ -24,22 +24,35 @@ type Tx struct {
 	TimeoutHeight               uint64
 	ExtensionOptions            pq.StringArray `gorm:"type:text[]" json:"extension_options"`
 	NonCriticalExtensionOptions pq.StringArray `gorm:"type:text[]" json:"non_critical_options"`
-	AuthInfo                    *AuthInfo      `gorm:"many2many:auth_info;"`
+	AuthInfoID                  uint
+	AuthInfo                    AuthInfo `gorm:"foreignKey:AuthInfoID;belongsTo"`
+	TxResponseID                uint
+	TxResponse                  TxResponse `gorm:"foreignKey:TxResponseID;belongsTo"`
 }
 
 type AuthInfo struct {
-	ID          uint         `gorm:"primaryKey"`
-	Fee         AuthInfoFee  `gorm:"foreignKey:ID"`
-	Tip         Tip          `gorm:"foreignKey:ID"`
-	SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
+	ID    uint `gorm:"primarykey"`
+	FeeID uint
+	Fee   AuthInfoFee `gorm:"foreignKey:FeeID"`
+	TipID uint
+	Tip   Tip `gorm:"foreignKey:TipID"`
+	//SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
+}
+
+func (AuthInfo) TableName() string {
+	return "tx_auth_info"
 }
 
 type AuthInfoFee struct {
-	ID       uint            `gorm:"primaryKey"`
-	Amount   []InfoFeeAmount `gorm:"foreignKey:ID"`
+	ID       uint
 	GasLimit uint64
 	Payer    string
 	Granter  string
+	//Amount   []InfoFeeAmount `gorm:"many2many:tx_info_fee_amount;"`
+}
+
+func (AuthInfoFee) TableName() string {
+	return "tx_auth_info_fee"
 }
 
 type InfoFeeAmount struct {
@@ -48,10 +61,18 @@ type InfoFeeAmount struct {
 	Denom  string
 }
 
+func (InfoFeeAmount) TableName() string {
+	return "tx_info_fee_amount"
+}
+
 type Tip struct {
-	ID     uint `gorm:"primaryKey"`
+	ID     uint
 	Tipper string
 	Amount []TipAmount `gorm:"foreignKey:ID"`
+}
+
+func (Tip) TableName() string {
+	return "tx_tip"
 }
 
 type TipAmount struct {
@@ -60,11 +81,35 @@ type TipAmount struct {
 	Denom  string
 }
 
+func (TipAmount) TableName() string {
+	return "tx_tip_amount"
+}
+
 type SignerInfo struct {
 	ID        uint `gorm:"primaryKey"`
 	PublicKey string
 	ModeInfo  string
 	Sequence  uint64
+}
+
+func (SignerInfo) TableName() string {
+	return "tx_signer_info"
+}
+
+type TxResponse struct {
+	ID        uint
+	TxHash    string `gorm:"uniqueIndex"`
+	Height    string
+	TimeStamp string
+	Code      uint32
+	RawLog    string
+	// Log       []LogMessage
+	GasUsed   int64
+	GasWanted int64
+}
+
+func (TxResponse) TableName() string {
+	return "tx_responses"
 }
 
 type FailedTx struct {
