@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"reflect"
 	"strings"
@@ -169,6 +170,8 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			RawLog:    txResult.Log,
 			Log:       currLogMsgs,
 			Code:      txResult.Code,
+			GasUsed:   txResult.GasUsed,
+			GasWanted: txResult.GasWanted,
 		}
 
 		indexerTx.AuthInfo = *txFull.AuthInfo
@@ -201,6 +204,57 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 		}
 
 		processedTx.Tx.Fees = fees
+
+		// extra fields
+		processedTx.Tx.Signatures = txFull.Signatures
+		processedTx.Tx.Memo = txFull.Body.Memo
+		processedTx.Tx.TimeoutHeight = txFull.Body.TimeoutHeight
+
+		extensionOptions := make([]string, 0)
+		for _, opt := range txFull.Body.ExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.ExtensionOptions = extensionOptions
+
+		nonExtensionOptions := make([]string, 0)
+		for _, opt := range txFull.Body.NonCriticalExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.NonCriticalExtensionOptions = nonExtensionOptions
+		processedTx.Tx.TxResponse = models.TxResponse{
+			TxHash:    indexerTxResp.TxHash,
+			Height:    indexerTxResp.Height,
+			TimeStamp: indexerTxResp.TimeStamp,
+			Code:      indexerTxResp.Code,
+			RawLog:    indexerTxResp.RawLog,
+			GasUsed:   indexerTxResp.GasUsed,
+			GasWanted: indexerTxResp.GasWanted,
+		}
+
+		if txFull.AuthInfo != nil {
+			txAuthInfo := models.AuthInfo{
+				Fee: models.AuthInfoFee{
+					Granter:  txFull.AuthInfo.Fee.Granter,
+					Payer:    txFull.AuthInfo.Fee.Payer,
+					GasLimit: txFull.AuthInfo.Fee.GasLimit,
+				},
+			}
+			if txFull.AuthInfo.Tip != nil {
+				tipAmount := make([]models.TipAmount, 0)
+				for _, a := range txFull.AuthInfo.Tip.Amount {
+					tipAmount = append(tipAmount, models.TipAmount{
+						Denom:  a.Denom,
+						Amount: decimal.NewFromInt(a.Amount.Int64()),
+					})
+				}
+				txAuthInfo.Tip = models.Tip{
+					Tipper: txFull.AuthInfo.Tip.Tipper,
+					Amount: tipAmount,
+				}
+			}
+
+			processedTx.Tx.AuthInfo = txAuthInfo
+		}
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
@@ -290,6 +344,8 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			RawLog:    currTxResp.RawLog,
 			Log:       currLogMsgs,
 			Code:      currTxResp.Code,
+			GasUsed:   currTxResp.GasUsed,
+			GasWanted: currTxResp.GasWanted,
 		}
 
 		indexerTx.AuthInfo = *currTx.AuthInfo
@@ -330,7 +386,57 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 		}
 
 		processedTx.Tx.Fees = fees
-		// processedTx.Tx.Signatures = currTx.Signatures
+
+		// extra fields
+		processedTx.Tx.Signatures = currTx.Signatures
+		processedTx.Tx.Memo = currTx.Body.Memo
+		processedTx.Tx.TimeoutHeight = currTx.Body.TimeoutHeight
+
+		extensionOptions := make([]string, 0)
+		for _, opt := range currTx.Body.ExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.ExtensionOptions = extensionOptions
+
+		nonExtensionOptions := make([]string, 0)
+		for _, opt := range currTx.Body.NonCriticalExtensionOptions {
+			extensionOptions = append(extensionOptions, opt.String())
+		}
+		processedTx.Tx.NonCriticalExtensionOptions = nonExtensionOptions
+		processedTx.Tx.TxResponse = models.TxResponse{
+			TxHash:    indexerTxResp.TxHash,
+			Height:    indexerTxResp.Height,
+			TimeStamp: indexerTxResp.TimeStamp,
+			Code:      indexerTxResp.Code,
+			RawLog:    indexerTxResp.RawLog,
+			GasUsed:   indexerTxResp.GasUsed,
+			GasWanted: indexerTxResp.GasWanted,
+		}
+
+		if currTx.AuthInfo != nil {
+			txAuthInfo := models.AuthInfo{
+				Fee: models.AuthInfoFee{
+					Granter:  currTx.AuthInfo.Fee.Granter,
+					Payer:    currTx.AuthInfo.Fee.Payer,
+					GasLimit: currTx.AuthInfo.Fee.GasLimit,
+				},
+			}
+			if currTx.AuthInfo.Tip != nil {
+				tipAmount := make([]models.TipAmount, 0)
+				for _, a := range currTx.AuthInfo.Tip.Amount {
+					tipAmount = append(tipAmount, models.TipAmount{
+						Denom:  a.Denom,
+						Amount: decimal.NewFromInt(a.Amount.Int64()),
+					})
+				}
+				txAuthInfo.Tip = models.Tip{
+					Tipper: currTx.AuthInfo.Tip.Tipper,
+					Amount: tipAmount,
+				}
+			}
+
+			processedTx.Tx.AuthInfo = txAuthInfo
+		}
 
 		currTxDbWrappers[txIdx] = processedTx
 	}

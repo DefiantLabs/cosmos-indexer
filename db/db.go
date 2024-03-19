@@ -104,6 +104,13 @@ func migrateTXModels(db *gorm.DB) error {
 		&models.MessageEventType{},
 		&models.MessageEventAttribute{},
 		&models.MessageEventAttributeKey{},
+		&models.AuthInfo{},
+		&models.AuthInfoFee{},
+		&models.InfoFeeAmount{},
+		&models.Tip{},
+		&models.TipAmount{},
+		&models.SignerInfo{},
+		&models.TxResponse{},
 	)
 }
 
@@ -296,6 +303,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				tx.Tx.Fees[feeIndex].DenominationID = denom.ID
 				tx.Tx.Fees[feeIndex].Denomination = denom
 			}
+
 		}
 
 		var addressesSlice []models.Address
@@ -319,6 +327,31 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 		var txesSlice []models.Tx
 		for _, tx := range uniqueTxes {
+
+			// create auth_info address if it doesn't exist
+			if err := dbTransaction.Where(&tx.AuthInfo.Tip).FirstOrCreate(&tx.AuthInfo.Tip).Error; err != nil {
+				config.Log.Error("Error getting/creating Tip DB object.", err)
+				return err
+			}
+			tx.AuthInfo.TipID = tx.AuthInfo.Tip.ID
+
+			if err := dbTransaction.Where(&tx.AuthInfo.Fee).FirstOrCreate(&tx.AuthInfo.Fee).Error; err != nil {
+				config.Log.Error("Error getting/creating Fee DB object.", err)
+				return err
+			}
+
+			tx.AuthInfo.FeeID = tx.AuthInfo.Fee.ID
+
+			if err := dbTransaction.Where(&tx.AuthInfo).FirstOrCreate(&tx.AuthInfo).Error; err != nil {
+				config.Log.Error("Error getting/creating authInfo DB object.", err)
+				return err
+			}
+			tx.AuthInfoID = tx.AuthInfo.ID
+			if err := dbTransaction.Where(&tx.TxResponse).FirstOrCreate(&tx.TxResponse).Error; err != nil {
+				config.Log.Error("Error getting/creating txResponse DB object.", err)
+				return err
+			}
+			tx.TxResponseID = tx.TxResponse.ID
 
 			var signerAddressID uint
 

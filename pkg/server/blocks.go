@@ -64,3 +64,11 @@ func (r *BlocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequ
 
 	return &pb.TxChartByDayResponse{TxByDay: data}, nil
 }
+
+func (r *BlocksServer) TxByHash(ctx context.Context, in *pb.TxByHashRequest) (*pb.TxByHashResponse, error) {
+	_, err := r.srvTx.GetTxByHash(ctx, in.Hash)
+	if err != nil {
+		return &pb.TxByHashResponse{}, err
+	}
+	return nil, nil
+}

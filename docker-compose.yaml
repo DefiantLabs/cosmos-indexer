@@ -60,7 +60,7 @@ services:
       cosmos-indexer index \
       --log.pretty = true \
       --log.level = info \
-      --base.start-block 861425 \
+      --base.start-block 980818 \
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \
