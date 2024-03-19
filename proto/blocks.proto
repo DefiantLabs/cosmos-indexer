@@ -72,12 +72,14 @@ message TxByHash {
   repeated string extension_options = 4;
   repeated string non_critical_extension_options = 5;
   TxAuthInfo auth_info = 6;
+  TxResponse tx_response = 7;
 }
 
 message TxAuthInfo {
   repeated string public_key = 1;
   TxFee fee = 2;
   repeated string signatures = 3;
+  TxTip tip = 4;
 }
 
 message TxFee {
