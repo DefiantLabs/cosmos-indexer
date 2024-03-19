@@ -36,7 +36,7 @@ type AuthInfo struct {
 	Fee   AuthInfoFee `gorm:"foreignKey:FeeID"`
 	TipID uint
 	Tip   Tip `gorm:"foreignKey:TipID"`
-	//SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
+	// SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
 }
 
 func (AuthInfo) TableName() string {
@@ -48,7 +48,7 @@ type AuthInfoFee struct {
 	GasLimit uint64
 	Payer    string
 	Granter  string
-	//Amount   []InfoFeeAmount `gorm:"many2many:tx_info_fee_amount;"`
+	// Amount   []InfoFeeAmount `gorm:"many2many:tx_info_fee_amount;"`
 }
 
 func (AuthInfoFee) TableName() string {
