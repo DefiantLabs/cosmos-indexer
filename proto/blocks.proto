@@ -11,6 +11,7 @@ service BlocksService {
   rpc BlockValidators(GetBlockValidatorsRequest) returns (GetBlockValidatorsResponse) {}
   rpc TxChartByDay(TxChartByDayRequest) returns (TxChartByDayResponse) {}
   rpc TxByHash(TxByHashRequest) returns (TxByHashResponse) {}
+  rpc TotalTransactions(TotalTransactionsRequest) returns (TotalTransactionsResponse) {}
 }
 
 message Block {
@@ -123,4 +124,16 @@ message TxLog {
 message Denom {
   string denom = 1;
   string amount = 2;
+}
+
+message TotalTransactionsRequest {
+  google.protobuf.Timestamp to = 1;
+}
+
+message TotalTransactionsResponse {
+  string total = 1;
+  string total24h = 2;
+  string total30d = 3;
+  string volume24h = 4;
+  string volume30d = 5;
 }

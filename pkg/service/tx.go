@@ -15,6 +15,7 @@ import (
 type Txs interface {
 	ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error)
 	GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashResponse, error)
+	TotalTransactions(ctx context.Context, to time.Time) (*model.TotalTransactions, error)
 }
 
 type txs struct {
@@ -27,6 +28,22 @@ func NewTxs(txRepo repository.Txs) *txs {
 
 func (s *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error) {
 	return s.txRepo.ChartTxByDay(ctx, from, to)
+}
+
+func (s *txs) TotalTransactions(ctx context.Context, to time.Time) (*model.TotalTransactions, error) {
+	var res model.TotalTransactions
+	var err error
+	res.Total, res.Total24H, res.Total30D, err = s.txRepo.TransactionsPerPeriod(ctx, to)
+	if err != nil {
+		return nil, err
+	}
+
+	res.Volume24H, res.Volume30D, err = s.txRepo.VolumePerPeriod(ctx, to)
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
 
 func (s *txs) GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashResponse, error) {

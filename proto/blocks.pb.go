@@ -1187,6 +1187,132 @@ func (x *Denom) GetAmount() string {
 	return ""
 }
 
+type TotalTransactionsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	To *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+}
+
+func (x *TotalTransactionsRequest) Reset() {
+	*x = TotalTransactionsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TotalTransactionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TotalTransactionsRequest) ProtoMessage() {}
+
+func (x *TotalTransactionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TotalTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*TotalTransactionsRequest) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *TotalTransactionsRequest) GetTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.To
+	}
+	return nil
+}
+
+type TotalTransactionsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Total     string `protobuf:"bytes,1,opt,name=total,proto3" json:"total,omitempty"`
+	Total24H  string `protobuf:"bytes,2,opt,name=total24h,proto3" json:"total24h,omitempty"`
+	Total30D  string `protobuf:"bytes,3,opt,name=total30d,proto3" json:"total30d,omitempty"`
+	Volume24H string `protobuf:"bytes,4,opt,name=volume24h,proto3" json:"volume24h,omitempty"`
+	Volume30D string `protobuf:"bytes,5,opt,name=volume30d,proto3" json:"volume30d,omitempty"`
+}
+
+func (x *TotalTransactionsResponse) Reset() {
+	*x = TotalTransactionsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[19]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TotalTransactionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TotalTransactionsResponse) ProtoMessage() {}
+
+func (x *TotalTransactionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[19]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TotalTransactionsResponse.ProtoReflect.Descriptor instead.
+func (*TotalTransactionsResponse) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TotalTransactionsResponse) GetTotal() string {
+	if x != nil {
+		return x.Total
+	}
+	return ""
+}
+
+func (x *TotalTransactionsResponse) GetTotal24H() string {
+	if x != nil {
+		return x.Total24H
+	}
+	return ""
+}
+
+func (x *TotalTransactionsResponse) GetTotal30D() string {
+	if x != nil {
+		return x.Total30D
+	}
+	return ""
+}
+
+func (x *TotalTransactionsResponse) GetVolume24H() string {
+	if x != nil {
+		return x.Volume24H
+	}
+	return ""
+}
+
+func (x *TotalTransactionsResponse) GetVolume30D() string {
+	if x != nil {
+		return x.Volume30D
+	}
+	return ""
+}
+
 var File_blocks_proto protoreflect.FileDescriptor
 
 var file_blocks_proto_rawDesc = []byte{
@@ -1332,7 +1458,22 @@ var file_blocks_proto_rawDesc = []byte{
 	0x6f, 0x67, 0x22, 0x35, 0x0a, 0x05, 0x44, 0x65, 0x6e, 0x6f, 0x6d, 0x12, 0x14, 0x0a, 0x05, 0x64,
 	0x65, 0x6e, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x64, 0x65, 0x6e, 0x6f,
 	0x6d, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x32, 0xc3, 0x02, 0x0a, 0x0d, 0x42, 0x6c,
+	0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0x46, 0x0a, 0x18, 0x54, 0x6f, 0x74,
+	0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2a, 0x0a, 0x02, 0x74, 0x6f, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x02, 0x74,
+	0x6f, 0x22, 0xa5, 0x01, 0x0a, 0x19, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73,
+	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x14, 0x0a, 0x05, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
+	0x74, 0x6f, 0x74, 0x61, 0x6c, 0x12, 0x1a, 0x0a, 0x08, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x32, 0x34,
+	0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x32, 0x34,
+	0x68, 0x12, 0x1a, 0x0a, 0x08, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x33, 0x30, 0x64, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x08, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x33, 0x30, 0x64, 0x12, 0x1c, 0x0a,
+	0x09, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x32, 0x34, 0x68, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x09, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x32, 0x34, 0x68, 0x12, 0x1c, 0x0a, 0x09, 0x76,
+	0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x33, 0x30, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
+	0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x33, 0x30, 0x64, 0x32, 0x9f, 0x03, 0x0a, 0x0d, 0x42, 0x6c,
 	0x6f, 0x63, 0x6b, 0x73, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x48, 0x0a, 0x09, 0x42,
 	0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x1b, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b,
 	0x73, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65,
@@ -1352,9 +1493,14 @@ var file_blocks_proto_rawDesc = []byte{
 	0x0a, 0x08, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x12, 0x17, 0x2e, 0x62, 0x6c, 0x6f,
 	0x63, 0x6b, 0x73, 0x2e, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x65, 0x71, 0x75,
 	0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x54, 0x78, 0x42,
-	0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42,
-	0x09, 0x5a, 0x07, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12,
+	0x5a, 0x0a, 0x11, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x73, 0x12, 0x20, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x54, 0x6f,
+	0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e,
+	0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x09, 0x5a, 0x07, 0x2f,
+	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1369,7 +1515,7 @@ func file_blocks_proto_rawDescGZIP() []byte {
 	return file_blocks_proto_rawDescData
 }
 
-var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_blocks_proto_goTypes = []interface{}{
 	(*Block)(nil),                      // 0: blocks.Block
 	(*GetBlockInfoRequest)(nil),        // 1: blocks.GetBlockInfoRequest
@@ -1389,14 +1535,16 @@ var file_blocks_proto_goTypes = []interface{}{
 	(*TxResponse)(nil),                 // 15: blocks.TxResponse
 	(*TxLog)(nil),                      // 16: blocks.TxLog
 	(*Denom)(nil),                      // 17: blocks.Denom
-	(*timestamppb.Timestamp)(nil),      // 18: google.protobuf.Timestamp
+	(*TotalTransactionsRequest)(nil),   // 18: blocks.TotalTransactionsRequest
+	(*TotalTransactionsResponse)(nil),  // 19: blocks.TotalTransactionsResponse
+	(*timestamppb.Timestamp)(nil),      // 20: google.protobuf.Timestamp
 }
 var file_blocks_proto_depIdxs = []int32{
-	18, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
+	20, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
 	0,  // 1: blocks.GetBlockInfoResponse.info:type_name -> blocks.Block
-	18, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
-	18, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
-	18, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
+	20, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
+	20, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
+	20, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
 	5,  // 5: blocks.TxChartByDayResponse.tx_by_day:type_name -> blocks.TxByDay
 	10, // 6: blocks.TxByHashResponse.tx:type_name -> blocks.TxByHash
 	11, // 7: blocks.TxByHash.auth_info:type_name -> blocks.TxAuthInfo
@@ -1407,19 +1555,22 @@ var file_blocks_proto_depIdxs = []int32{
 	17, // 12: blocks.TxFee.amount:type_name -> blocks.Denom
 	17, // 13: blocks.TxTip.amount:type_name -> blocks.Denom
 	16, // 14: blocks.TxResponse.logs:type_name -> blocks.TxLog
-	1,  // 15: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
-	3,  // 16: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
-	6,  // 17: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
-	8,  // 18: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
-	2,  // 19: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
-	4,  // 20: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
-	7,  // 21: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
-	9,  // 22: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	20, // 15: blocks.TotalTransactionsRequest.to:type_name -> google.protobuf.Timestamp
+	1,  // 16: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
+	3,  // 17: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
+	6,  // 18: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
+	8,  // 19: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
+	18, // 20: blocks.BlocksService.TotalTransactions:input_type -> blocks.TotalTransactionsRequest
+	2,  // 21: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
+	4,  // 22: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
+	7,  // 23: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
+	9,  // 24: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
+	19, // 25: blocks.BlocksService.TotalTransactions:output_type -> blocks.TotalTransactionsResponse
+	21, // [21:26] is the sub-list for method output_type
+	16, // [16:21] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_blocks_proto_init() }
@@ -1644,6 +1795,30 @@ func file_blocks_proto_init() {
 				return nil
 			}
 		}
+		file_blocks_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TotalTransactionsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_blocks_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TotalTransactionsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1651,7 +1826,7 @@ func file_blocks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_blocks_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

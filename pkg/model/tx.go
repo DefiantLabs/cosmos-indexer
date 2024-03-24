@@ -1,5 +1,7 @@
 package model
 
+import "github.com/shopspring/decimal"
+
 type Tx struct {
 	Messages []string
 	Memo     string
@@ -22,4 +24,12 @@ type TxFee struct {
 type Denom struct {
 	Denom  string
 	Amount string
+}
+
+type TotalTransactions struct {
+	Total     int64
+	Total24H  int64
+	Total30D  int64
+	Volume24H decimal.Decimal
+	Volume30D decimal.Decimal
 }
