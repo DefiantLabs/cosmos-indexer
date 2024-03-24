@@ -78,8 +78,15 @@ message TxByHash {
 message TxAuthInfo {
   repeated string public_key = 1;
   TxFee fee = 2;
-  repeated string signatures = 3;
+  repeated bytes signatures = 3;
   TxTip tip = 4;
+  repeated SignerInfo signer_infos = 5;
+}
+
+message SignerInfo {
+  string address = 1;
+  string mode_info = 2;
+  int64 sequence = 3;
 }
 
 message TxFee {

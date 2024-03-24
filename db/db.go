@@ -342,10 +342,28 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 			tx.AuthInfo.FeeID = tx.AuthInfo.Fee.ID
 
+			config.Log.Info(fmt.Sprintf("signer infos: %d", len(tx.AuthInfo.SignerInfos)))
+			for _, signerInfo := range tx.AuthInfo.SignerInfos {
+				config.Log.Info(fmt.Sprintf("%v", signerInfo))
+				if signerInfo.Address != nil {
+					if err := dbTransaction.Where(&signerInfo.Address).FirstOrCreate(&signerInfo.Address).Error; err != nil {
+						config.Log.Error("Error getting/creating signerInfo.Address DB object.", err)
+						return err
+					}
+					signerInfo.AddressID = signerInfo.Address.ID
+				}
+				if err := dbTransaction.Where(&signerInfo).FirstOrCreate(&signerInfo).Error; err != nil {
+					config.Log.Error("Error getting/creating signerInfo DB object.", err)
+					return err
+				}
+				config.Log.Info(fmt.Sprintf("%v", signerInfo))
+			}
+
 			if err := dbTransaction.Where(&tx.AuthInfo).FirstOrCreate(&tx.AuthInfo).Error; err != nil {
 				config.Log.Error("Error getting/creating authInfo DB object.", err)
 				return err
 			}
+
 			tx.AuthInfoID = tx.AuthInfo.ID
 			if err := dbTransaction.Where(&tx.TxResponse).FirstOrCreate(&tx.TxResponse).Error; err != nil {
 				config.Log.Error("Error getting/creating txResponse DB object.", err)
@@ -367,6 +385,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				tx.Fees[feeIndex].PayerAddressID = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address].ID
 				tx.Fees[feeIndex].PayerAddress = uniqueAddress[tx.Fees[feeIndex].PayerAddress.Address]
 			}
+
 			txesSlice = append(txesSlice, tx)
 		}
 

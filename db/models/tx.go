@@ -31,12 +31,12 @@ type Tx struct {
 }
 
 type AuthInfo struct {
-	ID    uint `gorm:"primarykey"`
-	FeeID uint
-	Fee   AuthInfoFee `gorm:"foreignKey:FeeID"`
-	TipID uint
-	Tip   Tip `gorm:"foreignKey:TipID"`
-	// SignerInfos []SignerInfo `gorm:"foreignKey:ID"`
+	ID          uint `gorm:"primarykey"`
+	FeeID       uint
+	Fee         AuthInfoFee `gorm:"foreignKey:FeeID"`
+	TipID       uint
+	Tip         Tip           `gorm:"foreignKey:TipID"`
+	SignerInfos []*SignerInfo `gorm:"many2many:tx_signer_infos;"`
 }
 
 func (AuthInfo) TableName() string {
@@ -86,8 +86,9 @@ func (TipAmount) TableName() string {
 }
 
 type SignerInfo struct {
-	ID        uint `gorm:"primaryKey"`
-	PublicKey string
+	ID        uint
+	AddressID uint
+	Address   *Address `gorm:"foreignKey:AddressID"`
 	ModeInfo  string
 	Sequence  uint64
 }
@@ -129,6 +130,7 @@ type Fee struct {
 	PayerAddress   Address         `gorm:"foreignKey:PayerAddressID"`
 }
 
+// BeforeCreate
 // This lifecycle function ensures the on conflict statement is added for Fees which are associated to Txes by the Gorm slice association method for has_many
 func (b *Fee) BeforeCreate(tx *gorm.DB) (err error) {
 	tx.Statement.AddClause(clause.OnConflict{

@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
 	pb "github.com/DefiantLabs/cosmos-indexer/proto"
-	"strings"
-	"time"
 )
 
 type Txs interface {
@@ -46,7 +47,7 @@ func (s *txs) txToProto(tx *models.Tx) *pb.TxByHashResponse {
 			NonCriticalExtensionOptions: tx.NonCriticalExtensionOptions,
 			AuthInfo: &pb.TxAuthInfo{
 				PublicKey:  []string{}, // TODO
-				Signatures: []string{}, // TODO
+				Signatures: tx.Signatures,
 				Fee: &pb.TxFee{
 					Granter:  tx.AuthInfo.Fee.Granter,
 					Payer:    tx.AuthInfo.Fee.Payer,
@@ -57,6 +58,7 @@ func (s *txs) txToProto(tx *models.Tx) *pb.TxByHashResponse {
 					Tipper: tx.AuthInfo.Tip.Tipper,
 					Amount: s.txTipToProto(tx.AuthInfo.Tip.Amount),
 				},
+				SignerInfos: s.toSignerInfosProto(tx.AuthInfo.SignerInfos),
 			},
 			TxResponse: &pb.TxResponse{
 				Height:    tx.TxResponse.Height,
@@ -84,4 +86,16 @@ func (s *txs) txTipToProto(tips []models.TipAmount) []*pb.Denom {
 		})
 	}
 	return denoms
+}
+
+func (s *txs) toSignerInfosProto(signs []*models.SignerInfo) []*pb.SignerInfo {
+	res := make([]*pb.SignerInfo, 0)
+	for _, sign := range signs {
+		res = append(res, &pb.SignerInfo{
+			Address:  sign.Address.Address,
+			ModeInfo: sign.ModeInfo,
+			Sequence: int64(sign.Sequence),
+		})
+	}
+	return res
 }
