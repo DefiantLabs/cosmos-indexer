@@ -108,3 +108,21 @@ func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksReques
 		TotalFee24H: blocks.TotalFee24H.String(),
 	}, nil
 }
+
+func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (*pb.GetBlocksResponse, error) {
+	blocks, all, err := r.srv.Blocks(ctx, in.Limit.Limit, in.Limit.Offset)
+	if err != nil {
+		return &pb.GetBlocksResponse{}, err
+	}
+
+	res := make([]*pb.Block, 0)
+	for _, bl := range blocks {
+		res = append(res, &pb.Block{
+			BlockHeight:       bl.BlockHeight,
+			ProposedValidator: bl.ProposedValidatorAddress,
+			TxHash:            bl.BlockHash,
+			TotalTx:           bl.TotalTx, // TODO time
+		})
+	}
+	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil
+}

@@ -12,6 +12,7 @@ type Blocks interface {
 	BlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
 	BlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
+	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
 }
 
 type blocks struct {
@@ -32,4 +33,8 @@ func (s *blocks) BlockValidators(ctx context.Context, block int32, chainID int32
 
 func (s *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error) {
 	return s.blocksRepo.TotalBlocks(ctx, to)
+}
+
+func (s *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error) {
+	return s.blocksRepo.Blocks(ctx, limit, offset)
 }

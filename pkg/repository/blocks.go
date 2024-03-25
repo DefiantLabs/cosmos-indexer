@@ -15,6 +15,7 @@ type Blocks interface {
 	GetBlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
 	GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
+	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
 }
 
 type blocks struct {
@@ -117,4 +118,38 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 		BlockTime:   int64(blockTime),
 		TotalFee24H: feeSum,
 	}, nil
+}
+
+func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error) {
+	query := `select blocks.height, blocks.block_hash, addresses.address as proposer, count(txes), blocks.time_stamp from blocks
+		left join addresses on blocks.proposer_cons_address_id = addresses.id
+		left join txes on blocks.id = txes.block_id
+		group by blocks.height, blocks.block_hash, addresses.address, blocks.time_stamp
+		order by blocks.height desc
+		limit $1 offset $2`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	data := make([]*model.BlockInfo, 0)
+	for rows.Next() {
+		var in model.BlockInfo
+		errScan := rows.Scan(&in.BlockHeight,
+			&in.BlockHash, &in.ProposedValidatorAddress, &in.TotalTx, &in.TimeElapsed)
+		if errScan != nil {
+			return nil, 0, fmt.Errorf("repository.Blocks, Scan: %v", errScan)
+		}
+		data = append(data, &in)
+	}
+
+	query = `select count(*) from blocks`
+	row := r.db.QueryRow(ctx, query)
+	var all int64
+	if err = row.Scan(&all); err != nil {
+		return nil, 0, err
+	}
+
+	return data, all, nil
 }
