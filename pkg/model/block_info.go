@@ -18,3 +18,10 @@ type BlockInfo struct {
 type Validators struct {
 	Address string
 }
+
+type TotalBlocks struct {
+	BlockHeight int64
+	Count24H    int64
+	BlockTime   int64
+	TotalFee24H decimal.Decimal
+}
