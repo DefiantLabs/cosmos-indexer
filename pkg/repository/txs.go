@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -62,17 +63,17 @@ func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, i
 		return 0, 0, 0, err
 	}
 
-	from := to.Add(-24 * time.Hour)
+	from := to.UTC().Add(-24 * time.Hour)
 	query = `select count(*) from txes where txes.timestamp between $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from, to)
+	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
 	var all24H int64
 	if err := row.Scan(&all24H); err != nil {
 		return 0, 0, 0, err
 	}
 
-	from = to.Add(-720 * time.Hour)
+	from = to.UTC().Add(-720 * time.Hour)
 	query = `select count(*) from txes where txes.timestamp between $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from, to)
+	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
 	var all30D int64
 	if err := row.Scan(&all30D); err != nil {
 		return 0, 0, 0, err
@@ -169,11 +170,19 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 		   block_id,
 		   timestamp,
 		   memo,
-		   timeout_height,extension_options,
-		   non_critical_extension_options,auth_info_id,tx_response_id,
-		   auf.gas_limit, auf.payer, auf.granter, tip.tipper,
-		   resp.code as tx_resp_code, resp.gas_used as tx_res_gas_used,
-		   resp.gas_wanted as tx_res_gas_wanted, resp.raw_log
+		   timeout_height,
+		   extension_options,
+		   non_critical_extension_options,
+		   auth_info_id,
+		   tx_response_id,
+		   auf.gas_limit, 
+		   auf.payer, 
+		   auf.granter, 
+		   tip.tipper,
+		   resp.code as tx_resp_code, 
+		   resp.gas_used as tx_res_gas_used,
+		   resp.gas_wanted as tx_res_gas_wanted, 
+		   resp.raw_log
 		from txes
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
@@ -189,20 +198,25 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 	var authInfoFee models.AuthInfoFee
 	var authInfoTip models.Tip
 	var txResponse models.TxResponse
+	signatures := make([][]byte, 0)
+	extensionsOptions := make([]string, 0)
+	nonCriticalExtensionOptions := make([]string, 0)
 
 	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
+		log.Err(err).Msgf("Query error")
 		return nil, 0, err
 	}
 
 	for rows.Next() {
-		if err := rows.Scan(&tx.ID, &tx.Signatures, &tx.Hash, &tx.Code,
+		if err := rows.Scan(&tx.ID, &signatures, &tx.Hash, &tx.Code,
 			&tx.BlockID, &tx.Timestamp, &tx.Memo, &tx.TimeoutHeight,
-			&tx.ExtensionOptions, &tx.NonCriticalExtensionOptions,
+			&extensionsOptions, &nonCriticalExtensionOptions,
 			&tx.AuthInfoID, &tx.TxResponseID,
 			&authInfoFee.GasLimit, &authInfoFee.Payer,
 			&authInfoFee.Granter, &authInfoTip.Tipper,
 			&txResponse.Code, &txResponse.GasUsed, &txResponse.GasWanted, &txResponse.RawLog); err != nil {
+			log.Err(err).Msgf("rows.Scan error")
 			return nil, 0, err
 		}
 
@@ -220,12 +234,14 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 		signerInfos := make([]*models.SignerInfo, 0)
 		rowsSigners, err := r.db.Query(ctx, querySignerInfos, authInfo.ID)
 		if err != nil {
+			log.Err(err).Msgf("querySignerInfos error")
 			return nil, 0, err
 		}
 		for rowsSigners.Next() {
 			var in models.SignerInfo
 			errScan := rowsSigners.Scan(&in.ID, &in.Address.ID, &in.ModeInfo, &in.Sequence, &in.Address.Address)
 			if errScan != nil {
+				log.Err(err).Msgf("rowsSigners.Scan error")
 				return nil, 0, fmt.Errorf("repository.querySignerInfos, Scan: %v", errScan)
 			}
 			signerInfos = append(signerInfos, &in)
@@ -241,9 +257,10 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 	}
 
 	queryAll := `select count(*) from txes`
-	row := r.db.QueryRow(ctx, query)
+	row := r.db.QueryRow(ctx, queryAll)
 	var allTx int64
 	if err := row.Scan(&queryAll); err != nil {
+		log.Err(err).Msgf("queryAll error")
 		return nil, 0, err
 	}
 
