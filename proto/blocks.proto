@@ -12,6 +12,7 @@ service BlocksService {
   rpc TxChartByDay(TxChartByDayRequest) returns (TxChartByDayResponse) {}
   rpc TxByHash(TxByHashRequest) returns (TxByHashResponse) {}
   rpc TotalTransactions(TotalTransactionsRequest) returns (TotalTransactionsResponse) {}
+  rpc Transactions(TransactionsRequest) returns (TransactionsResponse) {}
 }
 
 message Block {
@@ -136,4 +137,24 @@ message TotalTransactionsResponse {
   string total30d = 3;
   string volume24h = 4;
   string volume30d = 5;
+}
+
+message Limit {
+  int64 limit = 1;
+  int64 offset = 2;
+}
+
+message Result {
+  int64 limit = 1;
+  int64 offset = 2;
+  int64 all = 3;
+}
+
+message TransactionsRequest {
+    Limit limit = 1;
+}
+
+message TransactionsResponse {
+  repeated TxByHash tx = 1;
+  Result result = 2;
 }
