@@ -87,3 +87,11 @@ func (r *blocksServer) TotalTransactions(ctx context.Context, in *pb.TotalTransa
 		Volume30D: res.Volume30D.String(),
 	}, nil
 }
+
+func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
+	txs, total, err := r.srvTx.Transactions(ctx, in.Limit.Offset, in.Limit.Limit)
+	if err != nil {
+		return &pb.TransactionsResponse{}, err
+	}
+	return &pb.TransactionsResponse{Tx: txs, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
+}
