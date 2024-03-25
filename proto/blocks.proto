@@ -11,6 +11,8 @@ service BlocksService {
   rpc BlockValidators(GetBlockValidatorsRequest) returns (GetBlockValidatorsResponse) {}
   rpc TxChartByDay(TxChartByDayRequest) returns (TxChartByDayResponse) {}
   rpc TxByHash(TxByHashRequest) returns (TxByHashResponse) {}
+  rpc TotalTransactions(TotalTransactionsRequest) returns (TotalTransactionsResponse) {}
+  rpc Transactions(TransactionsRequest) returns (TransactionsResponse) {}
 }
 
 message Block {
@@ -78,8 +80,15 @@ message TxByHash {
 message TxAuthInfo {
   repeated string public_key = 1;
   TxFee fee = 2;
-  repeated string signatures = 3;
+  repeated bytes signatures = 3;
   TxTip tip = 4;
+  repeated SignerInfo signer_infos = 5;
+}
+
+message SignerInfo {
+  string address = 1;
+  string mode_info = 2;
+  int64 sequence = 3;
 }
 
 message TxFee {
@@ -116,4 +125,36 @@ message TxLog {
 message Denom {
   string denom = 1;
   string amount = 2;
+}
+
+message TotalTransactionsRequest {
+  google.protobuf.Timestamp to = 1;
+}
+
+message TotalTransactionsResponse {
+  string total = 1;
+  string total24h = 2;
+  string total30d = 3;
+  string volume24h = 4;
+  string volume30d = 5;
+}
+
+message Limit {
+  int64 limit = 1;
+  int64 offset = 2;
+}
+
+message Result {
+  int64 limit = 1;
+  int64 offset = 2;
+  int64 all = 3;
+}
+
+message TransactionsRequest {
+    Limit limit = 1;
+}
+
+message TransactionsResponse {
+  repeated TxByHash tx = 1;
+  Result result = 2;
 }

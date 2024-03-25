@@ -191,7 +191,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			}
 		}
 
-		signers, err := ProcessSigners(cl, txFull.AuthInfo, filteredSigners)
+		signers, signerInfos, err := ProcessSigners(cl, txFull.AuthInfo, filteredSigners)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -238,6 +238,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 					Payer:    txFull.AuthInfo.Fee.Payer,
 					GasLimit: txFull.AuthInfo.Fee.GasLimit,
 				},
+				SignerInfos: signerInfos,
 			}
 			if txFull.AuthInfo.Tip != nil {
 				tipAmount := make([]models.TipAmount, 0)
@@ -362,7 +363,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			blockTime = &txTime
 		}
 
-		filteredSigners := []types.AccAddress{}
+		filteredSigners := make([]types.AccAddress, 0)
 		for _, filteredMessage := range txBody.Messages {
 			if filteredMessage != nil {
 				filteredSigners = append(filteredSigners, filteredMessage.GetSigners()...)
@@ -374,7 +375,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			return currTxDbWrappers, blockTime, err
 		}
 
-		signers, err := ProcessSigners(cl, currTx.AuthInfo, filteredSigners)
+		signers, signerInfos, err := ProcessSigners(cl, currTx.AuthInfo, filteredSigners)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -420,6 +421,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 					Payer:    currTx.AuthInfo.Fee.Payer,
 					GasLimit: currTx.AuthInfo.Fee.GasLimit,
 				},
+				SignerInfos: signerInfos,
 			}
 			if currTx.AuthInfo.Tip != nil {
 				tipAmount := make([]models.TipAmount, 0)
@@ -504,26 +506,29 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 	return txDBWapper, txTime, nil
 }
 
-// Processes signers in a deterministic order.
+// ProcessSigners in a deterministic order.
 // 1. Processes signers from the auth info
 // 2. Processes signers from the signers array
 // 3. Processes the fee payer
-func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, messageSigners []types.AccAddress) ([]models.Address, error) {
+func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, messageSigners []types.AccAddress) ([]models.Address, []*models.SignerInfo, error) {
 	// For unique checks
 	signerAddressMap := make(map[string]models.Address)
 	// For deterministic output of signer values
 	var signerAddressArray []models.Address
+	signerInfos := make([]*models.SignerInfo, 0)
 
 	// If there is a signer info, get the addresses from the keys add it to the list of signers
 	for _, signerInfo := range authInfo.SignerInfos {
 		if signerInfo.PublicKey != nil {
+			var info models.SignerInfo
+
 			pubKey, err := cl.Codec.InterfaceRegistry.Resolve(signerInfo.PublicKey.TypeUrl)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			err = cl.Codec.InterfaceRegistry.UnpackAny(signerInfo.PublicKey, &pubKey)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			multisigKey, ok := pubKey.(*multisig.LegacyAminoPubKey)
@@ -534,21 +539,28 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, message
 					if _, ok := signerAddressMap[address]; !ok {
 						signerAddressArray = append(signerAddressArray, models.Address{Address: address})
 					}
-					signerAddressMap[address] = models.Address{Address: address}
+					signerAddr := models.Address{Address: address}
+					signerAddressMap[address] = signerAddr
+					info.Address = &signerAddr
 				}
 			} else {
 				castPubKey, ok := pubKey.(cryptoTypes.PubKey)
 				if !ok {
-					return nil, err
+					return nil, nil, err
 				}
 
 				address := types.AccAddress(castPubKey.Address().Bytes()).String()
 				if _, ok := signerAddressMap[address]; !ok {
 					signerAddressArray = append(signerAddressArray, models.Address{Address: address})
 				}
-				signerAddressMap[address] = models.Address{Address: address}
+				signerAddr := models.Address{Address: address}
+				signerAddressMap[address] = signerAddr
+				info.Address = &signerAddr
 			}
 
+			info.Sequence = signerInfo.Sequence
+			info.ModeInfo = signerInfo.ModeInfo.String()
+			signerInfos = append(signerInfos, &info)
 		}
 	}
 
@@ -568,14 +580,14 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, message
 		signerAddressMap[authInfo.Fee.GetPayer()] = models.Address{Address: authInfo.Fee.GetPayer()}
 	}
 
-	return signerAddressArray, nil
+	return signerAddressArray, signerInfos, nil
 }
 
-// Processes fees into model form, applying denoms and addresses to them
+// ProcessFees Processes fees into model form, applying denoms and addresses to them
 func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []models.Address) ([]models.Fee, error) {
 	feeCoins := authInfo.Fee.Amount
 	payer := authInfo.Fee.GetPayer()
-	fees := []models.Fee{}
+	fees := make([]models.Fee, 0)
 
 	for _, coin := range feeCoins {
 		zeroFee := big.NewInt(0)

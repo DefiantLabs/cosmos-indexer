@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/service"
@@ -11,17 +12,17 @@ import (
 	pb "github.com/DefiantLabs/cosmos-indexer/proto"
 )
 
-type BlocksServer struct {
+type blocksServer struct {
 	pb.UnimplementedBlocksServiceServer
 	srv   service.Blocks
 	srvTx service.Txs
 }
 
-func NewBlocksServer(srv service.Blocks, srvTx service.Txs) *BlocksServer {
-	return &BlocksServer{srv: srv, srvTx: srvTx}
+func NewBlocksServer(srv service.Blocks, srvTx service.Txs) *blocksServer {
+	return &blocksServer{srv: srv, srvTx: srvTx}
 }
 
-func (r *BlocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
+func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
 	res, err := r.srv.BlockInfo(ctx, in.BlockNumber, in.ChainId)
 	if err != nil {
 		return &pb.GetBlockInfoResponse{}, err
@@ -30,7 +31,7 @@ func (r *BlocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, Info: r.toProto(res)}, nil
 }
 
-func (r *BlocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
+func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
 	res, err := r.srv.BlockValidators(ctx, in.BlockNumber, in.ChainId)
 	if err != nil {
 		return &pb.GetBlockValidatorsResponse{}, err
@@ -39,7 +40,7 @@ func (r *BlocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValid
 	return &pb.GetBlockValidatorsResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, ValidatorsList: res}, nil
 }
 
-func (r *BlocksServer) toProto(in *model.BlockInfo) *pb.Block {
+func (r *blocksServer) toProto(in *model.BlockInfo) *pb.Block {
 	return &pb.Block{
 		BlockHeight:       in.BlockHeight,
 		ProposedValidator: in.ProposedValidatorAddress,
@@ -49,7 +50,7 @@ func (r *BlocksServer) toProto(in *model.BlockInfo) *pb.Block {
 	}
 }
 
-func (r *BlocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequest) (*pb.TxChartByDayResponse, error) {
+func (r *blocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequest) (*pb.TxChartByDayResponse, error) {
 	res, err := r.srvTx.ChartTxByDay(ctx, in.From.AsTime(), in.To.AsTime())
 	if err != nil {
 		return &pb.TxChartByDayResponse{}, err
@@ -65,10 +66,32 @@ func (r *BlocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequ
 	return &pb.TxChartByDayResponse{TxByDay: data}, nil
 }
 
-func (r *BlocksServer) TxByHash(ctx context.Context, in *pb.TxByHashRequest) (*pb.TxByHashResponse, error) {
-	_, err := r.srvTx.GetTxByHash(ctx, in.Hash)
+func (r *blocksServer) TxByHash(ctx context.Context, in *pb.TxByHashRequest) (*pb.TxByHashResponse, error) {
+	res, err := r.srvTx.GetTxByHash(ctx, in.Hash)
 	if err != nil {
 		return &pb.TxByHashResponse{}, err
 	}
-	return nil, nil
+	return res, nil
+}
+
+func (r *blocksServer) TotalTransactions(ctx context.Context, in *pb.TotalTransactionsRequest) (*pb.TotalTransactionsResponse, error) {
+	res, err := r.srvTx.TotalTransactions(ctx, in.To.AsTime())
+	if err != nil {
+		return &pb.TotalTransactionsResponse{}, err
+	}
+	return &pb.TotalTransactionsResponse{
+		Total:     fmt.Sprintf("%d", res.Total),
+		Total24H:  fmt.Sprintf("%d", res.Total24H),
+		Total30D:  fmt.Sprintf("%d", res.Total30D),
+		Volume24H: res.Volume24H.String(),
+		Volume30D: res.Volume30D.String(),
+	}, nil
+}
+
+func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
+	txs, total, err := r.srvTx.Transactions(ctx, in.Limit.Offset, in.Limit.Limit)
+	if err != nil {
+		return &pb.TransactionsResponse{}, err
+	}
+	return &pb.TransactionsResponse{Tx: txs, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
