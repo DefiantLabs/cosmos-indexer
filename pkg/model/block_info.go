@@ -12,6 +12,7 @@ type BlockInfo struct {
 	GenerationTime           time.Time
 	TimeElapsed              int64
 	TotalFees                decimal.Decimal
+	TotalTx                  int64
 	BlockHash                string
 }
 
