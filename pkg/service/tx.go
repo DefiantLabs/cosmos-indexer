@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ func (s *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([
 
 func (s *txs) Transactions(ctx context.Context, offset int64, limit int64) ([]*pb.TxByHash, int64, error) {
 	transactions, all, err := s.txRepo.Transactions(ctx, limit, offset)
+	log.Info().Msgf("transactions len %d", len(transactions))
 	if err != nil {
 		return nil, 0, err
 	}

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -13,6 +14,8 @@ import (
 type Blocks interface {
 	GetBlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
 	GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
+	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
+	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
 }
 
 type blocks struct {
@@ -79,4 +82,74 @@ func (r *blocks) GetBlockValidators(ctx context.Context, block int32, chainID in
 	}
 
 	return data, nil
+}
+
+func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error) {
+	query := `select height from blocks order by blocks.height desc limit 1`
+	row := r.db.QueryRow(ctx, query)
+	var blockHeight int64
+	if err := row.Scan(&blockHeight); err != nil {
+		return nil, err
+	}
+
+	from := to.Add(-24 * time.Hour)
+	query = `select count(*) from blocks where blocks.timestamp between $1 AND $2`
+	row = r.db.QueryRow(ctx, query, from, to)
+	var count24H int64
+	if err := row.Scan(&count24H); err != nil {
+		return nil, err
+	}
+
+	blockTime := 0 // TODO understand how to calculate
+
+	query = `select sum(fees.amount) 
+			from fees where fees.tx_id IN (
+			select id from txes where block_id IN 
+			(select blocks.id from blocks where blocks.timestamp between $1 AND $2))`
+	row = r.db.QueryRow(ctx, query, from, to)
+	var feeSum decimal.Decimal
+	if err := row.Scan(&feeSum); err != nil {
+		return nil, err
+	}
+
+	return &model.TotalBlocks{
+		BlockHeight: blockHeight,
+		Count24H:    count24H,
+		BlockTime:   int64(blockTime),
+		TotalFee24H: feeSum,
+	}, nil
+}
+
+func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error) {
+	query := `select blocks.height, blocks.block_hash, addresses.address as proposer, count(txes), blocks.time_stamp from blocks
+		left join addresses on blocks.proposer_cons_address_id = addresses.id
+		left join txes on blocks.id = txes.block_id
+		group by blocks.height, blocks.block_hash, addresses.address, blocks.time_stamp
+		order by blocks.height desc
+		limit $1 offset $2`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	data := make([]*model.BlockInfo, 0)
+	for rows.Next() {
+		var in model.BlockInfo
+		errScan := rows.Scan(&in.BlockHeight,
+			&in.BlockHash, &in.ProposedValidatorAddress, &in.TotalTx, &in.TimeElapsed)
+		if errScan != nil {
+			return nil, 0, fmt.Errorf("repository.Blocks, Scan: %v", errScan)
+		}
+		data = append(data, &in)
+	}
+
+	query = `select count(*) from blocks`
+	row := r.db.QueryRow(ctx, query)
+	var all int64
+	if err = row.Scan(&all); err != nil {
+		return nil, 0, err
+	}
+
+	return data, all, nil
 }

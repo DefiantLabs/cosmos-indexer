@@ -95,3 +95,34 @@ func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequ
 	}
 	return &pb.TransactionsResponse{Tx: txs, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
+
+func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksRequest) (*pb.TotalBlocksResponse, error) {
+	blocks, err := r.srv.TotalBlocks(ctx, in.To.AsTime())
+	if err != nil {
+		return &pb.TotalBlocksResponse{}, err
+	}
+	return &pb.TotalBlocksResponse{
+		Height:      blocks.BlockHeight,
+		Count24H:    blocks.Count24H,
+		Time:        blocks.BlockTime,
+		TotalFee24H: blocks.TotalFee24H.String(),
+	}, nil
+}
+
+func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (*pb.GetBlocksResponse, error) {
+	blocks, all, err := r.srv.Blocks(ctx, in.Limit.Limit, in.Limit.Offset)
+	if err != nil {
+		return &pb.GetBlocksResponse{}, err
+	}
+
+	res := make([]*pb.Block, 0)
+	for _, bl := range blocks {
+		res = append(res, &pb.Block{
+			BlockHeight:       bl.BlockHeight,
+			ProposedValidator: bl.ProposedValidatorAddress,
+			TxHash:            bl.BlockHash,
+			TotalTx:           bl.TotalTx, // TODO time
+		})
+	}
+	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil
+}

@@ -25,6 +25,8 @@ const (
 	BlocksService_TxByHash_FullMethodName          = "/blocks.BlocksService/TxByHash"
 	BlocksService_TotalTransactions_FullMethodName = "/blocks.BlocksService/TotalTransactions"
 	BlocksService_Transactions_FullMethodName      = "/blocks.BlocksService/Transactions"
+	BlocksService_TotalBlocks_FullMethodName       = "/blocks.BlocksService/TotalBlocks"
+	BlocksService_GetBlocks_FullMethodName         = "/blocks.BlocksService/GetBlocks"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -37,6 +39,8 @@ type BlocksServiceClient interface {
 	TxByHash(ctx context.Context, in *TxByHashRequest, opts ...grpc.CallOption) (*TxByHashResponse, error)
 	TotalTransactions(ctx context.Context, in *TotalTransactionsRequest, opts ...grpc.CallOption) (*TotalTransactionsResponse, error)
 	Transactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
+	TotalBlocks(ctx context.Context, in *TotalBlocksRequest, opts ...grpc.CallOption) (*TotalBlocksResponse, error)
+	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -101,6 +105,24 @@ func (c *blocksServiceClient) Transactions(ctx context.Context, in *Transactions
 	return out, nil
 }
 
+func (c *blocksServiceClient) TotalBlocks(ctx context.Context, in *TotalBlocksRequest, opts ...grpc.CallOption) (*TotalBlocksResponse, error) {
+	out := new(TotalBlocksResponse)
+	err := c.cc.Invoke(ctx, BlocksService_TotalBlocks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blocksServiceClient) GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error) {
+	out := new(GetBlocksResponse)
+	err := c.cc.Invoke(ctx, BlocksService_GetBlocks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -111,6 +133,8 @@ type BlocksServiceServer interface {
 	TxByHash(context.Context, *TxByHashRequest) (*TxByHashResponse, error)
 	TotalTransactions(context.Context, *TotalTransactionsRequest) (*TotalTransactionsResponse, error)
 	Transactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
+	TotalBlocks(context.Context, *TotalBlocksRequest) (*TotalBlocksResponse, error)
+	GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -135,6 +159,12 @@ func (UnimplementedBlocksServiceServer) TotalTransactions(context.Context, *Tota
 }
 func (UnimplementedBlocksServiceServer) Transactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Transactions not implemented")
+}
+func (UnimplementedBlocksServiceServer) TotalBlocks(context.Context, *TotalBlocksRequest) (*TotalBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TotalBlocks not implemented")
+}
+func (UnimplementedBlocksServiceServer) GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -257,6 +287,42 @@ func _BlocksService_Transactions_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_TotalBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TotalBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).TotalBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_TotalBlocks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).TotalBlocks(ctx, req.(*TotalBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlocksService_GetBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).GetBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_GetBlocks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).GetBlocks(ctx, req.(*GetBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -287,6 +353,14 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Transactions",
 			Handler:    _BlocksService_Transactions_Handler,
+		},
+		{
+			MethodName: "TotalBlocks",
+			Handler:    _BlocksService_TotalBlocks_Handler,
+		},
+		{
+			MethodName: "GetBlocks",
+			Handler:    _BlocksService_GetBlocks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

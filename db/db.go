@@ -342,9 +342,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 			tx.AuthInfo.FeeID = tx.AuthInfo.Fee.ID
 
-			config.Log.Info(fmt.Sprintf("signer infos: %d", len(tx.AuthInfo.SignerInfos)))
 			for _, signerInfo := range tx.AuthInfo.SignerInfos {
-				config.Log.Info(fmt.Sprintf("%v", signerInfo))
 				if signerInfo.Address != nil {
 					if err := dbTransaction.Where(&signerInfo.Address).FirstOrCreate(&signerInfo.Address).Error; err != nil {
 						config.Log.Error("Error getting/creating signerInfo.Address DB object.", err)
@@ -356,7 +354,6 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 					config.Log.Error("Error getting/creating signerInfo DB object.", err)
 					return err
 				}
-				config.Log.Info(fmt.Sprintf("%v", signerInfo))
 			}
 
 			if err := dbTransaction.Where(&tx.AuthInfo).FirstOrCreate(&tx.AuthInfo).Error; err != nil {

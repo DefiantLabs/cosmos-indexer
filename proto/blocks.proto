@@ -13,14 +13,17 @@ service BlocksService {
   rpc TxByHash(TxByHashRequest) returns (TxByHashResponse) {}
   rpc TotalTransactions(TotalTransactionsRequest) returns (TotalTransactionsResponse) {}
   rpc Transactions(TransactionsRequest) returns (TransactionsResponse) {}
+  rpc TotalBlocks(TotalBlocksRequest) returns (TotalBlocksResponse) {}
+  rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
 }
 
 message Block {
   int64 block_height = 1;
   string proposed_validator = 2;
   google.protobuf.Timestamp generation_time = 3;
-  string total_fees = 5;
-  string tx_hash=6;
+  string total_fees = 4;
+  string tx_hash=5;
+  int64 total_tx = 6;
 }
 
 message GetBlockInfoRequest {
@@ -156,5 +159,25 @@ message TransactionsRequest {
 
 message TransactionsResponse {
   repeated TxByHash tx = 1;
+  Result result = 2;
+}
+
+message TotalBlocksRequest{
+  google.protobuf.Timestamp to = 1;
+}
+
+message TotalBlocksResponse {
+  int64 height = 1;
+  int64 count24H = 2;
+  int64 time = 3;
+  string totalFee24H = 4;
+}
+
+message GetBlocksRequest{
+  Limit limit = 1;
+}
+
+message GetBlocksResponse{
+  repeated Block blocks = 1;
   Result result = 2;
 }
