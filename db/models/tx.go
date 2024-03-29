@@ -107,6 +107,9 @@ type TxResponse struct {
 	// Log       []LogMessage
 	GasUsed   int64
 	GasWanted int64
+	Codespace string
+	Data      string
+	Info      string
 }
 
 func (TxResponse) TableName() string {

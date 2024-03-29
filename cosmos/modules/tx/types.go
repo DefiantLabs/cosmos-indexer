@@ -54,6 +54,9 @@ type Response struct {
 	Log       []LogMessage `json:"logs"`
 	GasUsed   int64        `json:"gas_used"`
 	GasWanted int64        `json:"gas_wanted"`
+	Codespace string       `json:"codespace"`
+	Info      string       `json:"info"`
+	Data      string       `json:"data"`
 }
 
 // TxLogMessage:
