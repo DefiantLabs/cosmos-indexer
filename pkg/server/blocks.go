@@ -4,6 +4,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/shopspring/decimal"
+	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/service"
@@ -120,11 +122,13 @@ func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (
 		res = append(res, &pb.Block{
 			BlockHeight:       bl.BlockHeight,
 			ProposedValidator: bl.ProposedValidatorAddress,
+			GenerationTime:    timestamppb.New(time.Now()), // TODO
 			TxHash:            bl.BlockHash,
 			TotalTx:           bl.TotalTx,
 			GasUsed:           bl.GasUsed.String(),
 			GasWanted:         bl.GasWanted.String(),
 			TotalFees:         bl.TotalFees.String(),
+			BlockRewards:      decimal.NewFromInt(0).String(),
 		})
 	}
 	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil

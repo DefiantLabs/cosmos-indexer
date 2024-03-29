@@ -139,8 +139,8 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 	for rows.Next() {
 		var in model.BlockInfo
 		blockID := 0
-		errScan := rows.Scan(&blockID, &in.BlockHeight, &in.BlockHeight,
-			&in.BlockHash, &in.ProposedValidatorAddress, &in.TotalTx, &in.TimeElapsed)
+		errScan := rows.Scan(&blockID, &in.BlockHeight,
+			&in.BlockHash, &in.ProposedValidatorAddress, &in.TotalTx, &in.GenerationTime)
 		if errScan != nil {
 			return nil, 0, fmt.Errorf("repository.Blocks, Scan: %v", errScan)
 		}
