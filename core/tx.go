@@ -172,6 +172,9 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			Code:      txResult.Code,
 			GasUsed:   txResult.GasUsed,
 			GasWanted: txResult.GasWanted,
+			Codespace: txResult.Codespace,
+			Info:      txResult.Info,
+			//Data:      string(txResult.Data), TODO
 		}
 
 		indexerTx.AuthInfo = *txFull.AuthInfo
@@ -229,6 +232,9 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			RawLog:    indexerTxResp.RawLog,
 			GasUsed:   indexerTxResp.GasUsed,
 			GasWanted: indexerTxResp.GasWanted,
+			Codespace: indexerTxResp.Codespace,
+			Data:      indexerTxResp.Data,
+			Info:      indexerTxResp.Info,
 		}
 
 		if txFull.AuthInfo != nil {
@@ -347,6 +353,8 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			Code:      currTxResp.Code,
 			GasUsed:   currTxResp.GasUsed,
 			GasWanted: currTxResp.GasWanted,
+			Info:      currTxResp.Info,
+			Data:      currTxResp.Data,
 		}
 
 		indexerTx.AuthInfo = *currTx.AuthInfo
@@ -412,6 +420,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			RawLog:    indexerTxResp.RawLog,
 			GasUsed:   indexerTxResp.GasUsed,
 			GasWanted: indexerTxResp.GasWanted,
+			Codespace: indexerTxResp.Codespace,
 		}
 
 		if currTx.AuthInfo != nil {

@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/shopspring/decimal"
 
@@ -182,7 +183,7 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 		   resp.code as tx_resp_code, 
 		   resp.gas_used as tx_res_gas_used,
 		   resp.gas_wanted as tx_res_gas_wanted, 
-		   resp.raw_log
+		   resp.raw_log, resp.time_stamp, resp.codespace, resp.data, resp.info
 		from txes
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
@@ -193,15 +194,6 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 
 	result := make([]*models.Tx, 0)
 
-	var tx models.Tx
-	var authInfo models.AuthInfo
-	var authInfoFee models.AuthInfoFee
-	var authInfoTip models.Tip
-	var txResponse models.TxResponse
-	signatures := make([][]byte, 0)
-	extensionsOptions := make([]string, 0)
-	nonCriticalExtensionOptions := make([]string, 0)
-
 	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		log.Err(err).Msgf("Query error")
@@ -209,16 +201,48 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 	}
 
 	for rows.Next() {
+		var tx models.Tx
+		var authInfo models.AuthInfo
+		var authInfoFee models.AuthInfoFee
+		var authInfoTip models.Tip
+		var txResponse models.TxResponse
+		signatures := make([][]byte, 0)
+		extensionsOptions := make([]string, 0)
+		nonCriticalExtensionOptions := make([]string, 0)
+
 		if err := rows.Scan(&tx.ID, &signatures, &tx.Hash, &tx.Code,
 			&tx.BlockID, &tx.Timestamp, &tx.Memo, &tx.TimeoutHeight,
 			&extensionsOptions, &nonCriticalExtensionOptions,
 			&tx.AuthInfoID, &tx.TxResponseID,
 			&authInfoFee.GasLimit, &authInfoFee.Payer,
 			&authInfoFee.Granter, &authInfoTip.Tipper,
-			&txResponse.Code, &txResponse.GasUsed, &txResponse.GasWanted, &txResponse.RawLog); err != nil {
+			&txResponse.Code, &txResponse.GasUsed,
+			&txResponse.GasWanted, &txResponse.RawLog,
+			&txResponse.TimeStamp, &txResponse.Codespace,
+			&txResponse.Data, &txResponse.Info); err != nil {
 			log.Err(err).Msgf("rows.Scan error")
 			return nil, 0, err
 		}
+		tx.Signatures = signatures
+		tx.ExtensionOptions = extensionsOptions
+		tx.NonCriticalExtensionOptions = nonCriticalExtensionOptions
+
+		queryBlockInfo := `
+						select 
+						    blocks.time_stamp, blocks.height, blocks.chain_id, addresses.address, blocks.block_hash
+							from blocks 
+							left join addresses on blocks.proposer_cons_address_id = addresses.id
+							where blocks.id = $1
+						`
+		var block models.Block
+		var address models.Address
+		rowBlock := r.db.QueryRow(ctx, queryBlockInfo, tx.BlockID)
+		if err = rowBlock.Scan(&block.TimeStamp, &block.Height, &block.ChainID, &address.Address, &block.BlockHash); err != nil {
+			log.Err(err).Msgf("rowBlock.Scan error")
+			return nil, 0, err
+		}
+		block.ProposerConsAddress = address
+		tx.Block = block
 
 		querySignerInfos := `
 						select 
@@ -232,18 +256,21 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 						left join addresses addr on txnf.address_id = addr.id
                       	where txi.auth_info_id = $1`
 		signerInfos := make([]*models.SignerInfo, 0)
-		rowsSigners, err := r.db.Query(ctx, querySignerInfos, authInfo.ID)
+		rowsSigners, err := r.db.Query(ctx, querySignerInfos, tx.AuthInfoID)
 		if err != nil {
 			log.Err(err).Msgf("querySignerInfos error")
 			return nil, 0, err
 		}
 		for rowsSigners.Next() {
 			var in models.SignerInfo
-			errScan := rowsSigners.Scan(&in.ID, &in.Address.ID, &in.ModeInfo, &in.Sequence, &in.Address.Address)
+			var addr models.Address
+
+			errScan := rowsSigners.Scan(&in.ID, &addr.ID, &in.ModeInfo, &in.Sequence, &addr.Address)
 			if errScan != nil {
 				log.Err(err).Msgf("rowsSigners.Scan error")
 				return nil, 0, fmt.Errorf("repository.querySignerInfos, Scan: %v", errScan)
 			}
+			in.Address = &addr
 			signerInfos = append(signerInfos, &in)
 		}
 
@@ -259,7 +286,7 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 	queryAll := `select count(*) from txes`
 	row := r.db.QueryRow(ctx, queryAll)
 	var allTx int64
-	if err := row.Scan(&queryAll); err != nil {
+	if err = row.Scan(&allTx); err != nil {
 		log.Err(err).Msgf("queryAll error")
 		return nil, 0, err
 	}

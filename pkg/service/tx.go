@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
 	"time"
 
@@ -40,7 +41,8 @@ func (s *txs) Transactions(ctx context.Context, offset int64, limit int64) ([]*p
 	}
 	res := make([]*pb.TxByHash, 0)
 	for _, tx := range transactions {
-		res = append(res, s.txToProto(tx))
+		transaction := tx
+		res = append(res, s.txToProto(transaction))
 	}
 	return res, all, nil
 }
@@ -93,16 +95,25 @@ func (s *txs) txToProto(tx *models.Tx) *pb.TxByHash {
 		TxResponse: &pb.TxResponse{
 			Height:    tx.TxResponse.Height,
 			Txhash:    tx.Hash,
-			Codespace: "", // TODO
+			Codespace: tx.TxResponse.Codespace,
 			Code:      int32(tx.TxResponse.Code),
-			Data:      "", // TODO
+			Data:      tx.TxResponse.Data,
+			Info:      tx.TxResponse.Info,
 			RawLog:    tx.TxResponse.RawLog,
-			Info:      "",  // TODO
-			Logs:      nil, // TODO
 			GasWanted: fmt.Sprintf("%d", tx.TxResponse.GasWanted),
 			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
 			Timestamp: tx.TxResponse.TimeStamp,
 		},
+		Block: s.toBlockProto(&tx.Block),
+	}
+}
+
+func (s *txs) toBlockProto(bl *models.Block) *pb.Block {
+	return &pb.Block{
+		BlockHeight:       bl.Height,
+		ProposedValidator: bl.ProposerConsAddress.Address,
+		TxHash:            bl.BlockHash,
+		GenerationTime:    timestamppb.New(bl.TimeStamp),
 	}
 }
 

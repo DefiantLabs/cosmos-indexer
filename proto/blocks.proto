@@ -81,6 +81,7 @@ message TxByHash {
   repeated string non_critical_extension_options = 5;
   TxAuthInfo auth_info = 6;
   TxResponse tx_response = 7;
+  Block block = 8;
 }
 
 message TxAuthInfo {
