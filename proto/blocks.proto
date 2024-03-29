@@ -24,6 +24,9 @@ message Block {
   string total_fees = 4;
   string tx_hash=5;
   int64 total_tx = 6;
+  string gas_used  = 7;
+  string gas_wanted  = 8;
+  optional string block_rewards = 9;
 }
 
 message GetBlockInfoRequest {

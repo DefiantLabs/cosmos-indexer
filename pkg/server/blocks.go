@@ -121,7 +121,10 @@ func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (
 			BlockHeight:       bl.BlockHeight,
 			ProposedValidator: bl.ProposedValidatorAddress,
 			TxHash:            bl.BlockHash,
-			TotalTx:           bl.TotalTx, // TODO time
+			TotalTx:           bl.TotalTx,
+			GasUsed:           bl.GasUsed.String(),
+			GasWanted:         bl.GasWanted.String(),
+			TotalFees:         bl.TotalFees.String(),
 		})
 	}
 	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil
