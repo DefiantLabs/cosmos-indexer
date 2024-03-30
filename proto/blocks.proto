@@ -24,6 +24,9 @@ message Block {
   string total_fees = 4;
   string tx_hash=5;
   int64 total_tx = 6;
+  string gas_used  = 7;
+  string gas_wanted  = 8;
+  string block_rewards = 9;
 }
 
 message GetBlockInfoRequest {
@@ -78,6 +81,7 @@ message TxByHash {
   repeated string non_critical_extension_options = 5;
   TxAuthInfo auth_info = 6;
   TxResponse tx_response = 7;
+  Block block = 8;
 }
 
 message TxAuthInfo {

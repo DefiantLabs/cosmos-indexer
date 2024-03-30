@@ -14,6 +14,9 @@ type BlockInfo struct {
 	TotalFees                decimal.Decimal
 	TotalTx                  int64
 	BlockHash                string
+	GasUsed                  decimal.Decimal
+	GasWanted                decimal.Decimal
+	BlockRewards             decimal.Decimal
 }
 
 type Validators struct {
