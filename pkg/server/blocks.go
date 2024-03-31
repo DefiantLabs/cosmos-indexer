@@ -156,3 +156,19 @@ func (r *blocksServer) blockSignToProto(in *model.BlockSigners) *pb.SignerAddres
 		Rank:    in.Rank,
 	}
 }
+
+func (r *blocksServer) TxsByBlock(ctx context.Context, in *pb.TxsByBlockRequest) (*pb.TxsByBlockResponse, error) {
+	data, all, err := r.srvTx.TransactionsByBlock(ctx, in.BlockHeight, in.Limit.Limit, in.Limit.Offset)
+	if err != nil {
+		return &pb.TxsByBlockResponse{}, err
+	}
+
+	return &pb.TxsByBlockResponse{
+		Data: data,
+		Result: &pb.Result{
+			Limit:  in.Limit.Limit,
+			Offset: in.Limit.Offset,
+			All:    all,
+		},
+	}, nil
+}

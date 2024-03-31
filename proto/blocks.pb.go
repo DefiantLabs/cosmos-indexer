@@ -1966,6 +1966,116 @@ func (x *SignerAddress) GetRank() int64 {
 	return 0
 }
 
+type TxsByBlockRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	BlockHeight int64  `protobuf:"varint,1,opt,name=blockHeight,proto3" json:"blockHeight,omitempty"`
+	Limit       *Limit `protobuf:"bytes,2,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (x *TxsByBlockRequest) Reset() {
+	*x = TxsByBlockRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[31]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TxsByBlockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TxsByBlockRequest) ProtoMessage() {}
+
+func (x *TxsByBlockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[31]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TxsByBlockRequest.ProtoReflect.Descriptor instead.
+func (*TxsByBlockRequest) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *TxsByBlockRequest) GetBlockHeight() int64 {
+	if x != nil {
+		return x.BlockHeight
+	}
+	return 0
+}
+
+func (x *TxsByBlockRequest) GetLimit() *Limit {
+	if x != nil {
+		return x.Limit
+	}
+	return nil
+}
+
+type TxsByBlockResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Data   []*TxByHash `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
+	Result *Result     `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+}
+
+func (x *TxsByBlockResponse) Reset() {
+	*x = TxsByBlockResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[32]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TxsByBlockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TxsByBlockResponse) ProtoMessage() {}
+
+func (x *TxsByBlockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[32]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TxsByBlockResponse.ProtoReflect.Descriptor instead.
+func (*TxsByBlockResponse) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *TxsByBlockResponse) GetData() []*TxByHash {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *TxsByBlockResponse) GetResult() *Result {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 var File_blocks_proto protoreflect.FileDescriptor
 
 var file_blocks_proto_rawDesc = []byte{
@@ -2196,7 +2306,19 @@ var file_blocks_proto_rawDesc = []byte{
 	0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
 	0x70, 0x52, 0x04, 0x74, 0x69, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x72, 0x61, 0x6e, 0x6b, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x72, 0x61, 0x6e, 0x6b, 0x32, 0xd0, 0x05, 0x0a, 0x0d,
+	0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x72, 0x61, 0x6e, 0x6b, 0x22, 0x5a, 0x0a, 0x11, 0x54,
+	0x78, 0x73, 0x42, 0x79, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x20, 0x0a, 0x0b, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0b, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67,
+	0x68, 0x74, 0x12, 0x23, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x0d, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x4c, 0x69, 0x6d, 0x69, 0x74,
+	0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x62, 0x0a, 0x12, 0x54, 0x78, 0x73, 0x42, 0x79,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x24, 0x0a,
+	0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x62, 0x6c,
+	0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x04, 0x64,
+	0x61, 0x74, 0x61, 0x12, 0x26, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x52, 0x65, 0x73,
+	0x75, 0x6c, 0x74, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x32, 0x97, 0x06, 0x0a, 0x0d,
 	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x48, 0x0a,
 	0x09, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x1b, 0x2e, 0x62, 0x6c, 0x6f,
 	0x63, 0x6b, 0x73, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x6e, 0x66, 0x6f,
@@ -2241,9 +2363,13 @@ var file_blocks_proto_rawDesc = []byte{
 	0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74,
 	0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x62, 0x6c,
 	0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74,
-	0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x09,
-	0x5a, 0x07, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x45,
+	0x0a, 0x0a, 0x54, 0x78, 0x73, 0x42, 0x79, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x19, 0x2e, 0x62,
+	0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x54, 0x78, 0x73, 0x42, 0x79, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73,
+	0x2e, 0x54, 0x78, 0x73, 0x42, 0x79, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x09, 0x5a, 0x07, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2258,7 +2384,7 @@ func file_blocks_proto_rawDescGZIP() []byte {
 	return file_blocks_proto_rawDescData
 }
 
-var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_blocks_proto_goTypes = []interface{}{
 	(*Block)(nil),                      // 0: blocks.Block
 	(*GetBlockInfoRequest)(nil),        // 1: blocks.GetBlockInfoRequest
@@ -2291,14 +2417,16 @@ var file_blocks_proto_goTypes = []interface{}{
 	(*BlockSignaturesRequest)(nil),     // 28: blocks.BlockSignaturesRequest
 	(*BlockSignaturesResponse)(nil),    // 29: blocks.BlockSignaturesResponse
 	(*SignerAddress)(nil),              // 30: blocks.SignerAddress
-	(*timestamppb.Timestamp)(nil),      // 31: google.protobuf.Timestamp
+	(*TxsByBlockRequest)(nil),          // 31: blocks.TxsByBlockRequest
+	(*TxsByBlockResponse)(nil),         // 32: blocks.TxsByBlockResponse
+	(*timestamppb.Timestamp)(nil),      // 33: google.protobuf.Timestamp
 }
 var file_blocks_proto_depIdxs = []int32{
-	31, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
+	33, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
 	0,  // 1: blocks.GetBlockInfoResponse.info:type_name -> blocks.Block
-	31, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
-	31, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
-	31, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
+	33, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
+	33, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
+	33, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
 	5,  // 5: blocks.TxChartByDayResponse.tx_by_day:type_name -> blocks.TxByDay
 	10, // 6: blocks.TxByHashResponse.tx:type_name -> blocks.TxByHash
 	11, // 7: blocks.TxByHash.auth_info:type_name -> blocks.TxAuthInfo
@@ -2310,41 +2438,46 @@ var file_blocks_proto_depIdxs = []int32{
 	17, // 13: blocks.TxFee.amount:type_name -> blocks.Denom
 	17, // 14: blocks.TxTip.amount:type_name -> blocks.Denom
 	16, // 15: blocks.TxResponse.logs:type_name -> blocks.TxLog
-	31, // 16: blocks.TotalTransactionsRequest.to:type_name -> google.protobuf.Timestamp
+	33, // 16: blocks.TotalTransactionsRequest.to:type_name -> google.protobuf.Timestamp
 	20, // 17: blocks.TransactionsRequest.limit:type_name -> blocks.Limit
 	10, // 18: blocks.TransactionsResponse.tx:type_name -> blocks.TxByHash
 	21, // 19: blocks.TransactionsResponse.result:type_name -> blocks.Result
-	31, // 20: blocks.TotalBlocksRequest.to:type_name -> google.protobuf.Timestamp
+	33, // 20: blocks.TotalBlocksRequest.to:type_name -> google.protobuf.Timestamp
 	20, // 21: blocks.GetBlocksRequest.limit:type_name -> blocks.Limit
 	0,  // 22: blocks.GetBlocksResponse.blocks:type_name -> blocks.Block
 	21, // 23: blocks.GetBlocksResponse.result:type_name -> blocks.Result
 	20, // 24: blocks.BlockSignaturesRequest.limit:type_name -> blocks.Limit
 	30, // 25: blocks.BlockSignaturesResponse.signers:type_name -> blocks.SignerAddress
 	21, // 26: blocks.BlockSignaturesResponse.result:type_name -> blocks.Result
-	31, // 27: blocks.SignerAddress.time:type_name -> google.protobuf.Timestamp
-	1,  // 28: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
-	3,  // 29: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
-	6,  // 30: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
-	8,  // 31: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
-	18, // 32: blocks.BlocksService.TotalTransactions:input_type -> blocks.TotalTransactionsRequest
-	22, // 33: blocks.BlocksService.Transactions:input_type -> blocks.TransactionsRequest
-	24, // 34: blocks.BlocksService.TotalBlocks:input_type -> blocks.TotalBlocksRequest
-	26, // 35: blocks.BlocksService.GetBlocks:input_type -> blocks.GetBlocksRequest
-	28, // 36: blocks.BlocksService.BlockSignatures:input_type -> blocks.BlockSignaturesRequest
-	2,  // 37: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
-	4,  // 38: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
-	7,  // 39: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
-	9,  // 40: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
-	19, // 41: blocks.BlocksService.TotalTransactions:output_type -> blocks.TotalTransactionsResponse
-	23, // 42: blocks.BlocksService.Transactions:output_type -> blocks.TransactionsResponse
-	25, // 43: blocks.BlocksService.TotalBlocks:output_type -> blocks.TotalBlocksResponse
-	27, // 44: blocks.BlocksService.GetBlocks:output_type -> blocks.GetBlocksResponse
-	29, // 45: blocks.BlocksService.BlockSignatures:output_type -> blocks.BlockSignaturesResponse
-	37, // [37:46] is the sub-list for method output_type
-	28, // [28:37] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	33, // 27: blocks.SignerAddress.time:type_name -> google.protobuf.Timestamp
+	20, // 28: blocks.TxsByBlockRequest.limit:type_name -> blocks.Limit
+	10, // 29: blocks.TxsByBlockResponse.data:type_name -> blocks.TxByHash
+	21, // 30: blocks.TxsByBlockResponse.result:type_name -> blocks.Result
+	1,  // 31: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
+	3,  // 32: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
+	6,  // 33: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
+	8,  // 34: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
+	18, // 35: blocks.BlocksService.TotalTransactions:input_type -> blocks.TotalTransactionsRequest
+	22, // 36: blocks.BlocksService.Transactions:input_type -> blocks.TransactionsRequest
+	24, // 37: blocks.BlocksService.TotalBlocks:input_type -> blocks.TotalBlocksRequest
+	26, // 38: blocks.BlocksService.GetBlocks:input_type -> blocks.GetBlocksRequest
+	28, // 39: blocks.BlocksService.BlockSignatures:input_type -> blocks.BlockSignaturesRequest
+	31, // 40: blocks.BlocksService.TxsByBlock:input_type -> blocks.TxsByBlockRequest
+	2,  // 41: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
+	4,  // 42: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
+	7,  // 43: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
+	9,  // 44: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
+	19, // 45: blocks.BlocksService.TotalTransactions:output_type -> blocks.TotalTransactionsResponse
+	23, // 46: blocks.BlocksService.Transactions:output_type -> blocks.TransactionsResponse
+	25, // 47: blocks.BlocksService.TotalBlocks:output_type -> blocks.TotalBlocksResponse
+	27, // 48: blocks.BlocksService.GetBlocks:output_type -> blocks.GetBlocksResponse
+	29, // 49: blocks.BlocksService.BlockSignatures:output_type -> blocks.BlockSignaturesResponse
+	32, // 50: blocks.BlocksService.TxsByBlock:output_type -> blocks.TxsByBlockResponse
+	41, // [41:51] is the sub-list for method output_type
+	31, // [31:41] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_blocks_proto_init() }
@@ -2725,6 +2858,30 @@ func file_blocks_proto_init() {
 				return nil
 			}
 		}
+		file_blocks_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TxsByBlockRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_blocks_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TxsByBlockResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2732,7 +2889,7 @@ func file_blocks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_blocks_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
