@@ -27,6 +27,7 @@ const (
 	BlocksService_Transactions_FullMethodName      = "/blocks.BlocksService/Transactions"
 	BlocksService_TotalBlocks_FullMethodName       = "/blocks.BlocksService/TotalBlocks"
 	BlocksService_GetBlocks_FullMethodName         = "/blocks.BlocksService/GetBlocks"
+	BlocksService_BlockSignatures_FullMethodName   = "/blocks.BlocksService/BlockSignatures"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -41,6 +42,7 @@ type BlocksServiceClient interface {
 	Transactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
 	TotalBlocks(ctx context.Context, in *TotalBlocksRequest, opts ...grpc.CallOption) (*TotalBlocksResponse, error)
 	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
+	BlockSignatures(ctx context.Context, in *BlockSignaturesRequest, opts ...grpc.CallOption) (*BlockSignaturesResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -123,6 +125,15 @@ func (c *blocksServiceClient) GetBlocks(ctx context.Context, in *GetBlocksReques
 	return out, nil
 }
 
+func (c *blocksServiceClient) BlockSignatures(ctx context.Context, in *BlockSignaturesRequest, opts ...grpc.CallOption) (*BlockSignaturesResponse, error) {
+	out := new(BlockSignaturesResponse)
+	err := c.cc.Invoke(ctx, BlocksService_BlockSignatures_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -135,6 +146,7 @@ type BlocksServiceServer interface {
 	Transactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
 	TotalBlocks(context.Context, *TotalBlocksRequest) (*TotalBlocksResponse, error)
 	GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
+	BlockSignatures(context.Context, *BlockSignaturesRequest) (*BlockSignaturesResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -165,6 +177,9 @@ func (UnimplementedBlocksServiceServer) TotalBlocks(context.Context, *TotalBlock
 }
 func (UnimplementedBlocksServiceServer) GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
+}
+func (UnimplementedBlocksServiceServer) BlockSignatures(context.Context, *BlockSignaturesRequest) (*BlockSignaturesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BlockSignatures not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -323,6 +338,24 @@ func _BlocksService_GetBlocks_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_BlockSignatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockSignaturesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).BlockSignatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_BlockSignatures_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).BlockSignatures(ctx, req.(*BlockSignaturesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -361,6 +394,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlocks",
 			Handler:    _BlocksService_GetBlocks_Handler,
+		},
+		{
+			MethodName: "BlockSignatures",
+			Handler:    _BlocksService_BlockSignatures_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

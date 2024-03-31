@@ -29,3 +29,10 @@ type TotalBlocks struct {
 	BlockTime   int64
 	TotalFee24H decimal.Decimal
 }
+
+type BlockSigners struct {
+	BlockHeight int64
+	Validator   string
+	Time        time.Time
+	Rank        int64
+}

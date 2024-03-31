@@ -30,7 +30,7 @@ func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 		return &pb.GetBlockInfoResponse{}, err
 	}
 
-	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, Info: r.toProto(res)}, nil
+	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, Info: r.blockToProto(res)}, nil
 }
 
 func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
@@ -40,16 +40,6 @@ func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValid
 	}
 
 	return &pb.GetBlockValidatorsResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, ValidatorsList: res}, nil
-}
-
-func (r *blocksServer) toProto(in *model.BlockInfo) *pb.Block {
-	return &pb.Block{
-		BlockHeight:       in.BlockHeight,
-		ProposedValidator: in.ProposedValidatorAddress,
-		GenerationTime:    timestamppb.New(in.GenerationTime),
-		TotalFees:         in.TotalFees.String(),
-		TxHash:            in.BlockHash,
-	}
 }
 
 func (r *blocksServer) TxChartByDay(ctx context.Context, in *pb.TxChartByDayRequest) (*pb.TxChartByDayResponse, error) {
@@ -119,17 +109,50 @@ func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (
 
 	res := make([]*pb.Block, 0)
 	for _, bl := range blocks {
-		res = append(res, &pb.Block{
-			BlockHeight:       bl.BlockHeight,
-			ProposedValidator: bl.ProposedValidatorAddress,
-			GenerationTime:    timestamppb.New(time.Now()), // TODO
-			TxHash:            bl.BlockHash,
-			TotalTx:           bl.TotalTx,
-			GasUsed:           bl.GasUsed.String(),
-			GasWanted:         bl.GasWanted.String(),
-			TotalFees:         bl.TotalFees.String(),
-			BlockRewards:      decimal.NewFromInt(0).String(),
-		})
+		res = append(res, r.blockToProto(bl))
 	}
 	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil
+}
+
+func (r *blocksServer) blockToProto(bl *model.BlockInfo) *pb.Block {
+	return &pb.Block{
+		BlockHeight:       bl.BlockHeight,
+		ProposedValidator: bl.ProposedValidatorAddress,
+		GenerationTime:    timestamppb.New(time.Now()), // TODO
+		TxHash:            bl.BlockHash,
+		TotalTx:           bl.TotalTx,
+		GasUsed:           bl.GasUsed.String(),
+		GasWanted:         bl.GasWanted.String(),
+		TotalFees:         bl.TotalFees.String(),
+		BlockRewards:      decimal.NewFromInt(0).String(),
+	}
+}
+
+func (r *blocksServer) BlockSignatures(ctx context.Context, in *pb.BlockSignaturesRequest) (*pb.BlockSignaturesResponse, error) {
+	signs, all, err := r.srv.BlockSignatures(ctx, in.BlockHeight, in.Limit.Limit, in.Limit.Offset)
+	if err != nil {
+		return &pb.BlockSignaturesResponse{}, err
+	}
+
+	data := make([]*pb.SignerAddress, 0)
+	for _, sign := range signs {
+		data = append(data, r.blockSignToProto(sign))
+	}
+
+	return &pb.BlockSignaturesResponse{
+		Signers: data,
+		Result: &pb.Result{
+			Limit:  in.Limit.Limit,
+			Offset: in.Limit.Offset,
+			All:    all,
+		},
+	}, nil
+}
+
+func (r *blocksServer) blockSignToProto(in *model.BlockSigners) *pb.SignerAddress {
+	return &pb.SignerAddress{
+		Address: in.Validator,
+		Time:    timestamppb.New(in.Time),
+		Rank:    in.Rank,
+	}
 }
