@@ -17,6 +17,7 @@ type Blocks interface {
 	GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
 	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
+	BlockSignatures(ctx context.Context, height int64, limit int64, offset int64) ([]*model.BlockSigners, int64, error)
 }
 
 type blocks struct {
@@ -181,4 +182,46 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 	}
 
 	return data, all, nil
+}
+
+func (r *blocks) BlockSignatures(ctx context.Context, height int64, limit int64, offset int64) ([]*model.BlockSigners, int64, error) {
+	query := `select blocks.height, addresses.address, txes.timestamp from blocks
+                     left join txes on blocks.id = txes.block_id
+                     left join tx_responses on txes.tx_response_id = tx_responses.id
+                     left join tx_auth_info on txes.auth_info_id = tx_auth_info.id
+                     left join tx_signer_infos on tx_auth_info.id = tx_signer_infos.auth_info_id
+                     left join tx_signer_info on tx_signer_infos.signer_info_id = tx_signer_info.id
+                     left join addresses on tx_signer_info.address_id = addresses.id
+                     where blocks.height=$1`
+	queryLimit := query + ` limit $2 offset $3`
+	rows, err := r.db.Query(ctx, queryLimit, height, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	res := make([]*model.BlockSigners, 0)
+	for rows.Next() {
+		var in model.BlockSigners
+		if err := rows.Scan(&in.BlockHeight, &in.Validator, &in.Time); err != nil {
+			return nil, 0, err
+		}
+		res = append(res, &in)
+	}
+
+	queryAll := `select count(addresses.address) from blocks
+                     left join txes on blocks.id = txes.block_id
+                     left join tx_responses on txes.tx_response_id = tx_responses.id
+                     left join tx_auth_info on txes.auth_info_id = tx_auth_info.id
+                     left join tx_signer_infos on tx_auth_info.id = tx_signer_infos.auth_info_id
+                     left join tx_signer_info on tx_signer_infos.signer_info_id = tx_signer_info.id
+                     left join addresses on tx_signer_info.address_id = addresses.id
+                     where blocks.height=$1`
+	row := r.db.QueryRow(ctx, queryAll, height)
+	var all int64
+	if err = row.Scan(&all); err != nil {
+		return nil, 0, err
+	}
+
+	return res, all, nil
 }

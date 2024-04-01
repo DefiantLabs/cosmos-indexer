@@ -15,6 +15,8 @@ service BlocksService {
   rpc Transactions(TransactionsRequest) returns (TransactionsResponse) {}
   rpc TotalBlocks(TotalBlocksRequest) returns (TotalBlocksResponse) {}
   rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
+  rpc BlockSignatures(BlockSignaturesRequest) returns (BlockSignaturesResponse) {}
+  rpc TxsByBlock(TxsByBlockRequest) returns (TxsByBlockResponse) {}
 }
 
 message Block {
@@ -183,5 +185,31 @@ message GetBlocksRequest{
 
 message GetBlocksResponse{
   repeated Block blocks = 1;
+  Result result = 2;
+}
+
+message BlockSignaturesRequest {
+  int64 blockHeight = 1;
+  Limit limit = 2;
+}
+
+message BlockSignaturesResponse {
+  repeated SignerAddress signers = 1;
+  Result result = 2;
+}
+
+message SignerAddress {
+  string address = 1;
+  google.protobuf.Timestamp time = 2;
+  int64 rank = 3;
+}
+
+message TxsByBlockRequest{
+  int64 blockHeight = 1;
+  Limit limit = 2;
+}
+
+message TxsByBlockResponse{
+  repeated TxByHash data = 1;
   Result result = 2;
 }

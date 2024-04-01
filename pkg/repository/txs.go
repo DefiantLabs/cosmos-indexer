@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -20,7 +21,12 @@ type Txs interface {
 	GetTxByHash(ctx context.Context, txHash string) (*models.Tx, error)
 	TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, int64, int64, error)
 	VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error)
-	Transactions(ctx context.Context, limit int64, offset int64) ([]*models.Tx, int64, error)
+	Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error)
+}
+
+type TxsFilter struct {
+	TxHash        *string
+	TxBlockHeight *int64
 }
 
 type txs struct {
@@ -161,7 +167,7 @@ func (r *txs) GetTxByHash(ctx context.Context, txHash string) (*models.Tx, error
 	return &tx, nil
 }
 
-func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*models.Tx, int64, error) {
+func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error) {
 	query := `
 	   select 
 	       txes.id as tx_id,
@@ -188,18 +194,32 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64) ([]*m
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
 			 left join tx_tip tip on au.tip_id = tip.id
-			 left join tx_responses resp on tx_response_id = resp.id
-		   ORDER BY txes.timestamp desc
-		   LIMIT $1 OFFSET $2`
+			 left join tx_responses resp on tx_response_id = resp.id`
 
-	result := make([]*models.Tx, 0)
+	var rows pgx.Rows
+	var err error
+	if filter != nil { // TODO make it more flexible
+		//if filter.TxHash != nil {
+		//	filterValue = *filter.TxHash
+		//	query = query + ` WHERE txes.hash = $1`
+		//}
+		if filter.TxBlockHeight != nil {
+			query = query + ` WHERE block_id = $1`
+			query = query + ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
+			blockHeight := &filter.TxBlockHeight
+			rows, err = r.db.Query(ctx, query, blockHeight, limit, offset)
+		}
+	} else {
+		query = query + ` ORDER BY txes.timestamp desc LIMIT $1 OFFSET $2`
+		rows, err = r.db.Query(ctx, query, limit, offset)
+	}
 
-	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		log.Err(err).Msgf("Query error")
 		return nil, 0, err
 	}
 
+	result := make([]*models.Tx, 0)
 	for rows.Next() {
 		var tx models.Tx
 		var authInfo models.AuthInfo

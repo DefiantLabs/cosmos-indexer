@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"strings"
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -18,7 +17,8 @@ type Txs interface {
 	ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error)
 	GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashResponse, error) // TODO re-implement without pb
 	TotalTransactions(ctx context.Context, to time.Time) (*model.TotalTransactions, error)
-	Transactions(ctx context.Context, offset int64, limit int64) ([]*pb.TxByHash, int64, error) // TODO re-implement without pb
+	Transactions(ctx context.Context, offset int64, limit int64) ([]*pb.TxByHash, int64, error)                      // TODO re-implement without pb
+	TransactionsByBlock(ctx context.Context, height int64, offset int64, limit int64) ([]*pb.TxByHash, int64, error) // TODO re-implement without pb
 }
 
 type txs struct {
@@ -34,7 +34,7 @@ func (s *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([
 }
 
 func (s *txs) Transactions(ctx context.Context, offset int64, limit int64) ([]*pb.TxByHash, int64, error) {
-	transactions, all, err := s.txRepo.Transactions(ctx, limit, offset)
+	transactions, all, err := s.txRepo.Transactions(ctx, limit, offset, nil)
 	log.Info().Msgf("transactions len %d", len(transactions))
 	if err != nil {
 		return nil, 0, err
@@ -64,11 +64,43 @@ func (s *txs) TotalTransactions(ctx context.Context, to time.Time) (*model.Total
 }
 
 func (s *txs) GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashResponse, error) {
-	tx, err := s.txRepo.GetTxByHash(ctx, strings.ToUpper(txHash))
+	/*
+		tx, err := s.txRepo.GetTxByHash(ctx, strings.ToUpper(txHash))
+		if err != nil {
+			return &pb.TxByHashResponse{}, err
+		}
+		return &pb.TxByHashResponse{Tx: s.txToProto(tx)}, nil*/
+
+	transactions, _, err := s.txRepo.Transactions(ctx, 1000, 1, &repository.TxsFilter{TxHash: &txHash})
+	log.Info().Msgf("transactions len %d", len(transactions))
 	if err != nil {
-		return &pb.TxByHashResponse{}, err
+		return nil, err
 	}
-	return &pb.TxByHashResponse{Tx: s.txToProto(tx)}, nil
+	res := make([]*pb.TxByHash, 0)
+	for _, tx := range transactions {
+		transaction := tx
+		res = append(res, s.txToProto(transaction))
+	}
+
+	if len(res) == 0 {
+		return nil, fmt.Errorf("not found")
+	}
+	txRes := res[0]
+	return &pb.TxByHashResponse{Tx: txRes}, nil
+}
+
+func (s *txs) TransactionsByBlock(ctx context.Context, height int64, offset int64, limit int64) ([]*pb.TxByHash, int64, error) {
+	transactions, all, err := s.txRepo.Transactions(ctx, limit, offset, &repository.TxsFilter{TxBlockHeight: &height})
+	log.Info().Msgf("transactions len %d", len(transactions))
+	if err != nil {
+		return nil, 0, err
+	}
+	res := make([]*pb.TxByHash, 0)
+	for _, tx := range transactions {
+		transaction := tx
+		res = append(res, s.txToProto(transaction))
+	}
+	return res, all, nil
 }
 
 func (s *txs) txToProto(tx *models.Tx) *pb.TxByHash {
