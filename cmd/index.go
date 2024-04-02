@@ -18,8 +18,8 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/spf13/cobra"
-
 	"gorm.io/gorm"
 )
 
@@ -29,6 +29,7 @@ type Indexer struct {
 	db                                  *gorm.DB
 	cl                                  *client.ChainClient
 	blockEnqueueFunction                func(chan *core.EnqueueData) error
+	customModuleBasics                  []module.AppModuleBasic // Used for extending the AppModuleBasics registered in the probe client
 	blockEventFilterRegistries          blockEventFilterRegistries
 	messageTypeFilters                  []filter.MessageTypeFilter
 	customBeginBlockEventParserRegistry map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in BeginBlock events
@@ -66,6 +67,10 @@ var indexCmd = &cobra.Command{
 	highly recommended to keep this command running as a background service to keep your index up to date.`,
 	PreRunE: setupIndex,
 	Run:     index,
+}
+
+func RegisterCustomModuleBasics(basics []module.AppModuleBasic) {
+	indexer.customModuleBasics = append(indexer.customModuleBasics, basics...)
 }
 
 func RegisterMessageTypeFilter(filter filter.MessageTypeFilter) {
@@ -249,7 +254,7 @@ func setupIndexer() *Indexer {
 
 	config.SetChainConfig(indexer.cfg.Probe.AccountPrefix)
 
-	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe)
+	indexer.cl = probe.GetProbeClient(indexer.cfg.Probe, indexer.customModuleBasics)
 
 	// Depending on the app configuration, wait for the chain to catch up
 	chainCatchingUp, err := rpc.IsCatchingUp(indexer.cl)
