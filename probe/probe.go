@@ -3,14 +3,11 @@ package probe
 import (
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	probeClient "github.com/DefiantLabs/probe/client"
+	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
-func GetProbeClient(conf config.Probe) *probeClient.ChainClient {
-	// IMPORTANT: the actual keyring-test will be searched for at the path {homepath}/keys/{ChainID}/keyring-test.
-	// You can use probe default settings to generate that directory appropriately then move it to the desired path.
-	// For example, 'probe keys restore default' will restore the key to the default keyring (e.g. /home/kyle/.probe/...)
-	// and you can move all of the necessary keys to whatever homepath you want to use. Or you can use --home flag.
-	cl, err := probeClient.NewChainClient(GetProbeConfig(conf, true), "", nil, nil)
+func GetProbeClient(conf config.Probe, appModuleBasicsExtensions []module.AppModuleBasic) *probeClient.ChainClient {
+	cl, err := probeClient.NewChainClient(GetProbeConfig(conf, true, appModuleBasicsExtensions), "", nil, nil)
 	if err != nil {
 		config.Log.Fatalf("Error connecting to chain. Err: %v", err)
 	}
@@ -27,7 +24,11 @@ func IncludeTendermintInterfaces(client *probeClient.ChainClient) {
 	probeClient.RegisterTendermintLiquidityInterfaces(client.Codec.Amino, client.Codec.InterfaceRegistry)
 }
 
-func GetProbeConfig(conf config.Probe, debug bool) *probeClient.ChainClientConfig {
+func GetProbeConfig(conf config.Probe, debug bool, appModuleBasicsExtensions []module.AppModuleBasic) *probeClient.ChainClientConfig {
+	moduleBasics := []module.AppModuleBasic{}
+	moduleBasics = append(moduleBasics, probeClient.DefaultModuleBasics...)
+	moduleBasics = append(moduleBasics, appModuleBasicsExtensions...)
+
 	return &probeClient.ChainClientConfig{
 		Key:            "default",
 		ChainID:        conf.ChainID,
@@ -37,6 +38,6 @@ func GetProbeConfig(conf config.Probe, debug bool) *probeClient.ChainClientConfi
 		Debug:          debug,
 		Timeout:        "30s",
 		OutputFormat:   "json",
-		Modules:        probeClient.ModuleBasics,
+		Modules:        moduleBasics,
 	}
 }
