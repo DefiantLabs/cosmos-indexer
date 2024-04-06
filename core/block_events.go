@@ -57,23 +57,33 @@ func ProcessRPCBlockEvents(block *models.Block, blockEvents []abci.Event, blockL
 
 		for attrIndex, attribute := range event.Attributes {
 
-			// Should we even be decoding these from base64? What are the implications?
-			valueBytes, err := base64.StdEncoding.DecodeString(attribute.Value)
-			if err != nil {
-				return nil, err
-			}
+			var value string
+			var keyItem string
+			if conf.Flags.BlockEventsBase64Encoded {
+				// Should we even be decoding these from base64? What are the implications?
+				valueBytes, err := base64.StdEncoding.DecodeString(attribute.Value)
+				if err != nil {
+					return nil, err
+				}
 
-			keyBytes, err := base64.StdEncoding.DecodeString(attribute.Key)
-			if err != nil {
-				return nil, err
+				keyBytes, err := base64.StdEncoding.DecodeString(attribute.Key)
+				if err != nil {
+					return nil, err
+				}
+
+				value = string(valueBytes)
+				keyItem = string(keyBytes)
+			} else {
+				value = attribute.Value
+				keyItem = attribute.Key
 			}
 
 			key := models.BlockEventAttributeKey{
-				Key: string(keyBytes),
+				Key: keyItem,
 			}
 
 			beginBlockEvents[index].Attributes[attrIndex] = models.BlockEventAttribute{
-				Value:                  string(valueBytes),
+				Value:                  value,
 				BlockEventAttributeKey: key,
 				Index:                  uint64(attrIndex),
 			}
