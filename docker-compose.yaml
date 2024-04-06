@@ -1,11 +1,4 @@
 version: "3.9"
-x-logging: &logging
-  logging:
-    driver: json-file
-    options:
-      max-size: 100m
-      max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
 
 services:
   postgres:
@@ -14,10 +7,11 @@ services:
     stop_grace_period: 1m
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      # - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=taxuser
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - 5432:5432/tcp
     healthcheck:
@@ -28,17 +22,14 @@ services:
     networks:
       default:
         aliases:
-          - defiant
-    <<: *logging
+          - cosmos-indexer
 
   indexer:
     restart: "no"
-    image: ghcr.io/defiantlabs/cosmos-indexer:main
-    user: defiant
+    build:
+      dockerfile: Dockerfile
+    user: cosmos-indexer
     stop_grace_period: 10s
-    volumes:
-      # - indexer:/var/lib/cosmos-indexer-index
-      - /etc/localtime:/etc/localtime:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,93 +38,34 @@ services:
     networks:
       default:
         aliases:
-          - defiant
-    <<: *logging
+          - cosmos-indexer
+    environment:
+      - EXTENDED_ARGS=""
+      - LOG_LEVEL="info"
     command:
     - /bin/sh
     - -c
     - |
-      cosmos-indexer update-denoms \
-      --update-all \
-      --log.pretty = true \
-      --log.level = debug \
-      --base.index-chain = false \
-      --base.start-block 11569404 \
-      --base.end-block -1 \
-      --base.throttling 2.005 \
-      --base.rpc-workers 1 \
-      --base.reindex true \
-      --base.prevent-reattempts true \
-      --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.account-prefix osmo \
-      --probe.chain-id osmosis-1 \
-      --probe.chain-name osmosis \
-      --database.host postgres \
-      --database.database postgres \
-      --database.user taxuser \
-      --database.password password
-
       cosmos-indexer index \
-      --log.pretty = true \
-      --log.level = debug \
-      --base.index-chain = false \
-      --base.start-block 11569404 \
-      --base.end-block -1 \
-      --base.throttling 2.005 \
-      --base.rpc-workers 1 \
-      --base.reindex true \
-      --base.prevent-reattempts true \
-      --base.api https://a-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.rpc https://r-osmosis--changeme.gw.notionalapi.com:443 \
-      --probe.account-prefix osmo \
-      --probe.chain-id osmosis-1 \
-      --probe.chain-name osmosis \
-      --database.host postgres \
-      --database.database postgres \
-      --database.user taxuser \
-      --database.password password
+      --log.pretty=${PRETTY_LOG} \
+      --log.level=${LOG_LEVEL \
+      --base.index-transactions=${INDEX_TRANSACTIONS} \
+      --base.index-block-events=${INDEX_BLOCK_EVENTS} \
+      --base.start-block=${START_BLOCK} \
+      --base.end-block=-${END_BLOCK} \
+      --base.throttling=${THROTTLING} \
+      --base.rpc-workers=${RPC_WORKERS} \
+      --base.reindex=${REINDEX} \
+      --base.reattempt-failed-blocks=false \
+      --probe.rpc=${RPC_URL} \
+      --probe.account-prefix=${ACCOUNT_PREFIX} \
+      --probe.chain-id=${CHAIN_ID} \
+      --probe.chain-name=${CHAIN_NAME} \
+      --database.host=postgres \
+      --database.database=${POSTGRES_DB} \
+      --database.user=${POSTGRES_USER} \
+      --database.password=${POSTGRES_PASSWORD} \
+      ${EXTENDED_ARGS}
 
-  # client:
-  #   restart: "unless-stopped"
-  #   image: ghcr.io/defiantlabs/cosmos-indexer:sha-56866e1
-  #   user: defiant
-  #   stop_grace_period: 1m
-  #   volumes:
-  #     # - client:/var/lib/cosmos-indexer-client
-  #     - /etc/localtime:/etc/localtime:ro
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   links:
-  #     - postgres
-  #   ports:
-  #     - 8080:8080/tcp
-  #   networks:
-  #     default:
-  #       aliases:
-  #         - defiant
-  #   <<: *logging
-  #   command: /bin/sh -c "client --db.host postgres --db.database postgres --db.user taxuser --db.password password"
-
-  # web:
-  #   restart: "unless-stopped"
-  #   image: ghcr.io/defiantlabs/cosmos-indexer-web:v0.1.0
-  #   # user: defiant
-  #   stop_grace_period: 1m
-  #   volumes:
-  #     # - web:/var/lib/cosmos-indexer-web
-  #     - /etc/localtime:/etc/localtime:ro
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   environment:
-  #     - REACT_APP_API_URL=http://localhost:8080
-  #   ports:
-  #     - 3000:3000/tcp
-  #   networks:
-  #     default:
-  #       aliases:
-  #         - defiant
-  #   <<: *logging
-  #   command: /bin/sh -c "npm run start"
+volumes:
+  postgres:

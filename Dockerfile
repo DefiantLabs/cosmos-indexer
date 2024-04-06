@@ -36,11 +36,11 @@ RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ] ; then \
 
 # Use busybox to create a user
 FROM busybox:stable-musl AS busybox
-RUN addgroup --gid 1137 -S defiant && adduser --uid 1137 -S defiant -G defiant
+RUN addgroup --gid 1137 -S cosmos-indexer && adduser --uid 1137 -S cosmos-indexer -G cosmos-indexer
 
 # Use scratch for the final image
 FROM scratch
-WORKDIR /home/defiant
+WORKDIR /home/cosmos-indexer
 
 # Label should match your github repo
 LABEL org.opencontainers.image.source="https://github.com/defiantlabs/cosmos-indexer"
@@ -101,9 +101,9 @@ COPY --from=busybox /bin/netstat /bin/netstat
 
 # Copy user from busybox to scratch
 COPY --from=busybox /etc/passwd /etc/passwd
-COPY --from=busybox --chown=1137:1137 /home/defiant /home/defiant
+COPY --from=busybox --chown=1137:1137 /home/cosmos-indexer /home/cosmos-indexer
 
 # Set home directory and user
-WORKDIR /home/defiant
-RUN chown -R defiant /home/defiant
-USER defiant
+WORKDIR /home/cosmos-indexer
+RUN chown -R cosmos-indexer /home/cosmos-indexer
+USER cosmos-indexer

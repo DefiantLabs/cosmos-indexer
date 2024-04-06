@@ -1,49 +1,42 @@
-#gorm
 [log]
-level = "info"
-path = "/exact/file/path.txt"
+level = "debug"
+path = "./log.txt"
 pretty = true
 
 #App configuration values
 [base]
-start-block = 1 # start indexing at beginning of the blockchain, -1 to resume from highest block indexed
-end-block = 100 # stop indexing at this block, -1 to never stop indexing
-block-input-file = "" # a file location containing a JSON list of block heights to index. Will override start and end block flags.
-reindex = false # if true, this will re-attempt to index blocks we have already indexed (defaults to false)
-prevent-reattempts = false # if true, this will prevent us from re-attempting to index failed blocks (defaults to false)
-throttling = 0
+start-block = 1   # start indexing at beginning of the blockchain, -1 to resume from highest block indexed
+end-block = -1   # stop indexing at this block, -1 to never stop indexing
+throttling = 6.00
 block-timer = 10000 #print out how long it takes to process this many blocks
 wait-for-chain = false #if true, indexer will start when the node is caught up to the blockchain
 wait-for-chain-delay = 10 #seconds to wait between each check for node to catch up to the chain
-index-chain = true #If false, we won't attempt to index the chain
+index-transactions = true #If false, we won't attempt to index the chain
 exit-when-caught-up = true #mainly used for Osmosis rewards indexing
-index-block-events = true #index block events for the particular chain
-block-events-start-block = 1
-block-events-end-block = 2
+index-block-events = false #index block events for the particular chain
 dry = false # if true, indexing will occur but data will not be written to the database.
-api = "" # node api endpoint
 rpc-workers = 1
-rpc-retry-attempts=0 #RPC queries are configured to retry if failed. This value sets how many retries to do before giving up. (-1 for indefinite retries)
-rpc-retry-max-wait=30 #RPC query failure backoff max wait time in seconds
-block-event-filter-file = "filters.json"
+reindex = true
+reattempt-failed-blocks = false
 
-#Probe config options
+# Provides a filter configuration to skip block events or message types based on patterns
+# filter-file="filter-config.json"
+
+#Lens config options
 [probe]
-rpc = "https://rpc.kujira.ccvalidators.com:443" #On Kujira use one of the endpoints from the list https://github.com/Team-Kujira/networks/tree/master/mainnet
-account-prefix = "kujira"
-chain-id = "kaiyo-1"
-chain-name = "Kujira"
+rpc = "http://public.rpc.updateme:443"
+account-prefix = "cosmos"
+chain-id = "cosmoshub-4"
+chain-name = "CosmosHub"
 
-#postgresql
+# Flags for extending or modifying the indexed dataset
+[flags]
+index-tx-message-raw=false
+
 [database]
 host = "localhost"
 port = "5432"
-database = "taxappdb"
-user = "taxapp"
-password = "taxapptest"
-log-level = "error"
-
-[logger]
-
-[client]
-model = ""
+database = ""
+user = ""
+password = ""
+log-level = ""
