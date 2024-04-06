@@ -1,16 +1,9 @@
 config.toml
-config.osmosis.toml
-cosmos-exporter
-cosmos-exporter-backend
 cosmos-indexer
-cosmos-indexer-private
-cosmos-indexer-backend
-client/client
 env
 vendor/
 **/.DS_Store
 .idea/*
 .vscode/*
-tax.txt
-tax-db-pwd.txt
 log.txt
+.env
