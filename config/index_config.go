@@ -38,7 +38,8 @@ type indexBase struct {
 
 // Flags for specific, deeper indexing behavior
 type flags struct {
-	IndexTxMessageRaw bool `mapstructure:"index-tx-message-raw"`
+	IndexTxMessageRaw        bool `mapstructure:"index-tx-message-raw"`
+	BlockEventsBase64Encoded bool `mapstructure:"block-events-base64-encoded"`
 }
 
 func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
@@ -56,16 +57,17 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&conf.Base.FilterFile, "base.filter-file", "", "path to a file containing a JSON config of block event and message type filters to apply to beginblocker events, endblocker events and TX messages")
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
-	cmd.PersistentFlags().Int64Var(&conf.Base.RPCWorkers, "base.rpc-workers", 1, "rpc workers")
+	cmd.PersistentFlags().Int64Var(&conf.Base.RPCWorkers, "base.rpc-workers", 1, "the number of concurrent RPC request workers to spin up.")
 	cmd.PersistentFlags().BoolVar(&conf.Base.WaitForChain, "base.wait-for-chain", false, "wait for chain to be in sync?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.WaitForChainDelay, "base.wait-for-chain-delay", 10, "seconds to wait between each check for node to catch up to the chain")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockTimer, "base.block-timer", 10000, "print out how long it takes to process this many blocks")
-	cmd.PersistentFlags().BoolVar(&conf.Base.ExitWhenCaughtUp, "base.exit-when-caught-up", false, "mainly used for Osmosis rewards indexing")
+	cmd.PersistentFlags().BoolVar(&conf.Base.ExitWhenCaughtUp, "base.exit-when-caught-up", false, "Gets the latest block at runtime and exits when this block has been reached.")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RequestRetryAttempts, "base.request-retry-attempts", 0, "number of RPC query retries to make")
 	cmd.PersistentFlags().Uint64Var(&conf.Base.RequestRetryMaxWait, "base.request-retry-max-wait", 30, "max retry incremental backoff wait time in seconds")
 
 	// flags
 	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexTxMessageRaw, "flags.index-tx-message-raw", false, "if true, this will index the raw message bytes. This will significantly increase the size of the database.")
+	cmd.PersistentFlags().BoolVar(&conf.Flags.BlockEventsBase64Encoded, "flags.block-events-base64-encoded", false, "if true, decode the block event attributes and keys as base64. Some versions of CometBFT encode the block event attributes and keys as base64 in the response from RPC.")
 }
 
 func (conf *IndexConfig) Validate() error {

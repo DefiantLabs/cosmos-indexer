@@ -33,7 +33,7 @@ func Execute() error {
 
 func init() {
 	cobra.OnInitialize(getViperConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cosmos-indexer/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file location (default is <CWD>/config.toml)")
 }
 
 func getViperConfig() {

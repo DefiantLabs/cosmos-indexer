@@ -65,7 +65,7 @@ func SetupProbeFlags(probeConf *Probe, cmd *cobra.Command) {
 }
 
 func SetupThrottlingFlag(throttlingValue *float64, cmd *cobra.Command) {
-	cmd.PersistentFlags().Float64Var(throttlingValue, "base.throttling", 0.5, "throttle delay")
+	cmd.PersistentFlags().Float64Var(throttlingValue, "base.throttling", 0.5, "block enqueue throttle delay")
 }
 
 func validateDatabaseConf(dbConf Database) error {
