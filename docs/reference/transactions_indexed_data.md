@@ -28,7 +28,7 @@ When transactions for a block are requested through RPC, the returned dataset ha
             "code": "<response code>",
             "logs": [<event logs>],
         },
-        }
+        ...<more responses>
     ]
 }
 ```
