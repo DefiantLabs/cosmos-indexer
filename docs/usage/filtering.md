@@ -277,4 +277,3 @@ Here is an example filter configuration file that includes all of the filter typ
     ]
 }
 ```
-                    
