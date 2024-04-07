@@ -6,7 +6,7 @@ You can run `cosmos-indexer index --help` to get a full list of flag usages, or 
 
 ## Config
 
-All of the following configuration flags can be created in a `.toml` config file and passed to the application that way. See [config.toml.example](../../config.toml.example) for an example that will require further setup.
+All of the following configuration flags can be created in a `.toml` config file and passed to the application that way. See [config.toml.example](https://github.com/DefiantLabs/cosmos-indexer/blob/main/config.toml.example) for an example that will require further setup.
 
 - **Configuration File**
   - Description: config file location.
