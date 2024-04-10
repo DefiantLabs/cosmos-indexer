@@ -330,14 +330,14 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 
 			// create auth_info address if it doesn't exist
 			if err := dbTransaction.Where(&tx.AuthInfo.Tip).FirstOrCreate(&tx.AuthInfo.Tip).Error; err != nil {
-				config.Log.Error("Error getting/creating Tip DB object.", err)
-				return err
+				config.Log.Errorf("Error getting/creating Tip DB object. %v %v", err, tx.AuthInfo.Tip)
+				continue
 			}
 			tx.AuthInfo.TipID = tx.AuthInfo.Tip.ID
 
 			if err := dbTransaction.Where(&tx.AuthInfo.Fee).FirstOrCreate(&tx.AuthInfo.Fee).Error; err != nil {
-				config.Log.Error("Error getting/creating Fee DB object.", err)
-				return err
+				config.Log.Errorf("Error getting/creating Fee DB object. %v %v", err, tx.AuthInfo.Fee)
+				continue
 			}
 
 			tx.AuthInfo.FeeID = tx.AuthInfo.Fee.ID
@@ -345,26 +345,26 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			for _, signerInfo := range tx.AuthInfo.SignerInfos {
 				if signerInfo.Address != nil {
 					if err := dbTransaction.Where(&signerInfo.Address).FirstOrCreate(&signerInfo.Address).Error; err != nil {
-						config.Log.Error("Error getting/creating signerInfo.Address DB object.", err)
-						return err
+						config.Log.Errorf("Error getting/creating signerInfo.Address DB object %v %v", err, signerInfo.Address)
+						continue
 					}
 					signerInfo.AddressID = signerInfo.Address.ID
 				}
 				if err := dbTransaction.Where(&signerInfo).FirstOrCreate(&signerInfo).Error; err != nil {
-					config.Log.Error("Error getting/creating signerInfo DB object.", err)
-					return err
+					config.Log.Errorf("Error getting/creating signerInfo DB object %v %v", err, signerInfo)
+					continue
 				}
 			}
 
 			if err := dbTransaction.Where(&tx.AuthInfo).FirstOrCreate(&tx.AuthInfo).Error; err != nil {
-				config.Log.Error("Error getting/creating authInfo DB object.", err)
-				return err
+				config.Log.Errorf("Error getting/creating authInfo DB object. %v %v", err, tx.AuthInfo)
+				continue
 			}
 
 			tx.AuthInfoID = tx.AuthInfo.ID
 			if err := dbTransaction.Where(&tx.TxResponse).FirstOrCreate(&tx.TxResponse).Error; err != nil {
-				config.Log.Error("Error getting/creating txResponse DB object.", err)
-				return err
+				config.Log.Errorf("Error getting/creating txResponse DB object. %v %v", err, tx.TxResponse)
+				continue
 			}
 			tx.TxResponseID = tx.TxResponse.ID
 
