@@ -279,10 +279,12 @@ func main() {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
+	indexer := cmd.GetBuiltinIndexer()
+
 	// Register the custom types that will modify the behavior of the indexer
-	cmd.RegisterCustomModels(customModels)
-	cmd.RegisterMessageTypeFilter(govVoteRegexMessageTypeFilter)
-	cmd.RegisterMessageTypeFilter(govSubmitProposalRegexMessageTypeFilter)
+	indexer.RegisterCustomModels(customModels)
+	indexer.RegisterMessageTypeFilter(govVoteRegexMessageTypeFilter)
+	indexer.RegisterMessageTypeFilter(govSubmitProposalRegexMessageTypeFilter)
 
 	// Register the custom message parser for the vote message types. Our parser can handle both v1 and v1beta1 vote messages.
 	// However, they must be uniquely identified by the Identifier() method. This will make identifying any parser errors easier.
@@ -290,10 +292,10 @@ func main() {
 	v1VoteParser := &MsgVoteParser{Id: "vote-v1"}
 	v1Beta1SubmitParser := &MsgSubmitProposalParser{Id: "submit-proposal-v1beta1"}
 	v1SubmitParser := &MsgSubmitProposalParser{Id: "submit-proposal-v1"}
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgVote", v1Beta1VoteParser)
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1.MsgVote", v1VoteParser)
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgSubmitProposal", v1Beta1SubmitParser)
-	cmd.RegisterCustomMessageParser("/cosmos.gov.v1.MsgSubmitProposal", v1SubmitParser)
+	indexer.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgVote", v1Beta1VoteParser)
+	indexer.RegisterCustomMessageParser("/cosmos.gov.v1.MsgVote", v1VoteParser)
+	indexer.RegisterCustomMessageParser("/cosmos.gov.v1beta1.MsgSubmitProposal", v1Beta1SubmitParser)
+	indexer.RegisterCustomMessageParser("/cosmos.gov.v1.MsgSubmitProposal", v1SubmitParser)
 
 	// Execute the root command to start the indexer.
 	err = cmd.Execute()
