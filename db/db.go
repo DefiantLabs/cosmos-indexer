@@ -362,7 +362,9 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			}
 
 			tx.AuthInfoID = tx.AuthInfo.ID
-			if err := dbTransaction.Where(&tx.TxResponse).FirstOrCreate(&tx.TxResponse).Error; err != nil {
+			if err := dbTransaction.Where(&tx.TxResponse).Clauses(clause.OnConflict{
+				DoNothing: true,
+			}).FirstOrCreate(&tx.TxResponse).Error; err != nil {
 				config.Log.Warnf("Error getting/creating txResponse DB object. %v %v", err, tx.TxResponse)
 				continue
 			}
@@ -392,7 +394,6 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				DoUpdates: clause.AssignmentColumns([]string{"code", "block_id"}),
 			}).Create(txesSlice).Error; err != nil {
 				config.Log.Warn("Error getting/creating txes.", err)
-				return err
 			}
 		}
 
