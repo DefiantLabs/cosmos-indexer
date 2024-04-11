@@ -32,8 +32,7 @@ services:
     <<: *logging
 
   indexer:
-    restart: "no"
-    #image: ghcr.io/defiantlabs/cosmos-indexer:main
+    restart: "always"
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,7 +41,6 @@ services:
     ports:
       - "9002:9002/tcp"
     volumes:
-      # - indexer:/var/lib/cosmos-indexer-index
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       postgres:
