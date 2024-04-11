@@ -197,8 +197,10 @@ func main() {
 		&DelegationEvent{},
 	}
 
+	indexer := cmd.GetBuiltinIndexer()
+
 	// Register the custom types that will modify the behavior of the indexer
-	cmd.RegisterCustomModels(customModels)
+	indexer.RegisterCustomModels(customModels)
 
 	// This indexer is only concerned with delegate and undelegate messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
@@ -212,15 +214,15 @@ func main() {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
-	cmd.RegisterMessageTypeFilter(stakingDelegateRegexMessageTypeFilter)
-	cmd.RegisterMessageTypeFilter(stakingUndelegateRegexMessageTypeFilter)
+	indexer.RegisterMessageTypeFilter(stakingDelegateRegexMessageTypeFilter)
+	indexer.RegisterMessageTypeFilter(stakingUndelegateRegexMessageTypeFilter)
 
 	// Register the custom message parser for the delegation message types. Our parser can handle both delegate and undelegate messages.
 	// However, they must be uniquely identified by the Identifier() method. This will make identifying any parser errors easier.
 	delegateParser := &MsgDelegateUndelegateParser{Id: "delegate"}
 	undelegateParser := &MsgDelegateUndelegateParser{Id: "undelegate"}
-	cmd.RegisterCustomMessageParser("/cosmos.staking.v1beta1.MsgDelegate", delegateParser)
-	cmd.RegisterCustomMessageParser("/cosmos.staking.v1beta1.MsgUndelegate", undelegateParser)
+	indexer.RegisterCustomMessageParser("/cosmos.staking.v1beta1.MsgDelegate", delegateParser)
+	indexer.RegisterCustomMessageParser("/cosmos.staking.v1beta1.MsgUndelegate", undelegateParser)
 
 	err = cmd.Execute()
 	if err != nil {
