@@ -123,3 +123,18 @@ This means that a single action may be found to require associating multiple eve
 ```
 
 The application applies the term **Block Event Windows** to this concept.
+
+## Indexing Block Events
+
+The application indexes block events into a well-structured data shape. For implementation details, see the [block.go](ttps://github.com/DefiantLabs/cosmos-indexer/blob/main/db/models/block.go) file in the models package.
+
+The indexed dataset has the following general overview:
+
+1. Block BeginBlocker events are indexed per Block
+2. Block EndBlocker events are indexed per Block
+3. Block Events are indexed per Lifecycle Position (BeginBlocker or EndBlocker)
+4. Block Event Attributes are indexed per Block Event
+
+See the below database diagram for complete details on how the data is structured and what relationships exist between the different entities.
+
+![Block Events Indexed Data Diagram](images/block-events-db.png)
