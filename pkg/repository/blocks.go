@@ -47,13 +47,21 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (
 		return nil, fmt.Errorf("exec %v", err)
 	}
 
-	queryTotalFees := `select sum(amount) from fees where tx_id IN (select id from txes where block_id=$1)`
+	queryTotalFees := `select COALESCE(sum(amount),0) from fees where tx_id IN (select id from txes where block_id=$1)`
 	var totalFees decimal.Decimal
 	err = r.db.QueryRow(ctx, queryTotalFees, blockID).Scan(&totalFees)
 	if err != nil {
 		return nil, fmt.Errorf("exec total fees %v", err)
 	}
 	o.TotalFees = totalFees
+
+	queryAll := `select count(*) from txes where txes.block_id = $1`
+	row := r.db.QueryRow(ctx, queryAll, blockID)
+	var allTx int64
+	if err = row.Scan(&allTx); err != nil {
+		return nil, fmt.Errorf("row.Scan %v", err)
+	}
+	o.TotalTx = allTx
 
 	return o, nil
 }

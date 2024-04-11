@@ -331,12 +331,20 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			// create auth_info address if it doesn't exist
 			if err := dbTransaction.Where(&tx.AuthInfo.Tip).FirstOrCreate(&tx.AuthInfo.Tip).Error; err != nil {
 				config.Log.Warnf("Error getting/creating Tip DB object. %v %v", err, tx.AuthInfo.Tip)
+				err = dbTransaction.Rollback().Error
+				if err != nil {
+					config.Log.Warnf("error during rollback %v %v", err)
+				}
 				continue
 			}
 			tx.AuthInfo.TipID = tx.AuthInfo.Tip.ID
 
 			if err := dbTransaction.Where(&tx.AuthInfo.Fee).FirstOrCreate(&tx.AuthInfo.Fee).Error; err != nil {
 				config.Log.Warnf("Error getting/creating Fee DB object. %v %v", err, tx.AuthInfo.Fee)
+				err = dbTransaction.Rollback().Error
+				if err != nil {
+					config.Log.Warnf("error during rollback %v %v", err)
+				}
 				continue
 			}
 
@@ -346,18 +354,30 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				if signerInfo.Address != nil {
 					if err := dbTransaction.Where(&signerInfo.Address).FirstOrCreate(&signerInfo.Address).Error; err != nil {
 						config.Log.Warnf("Error getting/creating signerInfo.Address DB object %v %v", err, signerInfo.Address)
+						err = dbTransaction.Rollback().Error
+						if err != nil {
+							config.Log.Warnf("error during rollback %v %v", err)
+						}
 						continue
 					}
 					signerInfo.AddressID = signerInfo.Address.ID
 				}
 				if err := dbTransaction.Where(&signerInfo).FirstOrCreate(&signerInfo).Error; err != nil {
 					config.Log.Warnf("Error getting/creating signerInfo DB object %v %v", err, signerInfo)
+					err = dbTransaction.Rollback().Error
+					if err != nil {
+						config.Log.Warnf("error during rollback %v %v", err)
+					}
 					continue
 				}
 			}
 
 			if err := dbTransaction.Where(&tx.AuthInfo).FirstOrCreate(&tx.AuthInfo).Error; err != nil {
 				config.Log.Warnf("Error getting/creating authInfo DB object. %v %v", err, tx.AuthInfo)
+				err = dbTransaction.Rollback().Error
+				if err != nil {
+					config.Log.Warnf("error during rollback %v %v", err)
+				}
 				continue
 			}
 
@@ -366,6 +386,10 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				DoNothing: true,
 			}).FirstOrCreate(&tx.TxResponse).Error; err != nil {
 				config.Log.Warnf("Error getting/creating txResponse DB object. %v %v", err, tx.TxResponse)
+				err = dbTransaction.Rollback().Error
+				if err != nil {
+					config.Log.Warnf("error during rollback %v %v", err)
+				}
 				continue
 			}
 			tx.TxResponseID = tx.TxResponse.ID

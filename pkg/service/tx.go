@@ -89,7 +89,7 @@ func (s *txs) GetTxByHash(ctx context.Context, txHash string) (*pb.TxByHashRespo
 	return &pb.TxByHashResponse{Tx: txRes}, nil
 }
 
-func (s *txs) TransactionsByBlock(ctx context.Context, height int64, offset int64, limit int64) ([]*pb.TxByHash, int64, error) {
+func (s *txs) TransactionsByBlock(ctx context.Context, height int64, limit int64, offset int64) ([]*pb.TxByHash, int64, error) {
 	transactions, all, err := s.txRepo.Transactions(ctx, limit, offset, &repository.TxsFilter{TxBlockHeight: &height})
 	log.Info().Msgf("transactions len %d", len(transactions))
 	if err != nil {

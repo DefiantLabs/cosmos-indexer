@@ -194,20 +194,20 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
 			 left join tx_tip tip on au.tip_id = tip.id
-			 left join tx_responses resp on tx_response_id = resp.id`
+			 left join tx_responses resp on tx_response_id = resp.id
+			 left join blocks on txes.block_id = blocks.id`
 
 	var rows pgx.Rows
 	var err error
 	if filter != nil { // TODO make it more flexible
-		//if filter.TxHash != nil {
-		//	filterValue = *filter.TxHash
-		//	query = query + ` WHERE txes.hash = $1`
-		//}
 		if filter.TxBlockHeight != nil {
-			query = query + ` WHERE block_id = $1`
+			query += ` WHERE blocks.height = $1`
+			query += ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
+			rows, err = r.db.Query(ctx, query, *filter.TxBlockHeight, limit, offset)
+		} else if filter.TxHash != nil && len(*filter.TxHash) > 0 {
+			query = query + ` WHERE hash = $1`
 			query = query + ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
-			blockHeight := &filter.TxBlockHeight
-			rows, err = r.db.Query(ctx, query, blockHeight, limit, offset)
+			rows, err = r.db.Query(ctx, query, *filter.TxHash, limit, offset)
 		}
 	} else {
 		query = query + ` ORDER BY txes.timestamp desc LIMIT $1 OFFSET $2`
@@ -303,8 +303,24 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 		result = append(result, &tx)
 	}
 
-	queryAll := `select count(*) from txes`
-	row := r.db.QueryRow(ctx, queryAll)
+	blockID := -1
+	if filter != nil {
+		queryBlock := `select id from blocks where blocks.height = $1`
+		row := r.db.QueryRow(ctx, queryBlock, *filter.TxBlockHeight)
+		if err = row.Scan(&blockID); err != nil {
+			log.Err(err).Msgf("queryBlock error")
+		}
+	}
+
+	var row pgx.Row
+	if blockID >= 0 {
+		queryAll := `select count(*) from txes where txes.block_id = $1`
+		row = r.db.QueryRow(ctx, queryAll, blockID)
+	} else {
+		queryAll := `select count(*) from txes`
+		row = r.db.QueryRow(ctx, queryAll)
+	}
+
 	var allTx int64
 	if err = row.Scan(&allTx); err != nil {
 		log.Err(err).Msgf("queryAll error")
