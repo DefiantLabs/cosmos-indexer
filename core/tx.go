@@ -23,26 +23,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	cosmosTx "github.com/cosmos/cosmos-sdk/types/tx"
 	"gorm.io/gorm"
+
+	indexerEvents "github.com/DefiantLabs/cosmos-indexer/cosmos/events"
 )
-
-func toAttributes(attrs []types.Attribute) []txtypes.Attribute {
-	list := []txtypes.Attribute{}
-	for _, attr := range attrs {
-		lma := txtypes.Attribute{Key: attr.Key, Value: attr.Value}
-		list = append(list, lma)
-	}
-
-	return list
-}
-
-func toEvents(msgEvents types.StringEvents) (list []txtypes.LogMessageEvent) {
-	for _, evt := range msgEvents {
-		lme := txtypes.LogMessageEvent{Type: evt.Type, Attributes: toAttributes(evt.Attributes)}
-		list = append(list, lme)
-	}
-
-	return list
-}
 
 func getUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
@@ -90,11 +73,16 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		// We can entirely ignore failed TXs in downstream parsers, because according to the Cosmos specification, a single failed message in a TX fails the whole TX
 		if txResult.Code == 0 {
 			logs, err = types.ParseABCILogs(txResult.Log)
+
+			if err != nil {
+				logs, err = indexerEvents.ParseTxEventsToMessageIndexEvents(len(txFull.Body.Messages), txResult.Events)
+			}
 		} else {
 			err = nil
 		}
 
 		if err != nil {
+			config.Log.Errorf("Error parsing events to message index events to normalize: %v", err)
 			return nil, blockTime, fmt.Errorf("logs could not be parsed")
 		}
 
@@ -133,7 +121,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 
 				currTxLog := txtypes.LogMessage{
 					MessageIndex: msgIdx,
-					Events:       toEvents(msgEvents),
+					Events:       indexerEvents.StringEventstoNormalizedEvents(msgEvents),
 				}
 				currLogMsgs = append(currLogMsgs, currTxLog)
 			} else {
@@ -210,6 +198,17 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		currTx := txEventResp.Txs[txIdx]
 		currTxResp := txEventResp.TxResponses[txIdx]
 
+		if len(currTxResp.Logs) == 0 && len(currTxResp.Events) != 0 {
+			// We have a version of Cosmos SDK that removed the Logs field from the TxResponse, we need to parse the events into message index logs
+			parsedLogs, err := indexerEvents.ParseTxEventsToMessageIndexEvents(len(currTx.Body.Messages), currTxResp.Events)
+			if err != nil {
+				config.Log.Errorf("Error parsing events to message index events to normalize: %v", err)
+				return nil, blockTime, err
+			}
+
+			currTxResp.Logs = parsedLogs
+		}
+
 		// Get the Messages and Message Logs
 		for msgIdx := range currTx.Body.Messages {
 
@@ -254,7 +253,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 					msgEvents := currTxResp.Logs[msgIdx].Events
 					currTxLog := txtypes.LogMessage{
 						MessageIndex: msgIdx,
-						Events:       toEvents(msgEvents),
+						Events:       indexerEvents.StringEventstoNormalizedEvents(msgEvents),
 					}
 					currLogMsgs = append(currLogMsgs, currTxLog)
 				}
