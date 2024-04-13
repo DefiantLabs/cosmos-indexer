@@ -88,7 +88,9 @@ type IBCTransactionType struct {
 type IBCTransaction struct {
 	ID                   uint `gorm:"primaryKey"`
 	SourceChannel        string
+	SourcePort           string
 	DestinationChannel   string
+	DestinationPort      string
 	MessageID            uint `gorm:"uniqueIndex"`
 	Message              models.Message
 	IBCMsgType           MsgType
