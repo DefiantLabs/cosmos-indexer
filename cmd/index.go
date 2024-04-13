@@ -68,12 +68,20 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 		indexer.Config.Base.StartBlock = 1
 	}
 
-	db, err := connectToDBAndMigrate(indexer.Config.Database)
-	if err != nil {
-		config.Log.Fatal("Could not establish connection to the database", err)
-	}
+	// If DB has not been preset, connect to the database and migrate using the default configuration settings
+	if indexer.DB == nil {
+		db, err := connectToDBAndMigrate(indexer.Config.Database)
+		if err != nil {
+			config.Log.Fatal("Could not establish connection to the database", err)
+		}
 
-	indexer.DB = db
+		indexer.DB = db
+	} else {
+		err = dbTypes.MigrateModels(indexer.DB)
+		if err != nil {
+			config.Log.Fatal("Error running DB migrations", err)
+		}
+	}
 
 	indexer.DryRun = indexer.Config.Base.Dry
 

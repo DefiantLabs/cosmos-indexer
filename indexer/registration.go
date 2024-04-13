@@ -18,6 +18,10 @@ func (indexer *Indexer) RegisterMessageTypeFilter(filter filter.MessageTypeFilte
 	indexer.MessageTypeFilters = append(indexer.MessageTypeFilters, filter)
 }
 
+func (indexer *Indexer) RegisterCustomModels(models []any) {
+	indexer.CustomModels = append(indexer.CustomModels, models...)
+}
+
 func (indexer *Indexer) RegisterCustomBeginBlockEventParser(eventKey string, parser parsers.BlockEventParser) {
 	var err error
 	indexer.CustomBeginBlockEventParserRegistry, indexer.CustomBeginBlockParserTrackers, err = customBlockEventRegistration(
@@ -66,10 +70,6 @@ func (indexer *Indexer) RegisterCustomMessageParser(messageKey string, parser pa
 	indexer.CustomMessageParserTrackers[parser.Identifier()] = models.MessageParser{
 		Identifier: parser.Identifier(),
 	}
-}
-
-func (indexer *Indexer) RegisterCustomModels(models []any) {
-	indexer.CustomModels = models
 }
 
 func customBlockEventRegistration(registry map[string][]parsers.BlockEventParser, tracker map[string]models.BlockEventParser, eventKey string, parser parsers.BlockEventParser, lifecycleValue models.BlockLifecyclePosition) (map[string][]parsers.BlockEventParser, map[string]models.BlockEventParser, error) {

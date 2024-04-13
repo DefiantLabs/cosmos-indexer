@@ -7,7 +7,7 @@ The application uses a multi-processing workflow to achieve the following:
 
 ## System Workflow Diagram
 
-![](workflow.png)
+![](images/workflow.png)
 
 ## Block Enqueue
 
