@@ -18,7 +18,6 @@ func NormalizedAttributesToAttributes(attrs []txtypes.Attribute) []types.Attribu
 	}
 
 	return list
-
 }
 
 func AttributesToNormalizedAttributes(attrs []types.Attribute) []txtypes.Attribute {
@@ -50,7 +49,7 @@ func StringEventstoNormalizedEvents(msgEvents types.StringEvents) (list []txtype
 	return list
 }
 
-func EventsToNormalizedEvents(msgEvents []cometAbciTypes.Event) (list []txtypes.LogMessageEvent) {
+func toNormalizedEvents(msgEvents []cometAbciTypes.Event) (list []txtypes.LogMessageEvent) {
 	for _, evt := range msgEvents {
 		lme := txtypes.LogMessageEvent{Type: evt.Type, Attributes: EventAttributesToNormalizedAttributes(evt.Attributes)}
 		list = append(list, lme)
@@ -68,14 +67,13 @@ func ParseTxEventsToMessageIndexEvents(numMessages int, events []cometAbciTypes.
 	}
 
 	// TODO: Fix this to be more efficient, no need to translate multiple times to hack this together
-	logMessageEvents := EventsToNormalizedEvents(events)
+	logMessageEvents := toNormalizedEvents(events)
 	for _, event := range logMessageEvents {
-
-		val, err := txtypes.GetValueForAttribute("msg_index", &event)
+		loopEvent := event
+		val, err := txtypes.GetValueForAttribute("msg_index", &loopEvent)
 
 		if err == nil && val != "" {
 			msgIndex, err := strconv.Atoi(val)
-
 			if err != nil {
 				config.Log.Error(fmt.Sprintf("Error parsing msg_index from event: %v", err))
 				return nil, err
