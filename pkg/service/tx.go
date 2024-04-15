@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -131,7 +132,7 @@ func (s *txs) txToProto(tx *models.Tx) *pb.TxByHash {
 			Code:      int32(tx.TxResponse.Code),
 			Data:      tx.TxResponse.Data,
 			Info:      tx.TxResponse.Info,
-			RawLog:    tx.TxResponse.RawLog,
+			RawLog:    base64.StdEncoding.EncodeToString(tx.TxResponse.RawLog),
 			GasWanted: fmt.Sprintf("%d", tx.TxResponse.GasWanted),
 			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
 			Timestamp: tx.TxResponse.TimeStamp,

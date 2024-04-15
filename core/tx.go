@@ -163,11 +163,12 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 
 		txBody.Messages = currMessages
 		indexerTx.Body = txBody
+
 		indexerTxResp := txtypes.Response{
 			TxHash:    tendermintHashToHex(txHash),
 			Height:    fmt.Sprintf("%d", blockResults.Block.Height),
 			TimeStamp: blockTimeStr,
-			RawLog:    txResult.Log,
+			RawLog:    []byte(txResult.Log),
 			Log:       currLogMsgs,
 			Code:      txResult.Code,
 			GasUsed:   txResult.GasUsed,
@@ -348,7 +349,7 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			TxHash:    currTxResp.TxHash,
 			Height:    fmt.Sprintf("%d", currTxResp.Height),
 			TimeStamp: currTxResp.Timestamp,
-			RawLog:    currTxResp.RawLog,
+			RawLog:    []byte(currTxResp.RawLog),
 			Log:       currLogMsgs,
 			Code:      currTxResp.Code,
 			GasUsed:   currTxResp.GasUsed,
