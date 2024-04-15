@@ -84,6 +84,13 @@ message TxByHash {
   TxAuthInfo auth_info = 6;
   TxResponse tx_response = 7;
   Block block = 8;
+  repeated Fee fees = 9;
+}
+
+message Fee {
+  string amount=1;
+  string denom=2;
+  string payer=3;
 }
 
 message TxAuthInfo {

@@ -3,7 +3,9 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/shopspring/decimal"
 	"time"
 
@@ -63,7 +65,9 @@ func (r *blocksServer) TxByHash(ctx context.Context, in *pb.TxByHashRequest) (*p
 	if err != nil {
 		return &pb.TxByHashResponse{}, err
 	}
-	return res, nil
+	return &pb.TxByHashResponse{
+		Tx: r.txToProto(res),
+	}, nil
 }
 
 func (r *blocksServer) TotalTransactions(ctx context.Context, in *pb.TotalTransactionsRequest) (*pb.TotalTransactionsResponse, error) {
@@ -81,11 +85,19 @@ func (r *blocksServer) TotalTransactions(ctx context.Context, in *pb.TotalTransa
 }
 
 func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
-	txs, total, err := r.srvTx.Transactions(ctx, in.Limit.Offset, in.Limit.Limit)
+	transactions, total, err := r.srvTx.Transactions(ctx, in.Limit.Offset, in.Limit.Limit)
 	if err != nil {
 		return &pb.TransactionsResponse{}, err
 	}
-	return &pb.TransactionsResponse{Tx: txs, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
+
+	res := make([]*pb.TxByHash, 0)
+	for _, tx := range transactions {
+		transaction := tx
+		res = append(res, r.txToProto(transaction))
+	}
+
+	return &pb.TransactionsResponse{Tx: res,
+		Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
 
 func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksRequest) (*pb.TotalBlocksResponse, error) {
@@ -158,9 +170,15 @@ func (r *blocksServer) blockSignToProto(in *model.BlockSigners) *pb.SignerAddres
 }
 
 func (r *blocksServer) TxsByBlock(ctx context.Context, in *pb.TxsByBlockRequest) (*pb.TxsByBlockResponse, error) {
-	data, all, err := r.srvTx.TransactionsByBlock(ctx, in.BlockHeight, in.Limit.Limit, in.Limit.Offset)
+	transactions, all, err := r.srvTx.TransactionsByBlock(ctx, in.BlockHeight, in.Limit.Limit, in.Limit.Offset)
 	if err != nil {
 		return &pb.TxsByBlockResponse{}, err
+	}
+
+	data := make([]*pb.TxByHash, 0)
+	for _, tx := range transactions {
+		transaction := tx
+		data = append(data, r.txToProto(transaction))
 	}
 
 	return &pb.TxsByBlockResponse{
@@ -171,4 +189,86 @@ func (r *blocksServer) TxsByBlock(ctx context.Context, in *pb.TxsByBlockRequest)
 			All:    all,
 		},
 	}, nil
+}
+
+func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
+	return &pb.TxByHash{
+		Memo:                        tx.Memo,
+		TimeoutHeight:               fmt.Sprintf("%d", tx.TimeoutHeight),
+		ExtensionOptions:            tx.ExtensionOptions,
+		NonCriticalExtensionOptions: tx.NonCriticalExtensionOptions,
+		AuthInfo: &pb.TxAuthInfo{
+			PublicKey:  []string{}, // TODO
+			Signatures: tx.Signatures,
+			Fee: &pb.TxFee{
+				Granter:  tx.AuthInfo.Fee.Granter,
+				Payer:    tx.AuthInfo.Fee.Payer,
+				GasLimit: fmt.Sprintf("%d", tx.AuthInfo.Fee.GasLimit),
+				Amount:   nil, // TODO
+			},
+			Tip: &pb.TxTip{
+				Tipper: tx.AuthInfo.Tip.Tipper,
+				Amount: s.txTipToProto(tx.AuthInfo.Tip.Amount),
+			},
+			SignerInfos: s.toSignerInfosProto(tx.AuthInfo.SignerInfos),
+		},
+		Fees: s.toFeesProto(tx.Fees),
+		TxResponse: &pb.TxResponse{
+			Height:    tx.TxResponse.Height,
+			Txhash:    tx.Hash,
+			Codespace: tx.TxResponse.Codespace,
+			Code:      int32(tx.TxResponse.Code),
+			Data:      tx.TxResponse.Data,
+			Info:      tx.TxResponse.Info,
+			RawLog:    base64.StdEncoding.EncodeToString(tx.TxResponse.RawLog),
+			GasWanted: fmt.Sprintf("%d", tx.TxResponse.GasWanted),
+			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
+			Timestamp: tx.TxResponse.TimeStamp,
+		},
+		Block: s.toBlockProto(&tx.Block),
+	}
+}
+
+func (s *blocksServer) toFeesProto(fees []models.Fee) []*pb.Fee {
+	res := make([]*pb.Fee, 0)
+	for _, fee := range fees {
+		res = append(res, &pb.Fee{
+			Amount: fee.Amount.String(),
+			Denom:  fee.Denomination.Base,
+			Payer:  fee.PayerAddress.Address,
+		})
+	}
+	return res
+}
+
+func (s *blocksServer) toBlockProto(bl *models.Block) *pb.Block {
+	return &pb.Block{
+		BlockHeight:       bl.Height,
+		ProposedValidator: bl.ProposerConsAddress.Address,
+		TxHash:            bl.BlockHash,
+		GenerationTime:    timestamppb.New(bl.TimeStamp),
+	}
+}
+
+func (s *blocksServer) txTipToProto(tips []models.TipAmount) []*pb.Denom {
+	denoms := make([]*pb.Denom, 0)
+	for _, tip := range tips {
+		denoms = append(denoms, &pb.Denom{
+			Denom:  tip.Denom,
+			Amount: tip.Amount.String(),
+		})
+	}
+	return denoms
+}
+
+func (s *blocksServer) toSignerInfosProto(signs []*models.SignerInfo) []*pb.SignerInfo {
+	res := make([]*pb.SignerInfo, 0)
+	for _, sign := range signs {
+		res = append(res, &pb.SignerInfo{
+			Address:  sign.Address.Address,
+			ModeInfo: sign.ModeInfo,
+			Sequence: int64(sign.Sequence),
+		})
+	}
+	return res
 }
