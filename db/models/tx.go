@@ -103,7 +103,7 @@ type TxResponse struct {
 	Height    string
 	TimeStamp string
 	Code      uint32
-	RawLog    string
+	RawLog    []byte `gorm:"type:bytea"`
 	// Log       []LogMessage
 	GasUsed   int64
 	GasWanted int64

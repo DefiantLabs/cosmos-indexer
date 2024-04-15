@@ -50,7 +50,7 @@ type Response struct {
 	Height    string       `json:"height"`
 	TimeStamp string       `json:"timestamp"`
 	Code      uint32       `json:"code"`
-	RawLog    string       `json:"raw_log"`
+	RawLog    []byte       `json:"raw_log"`
 	Log       []LogMessage `json:"logs"`
 	GasUsed   int64        `json:"gas_used"`
 	GasWanted int64        `json:"gas_wanted"`
