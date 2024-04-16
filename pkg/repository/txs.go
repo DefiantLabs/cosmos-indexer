@@ -132,12 +132,12 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 			query += ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
 			rows, err = r.db.Query(ctx, query, *filter.TxBlockHeight, limit, offset)
 		} else if filter.TxHash != nil && len(*filter.TxHash) > 0 {
-			query = query + ` WHERE hash = $1`
-			query = query + ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
+			query += ` WHERE hash = $1`
+			query += ` ORDER BY txes.timestamp desc LIMIT $2 OFFSET $3`
 			rows, err = r.db.Query(ctx, query, *filter.TxHash, limit, offset)
 		}
 	} else {
-		query = query + ` ORDER BY txes.timestamp desc LIMIT $1 OFFSET $2`
+		query += ` ORDER BY txes.timestamp desc LIMIT $1 OFFSET $2`
 		rows, err = r.db.Query(ctx, query, limit, offset)
 	}
 
