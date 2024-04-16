@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/shopspring/decimal"
 
@@ -55,15 +56,23 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (
 	}
 	o.TotalFees = totalFees
 
-	queryAll := `select count(*) from txes where txes.block_id = $1`
-	row := r.db.QueryRow(ctx, queryAll, blockID)
-	var allTx int64
-	if err = row.Scan(&allTx); err != nil {
-		return nil, fmt.Errorf("row.Scan %v", err)
+	allTx, err := r.countAllTxs(ctx, blockID)
+	if err != nil {
+		return nil, fmt.Errorf("countAllTxs %v", err)
 	}
 	o.TotalTx = allTx
 
 	return o, nil
+}
+
+func (r *blocks) countAllTxs(ctx context.Context, blockID int64) (int64, error) {
+	queryAll := `select count(*) from txes where txes.block_id = $1`
+	row := r.db.QueryRow(ctx, queryAll, blockID)
+	var allTx int64
+	if err := row.Scan(&allTx); err != nil {
+		return 0, fmt.Errorf("row.Scan %v", err)
+	}
+	return allTx, nil
 }
 
 func (r *blocks) GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error) {
@@ -164,11 +173,11 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 			return nil, 0, fmt.Errorf("rowFees.Scan, Scan: %v", errScan)
 		}
 
-		queryTxs := `select count(*) from txes where txes.block_id = $1`
-		rowQueryTxs := r.db.QueryRow(ctx, queryTxs, blockID)
-		if err = rowQueryTxs.Scan(&in.TotalTx); err != nil {
+		allTx, err := r.countAllTxs(ctx, int64(blockID))
+		if err != nil {
 			return nil, 0, fmt.Errorf("rowQueryTxs.Scan, Scan: %v", errScan)
 		}
+		in.TotalTx = allTx
 
 		queryGas := `select blocks.height, sum(COALESCE(tx_responses.gas_wanted,0)), sum(COALESCE(tx_responses.gas_used,0)) from blocks
 						left join txes on blocks.id = txes.block_id
