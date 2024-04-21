@@ -41,33 +41,39 @@ type IBCTransactionType struct {
 
 type IBCTransaction struct {
 	ID                   uint `gorm:"primaryKey"`
-	SourceChannel        string
-	SourcePort           string
-	DestinationChannel   string
-	DestinationPort      string
 	MessageID            uint `gorm:"uniqueIndex"`
 	Message              models.Message
 	IBCMsgType           MsgType
 	IBCTransactionTypeID uint
 	IBCTransactionType   IBCTransactionType
+	ChainIBCPathID       uint
+	ChainIBCPath         ChainIBCPath
+}
+
+type ChainIBCPath struct {
+	ID              uint `gorm:"primaryKey"`
+	ChainID         uint `gorm:"uniqueIndex:chain_ibc_path,priority:1"`
+	Chain           models.Chain
+	ChainChannel    string `gorm:"uniqueIndex:chain_ibc_path,priority:2"`
+	ChainPort       string `gorm:"uniqueIndex:chain_ibc_path,priority:3"`
+	OffchainChannel string `gorm:"uniqueIndex:chain_ibc_path,priority:4"`
+	OffchainPort    string `gorm:"uniqueIndex:chain_ibc_path,priority:5"`
 }
 
 type IBCTransactionParser struct {
 	UniqueID string
 }
 
-func (p *IBCTransactionParser) Identifier() string {
-	return p.UniqueID
+func (c *IBCTransactionParser) Identifier() string {
+	return c.UniqueID
 }
 
 func (c *IBCTransactionParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexerTxTypes.LogMessage, cfg config.IndexConfig) (*any, error) {
-
 	// Check if this is a MsgAcknowledgement
 	msgAck, okMsgAck := cosmosMsg.(*chanTypes.MsgAcknowledgement)
 
 	if okMsgAck {
 		parsedMsgAck, err := parseMsgAcknowledgement(msgAck)
-
 		if err != nil {
 			return nil, fmt.Errorf("error parsing MsgAcknowledgement: %w", err)
 		}
@@ -82,7 +88,6 @@ func (c *IBCTransactionParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexer
 
 	if okMsgRecvPacket {
 		parsedMsgRecvPacket, err := parseMsgRecvPacket(msgRecvPacket)
-
 		if err != nil {
 			return nil, fmt.Errorf("error parsing MsgAcknowledgement: %w", err)
 		}
@@ -98,26 +103,29 @@ func (c *IBCTransactionParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexer
 type IBCTransactionParsedData struct {
 	ParsedIBCMessage   *IBCTransaction
 	IBCTransactionType *IBCTransactionType
+	ChainIBCPath       *ChainIBCPath
 }
 
 func parseMsgAcknowledgement(msg *chanTypes.MsgAcknowledgement) (IBCTransactionParsedData, error) {
 	parsedData := IBCTransactionParsedData{
 		ParsedIBCMessage: &IBCTransaction{
-			SourceChannel:      msg.Packet.GetSourceChannel(),
-			DestinationChannel: msg.Packet.GetDestChannel(),
-			SourcePort:         msg.Packet.GetSourcePort(),
-			DestinationPort:    msg.Packet.GetDestPort(),
-			IBCMsgType:         MsgAcknowledgement,
+			IBCMsgType: MsgAcknowledgement,
 		},
 	}
 
 	ibcTransactionType, err := determinePacketType(msg.Packet.Data)
-
 	if err != nil {
 		return parsedData, err
 	}
 
 	parsedData.IBCTransactionType = &ibcTransactionType
+
+	parsedData.ChainIBCPath = &ChainIBCPath{
+		ChainChannel:    msg.Packet.GetSourceChannel(),
+		ChainPort:       msg.Packet.GetSourcePort(),
+		OffchainChannel: msg.Packet.GetDestChannel(),
+		OffchainPort:    msg.Packet.GetDestPort(),
+	}
 
 	return parsedData, nil
 }
@@ -125,16 +133,11 @@ func parseMsgAcknowledgement(msg *chanTypes.MsgAcknowledgement) (IBCTransactionP
 func parseMsgRecvPacket(msg *chanTypes.MsgRecvPacket) (IBCTransactionParsedData, error) {
 	parsedData := IBCTransactionParsedData{
 		ParsedIBCMessage: &IBCTransaction{
-			SourceChannel:      msg.Packet.GetSourceChannel(),
-			DestinationChannel: msg.Packet.GetDestChannel(),
-			SourcePort:         msg.Packet.GetSourcePort(),
-			DestinationPort:    msg.Packet.GetDestPort(),
-			IBCMsgType:         MsgRecvPacket,
+			IBCMsgType: MsgRecvPacket,
 		},
 	}
 
 	ibcTransactionType, err := determinePacketType(msg.Packet.Data)
-
 	if err != nil {
 		return parsedData, err
 	}
@@ -144,6 +147,13 @@ func parseMsgRecvPacket(msg *chanTypes.MsgRecvPacket) (IBCTransactionParsedData,
 	}
 
 	parsedData.IBCTransactionType = &ibcTransactionType
+
+	parsedData.ChainIBCPath = &ChainIBCPath{
+		ChainChannel:    msg.Packet.GetDestChannel(),
+		ChainPort:       msg.Packet.GetDestPort(),
+		OffchainChannel: msg.Packet.GetSourceChannel(),
+		OffchainPort:    msg.Packet.GetSourcePort(),
+	}
 
 	return parsedData, nil
 }
@@ -175,7 +185,6 @@ func determinePacketType(packetData []byte) (IBCTransactionType, error) {
 
 	var validatorUpdates ValidatorUpdates
 	err := json.Unmarshal(packetData, &validatorUpdates)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
@@ -218,7 +227,6 @@ func determinePacketType(packetData []byte) (IBCTransactionType, error) {
 }
 
 func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message models.Message, messageEvents []parsers.MessageEventWithAttributes, cfg config.IndexConfig) error {
-
 	ibcTransaction, ok := (*dataset).(IBCTransactionParsedData)
 
 	if !ok {
@@ -230,7 +238,6 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 
 	// Create or update the IBC transaction type
 	err := db.Where(&ibcTransactionType).FirstOrCreate(&ibcTransactionType).Error
-
 	if err != nil {
 		return err
 	}
@@ -241,10 +248,31 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 	parsedIBCMessage.Message = message
 	parsedIBCMessage.MessageID = message.ID
 
+	ibcTransaction.ChainIBCPath.ChainID = message.Tx.Block.ChainID
+
+	// attempt to find relation for chain path
+
+	chainPath := ChainIBCPath{
+		ChainID:         message.Tx.Block.ChainID,
+		ChainChannel:    ibcTransaction.ChainIBCPath.ChainChannel,
+		ChainPort:       ibcTransaction.ChainIBCPath.ChainPort,
+		OffchainChannel: ibcTransaction.ChainIBCPath.OffchainChannel,
+		OffchainPort:    ibcTransaction.ChainIBCPath.OffchainPort,
+	}
+
+	err = db.Where(&chainPath).FirstOrCreate(&chainPath).Error
+
+	if err != nil {
+		return err
+	}
+
+	parsedIBCMessage.ChainIBCPathID = chainPath.ID
+	parsedIBCMessage.ChainIBCPath = chainPath
+
 	// Create or update the IBC transaction
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "message_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"source_channel", "destination_channel", "message_id", "ibc_msg_type", "ibc_transaction_type_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"ibc_msg_type", "ibc_transaction_type_id", "chain_ibc_path_id"}),
 	}).Create(parsedIBCMessage).Error; err != nil {
 		return err
 	}
@@ -255,7 +283,7 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 func main() {
 	indexer := cmd.GetBuiltinIndexer()
 
-	indexer.RegisterCustomModels([]any{IBCTransactionType{}, IBCTransaction{}})
+	indexer.RegisterCustomModels([]any{IBCTransactionType{}, IBCTransaction{}, ChainIBCPath{}})
 
 	// This indexer is only concerned with MsgRecvPacket and MsgAcknowledgement messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
