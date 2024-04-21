@@ -26,6 +26,10 @@ var (
 	viperConf = viper.New()
 )
 
+func GetRootCmd() *cobra.Command {
+	return rootCmd
+}
+
 // Execute executes the root command.
 func Execute() error {
 	return rootCmd.Execute()
