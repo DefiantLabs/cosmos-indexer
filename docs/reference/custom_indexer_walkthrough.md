@@ -87,26 +87,36 @@ type IBCTransactionType struct {
 
 type IBCTransaction struct {
 	ID                   uint `gorm:"primaryKey"`
-	SourceChannel        string
-	SourcePort           string
-	DestinationChannel   string
-	DestinationPort      string
 	MessageID            uint `gorm:"uniqueIndex"`
 	Message              models.Message
 	IBCMsgType           MsgType
 	IBCTransactionTypeID uint
 	IBCTransactionType   IBCTransactionType
+	ChainIBCPathID       uint
+	ChainIBCPath         ChainIBCPath
+}
+
+type ChainIBCPath struct {
+	ID              uint `gorm:"primaryKey"`
+	ChainID         uint `gorm:"uniqueIndex:chain_ibc_path,priority:1"`
+	Chain           models.Chain
+	ChainChannel    string `gorm:"uniqueIndex:chain_ibc_path,priority:2"`
+	ChainPort       string `gorm:"uniqueIndex:chain_ibc_path,priority:3"`
+	OffchainChannel string `gorm:"uniqueIndex:chain_ibc_path,priority:4"`
+	OffchainPort    string `gorm:"uniqueIndex:chain_ibc_path,priority:5"`
 }
 
 func main() {
 	indexer := cmd.GetBuiltinIndexer()
 
-	indexer.RegisterCustomModels([]any{IBCTransactionType{}, IBCTransaction{}})
+	indexer.RegisterCustomModels([]any{IBCTransactionType{}, IBCTransaction{}, ChainIBCPath{}})
     // ... rest of the main function
 }
 ```
 
 We intend to parse out the type of IBC message from the data inside of it. For this, we have a custom model `IBCTransactionType` that will store the type of IBC message. We also have a custom model `IBCTransaction` that will store the parsed data from the IBC message. This model also contains the indexer's built-in `Message` model as a foreign key, allowing us to link our parsed data to the default dataset of the indexer.
+
+The `ChainIBCPath` model is used to store the IBC path between the chain and the off-chain system. This model allows us to determine later on what chain this IBC transaction was between. It contains the built-in `Chain` model as a foreign key, allowing us to link the IBC path to the chain we are indexing.
 
 ## Step 4 - Creating Custom Parsers
 
@@ -204,8 +214,9 @@ With the main parsing function implemented, we can now define the parsing functi
 
 ```go
 type IBCTransactionParsedData struct {
-	ParsedIBCMessage *IBCTransaction
-	IBCMessageType *IBCTransactionType
+	ParsedIBCMessage   *IBCTransaction
+	IBCTransactionType *IBCTransactionType
+	ChainIBCPath       *ChainIBCPath
 }
 ```
 
@@ -233,7 +244,6 @@ import (
 )
 
 func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message models.Message, messageEvents []parsers.MessageEventWithAttributes, cfg config.IndexConfig) error {
-
 	ibcTransaction, ok := (*dataset).(IBCTransactionParsedData)
 
 	if !ok {
@@ -245,7 +255,6 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 
 	// Create or update the IBC transaction type
 	err := db.Where(&ibcTransactionType).FirstOrCreate(&ibcTransactionType).Error
-
 	if err != nil {
 		return err
 	}
@@ -256,11 +265,31 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 	parsedIBCMessage.Message = message
 	parsedIBCMessage.MessageID = message.ID
 
-	// Create or update the IBC transaction
+	ibcTransaction.ChainIBCPath.ChainID = message.Tx.Block.ChainID
 
+	// attempt to find relation for chain path
+
+	chainPath := ChainIBCPath{
+		ChainID:         message.Tx.Block.ChainID,
+		ChainChannel:    ibcTransaction.ChainIBCPath.ChainChannel,
+		ChainPort:       ibcTransaction.ChainIBCPath.ChainPort,
+		OffchainChannel: ibcTransaction.ChainIBCPath.OffchainChannel,
+		OffchainPort:    ibcTransaction.ChainIBCPath.OffchainPort,
+	}
+
+	err = db.Where(&chainPath).FirstOrCreate(&chainPath).Error
+
+	if err != nil {
+		return err
+	}
+
+	parsedIBCMessage.ChainIBCPathID = chainPath.ID
+	parsedIBCMessage.ChainIBCPath = chainPath
+
+	// Create or update the IBC transaction
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "message_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"source_channel", "destination_channel", "message_id", "ibc_msg_type", "ibc_transaction_type_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"ibc_msg_type", "ibc_transaction_type_id", "chain_ibc_path_id"}),
 	}).Create(parsedIBCMessage).Error; err != nil {
 		return err
 	}
@@ -269,7 +298,11 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 }
 ```
 
-This function takes advantage of the Gorm ORM to insert the parsed data into the database. The function first checks if the dataset is of the correct type, then inserts the IBC transaction type into the database. It then links the IBC transaction type to the IBC transaction and inserts the IBC transaction into the database. Due to the usage of a unique index on the `message_id` foreign key, the function will either create a new IBC transaction or update an existing one if the message ID already exists in the database.
+This function takes advantage of the Gorm ORM to insert the parsed data into the database. The function first checks if the dataset is of the correct type, then inserts the IBC transaction type into the database. It then links the IBC transaction type to the IBC transaction.
+
+It then creates or finds the entry for the ChainIBCPath, linking the result to the IBC transaction.
+
+It then inserts the IBC transaction into the database. Due to the usage of a unique index on the `message_id` foreign key, the function will either create a new IBC transaction or update an existing one if the message ID already exists in the database.
 
 ## Step 5 - Registering the Custom Parsers
 
