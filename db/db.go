@@ -64,6 +64,19 @@ func MigrateModels(db *gorm.DB) error {
 		return err
 	}
 
+	if err := migrateIndexes(db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func migrateIndexes(db *gorm.DB) error {
+	err := db.Raw(`create index if not exists idx_height_desc on blocks (height desc);`).Error
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

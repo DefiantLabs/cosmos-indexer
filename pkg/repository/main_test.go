@@ -138,7 +138,9 @@ func purgeResources(dockerPool *dockertest.Pool, resources ...*dockertest.Resour
 
 func postgresManualMigration(ctx context.Context) {
 	// TODO add this into migration files
-	query := `
+	migrations := make([]string, 0)
+
+	queryTxes := `
 	create table txes
 	(
 		id                             bigserial primary key,
@@ -157,9 +159,36 @@ func postgresManualMigration(ctx context.Context) {
 	
 	create unique index idx_txes_hash
 		on txes (hash);`
-	_, err := postgresConn.Exec(ctx, query)
-	if err != nil {
-		log.Err(err).Msgf("couldn't manual postgres migration: %s", err.Error())
-		return
+	migrations = append(migrations, queryTxes)
+
+	queryBlocks := `create table blocks
+	(
+		id                       bigserial primary key,
+		time_stamp               timestamp with time zone,
+		height                   bigint,
+		chain_id                 bigint,
+		proposer_cons_address_id bigint,
+		tx_indexed               boolean,
+		block_events_indexed     boolean,
+		block_hash               text
+	)`
+	migrations = append(migrations, queryBlocks)
+
+	queryFees := `create table fees
+		(
+			id               bigserial primary key,
+			tx_id            bigint,
+			amount           numeric(78),
+			denomination_id  bigint,
+			payer_address_id bigint
+		);`
+	migrations = append(migrations, queryFees)
+
+	for _, query := range migrations {
+		_, err := postgresConn.Exec(ctx, query)
+		if err != nil {
+			log.Err(err).Msgf("couldn't manual postgres migration: %s", err.Error())
+			return
+		}
 	}
 }
