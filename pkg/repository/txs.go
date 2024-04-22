@@ -22,6 +22,7 @@ type Txs interface {
 	TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, int64, int64, error)
 	VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error)
 	Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error)
+	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
 }
 
 type TxsFilter struct {
@@ -94,21 +95,25 @@ func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decima
 	return decimal.NewFromInt(0), decimal.NewFromInt(0), nil
 }
 
+func (r *txs) TransactionRawLog(ctx context.Context, hash string) ([]byte, error) {
+	return nil, nil
+}
+
 func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error) {
 	query := `
 	   select 
 	       txes.id as tx_id,
 	       txes.signatures as signatures,
-		   hash,
+		   txes.hash,
 		   txes.code as tx_code,
-		   block_id,
-		   timestamp,
-		   memo,
-		   timeout_height,
-		   extension_options,
-		   non_critical_extension_options,
-		   auth_info_id,
-		   tx_response_id,
+		   txes.block_id,
+		   txes.timestamp,
+		   txes.memo,
+		   txes.timeout_height,
+		   txes.extension_options,
+		   txes.non_critical_extension_options,
+		   txes.auth_info_id,
+		   txes.tx_response_id,
 		   auf.gas_limit, 
 		   auf.payer, 
 		   auf.granter, 
@@ -116,7 +121,11 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 		   resp.code as tx_resp_code, 
 		   resp.gas_used as tx_res_gas_used,
 		   resp.gas_wanted as tx_res_gas_wanted, 
-		   resp.raw_log, resp.time_stamp, resp.codespace, resp.data, resp.info
+		   NULL as raw_log, 
+		   resp.time_stamp, 
+		   resp.codespace, 
+		   resp.data, 
+		   resp.info
 		from txes
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
@@ -294,7 +303,11 @@ func (r *txs) signerInfosByAuthID(ctx context.Context, authID uint) ([]*models.S
 func (r *txs) blockInfo(ctx context.Context, blockID uint) (*models.Block, error) {
 	queryBlockInfo := `
 						select 
-						    blocks.time_stamp, blocks.height, blocks.chain_id, addresses.address, blocks.block_hash
+						    blocks.time_stamp, 
+						    blocks.height, 
+						    blocks.chain_id, 
+						    addresses.address, 
+						    blocks.block_hash
 							from blocks 
 							left join addresses on blocks.proposer_cons_address_id = addresses.id
 							where blocks.id = $1
