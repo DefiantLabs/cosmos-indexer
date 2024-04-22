@@ -89,8 +89,12 @@ func getViperConfig() {
 	viperConf = v
 }
 
+func GetViperConfig() *viper.Viper {
+	return viperConf
+}
+
 // Set config vars from cpnfig file not already specified on command line.
-func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+func BindFlags(cmd *cobra.Command, v *viper.Viper) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		configName := f.Name
 
@@ -109,7 +113,7 @@ func setupLogger(logLevel string, logPath string, prettyLogging bool) {
 	config.DoConfigureLogger(logPath, logLevel, prettyLogging)
 }
 
-func connectToDBAndMigrate(dbConfig config.Database) (*gorm.DB, error) {
+func ConnectToDBAndMigrate(dbConfig config.Database) (*gorm.DB, error) {
 	database, err := db.PostgresDbConnect(dbConfig.Host, dbConfig.Port, dbConfig.Database, dbConfig.User, dbConfig.Password, strings.ToLower(dbConfig.LogLevel))
 	if err != nil {
 		config.Log.Fatal("Could not establish connection to the database", err)
