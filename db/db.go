@@ -77,6 +77,15 @@ func migrateIndexes(db *gorm.DB) error {
 		return err
 	}
 
+	err = db.Raw(`create index if not exists idx_block_id on txes (block_id);
+						create index if not exists idx_auth_info_id on txes (auth_info_id);
+						create index if not exists idx_tx_response_id on txes (tx_response_id);
+						create index if not exists idx_fee_id on tx_auth_info (fee_id);
+						create index if not exists idx_tip_id on tx_auth_info (tip_id);`).Error
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
