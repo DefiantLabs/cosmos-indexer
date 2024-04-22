@@ -30,3 +30,11 @@ func FindOrCreateAddressByAddress(db *gorm.DB, address string) (models.Address, 
 	err := db.Where(&addr).FirstOrCreate(&addr).Error
 	return addr, err
 }
+
+func GetChains(db *gorm.DB) ([]models.Chain, error) {
+	var chains []models.Chain
+	if err := db.Find(&chains).Error; err != nil {
+		return nil, err
+	}
+	return chains, nil
+}

@@ -48,7 +48,7 @@ func GetBuiltinIndexer() *indexerPackage.Indexer {
 
 // setupIndex loads the configuration from file and command line flags, validates the configuration, and sets up the logger and database connection.
 func setupIndex(cmd *cobra.Command, args []string) error {
-	bindFlags(cmd, viperConf)
+	BindFlags(cmd, viperConf)
 
 	err := indexer.Config.Validate()
 	if err != nil {
@@ -70,7 +70,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 
 	// If DB has not been preset, connect to the database and migrate using the default configuration settings
 	if indexer.DB == nil {
-		db, err := connectToDBAndMigrate(indexer.Config.Database)
+		db, err := ConnectToDBAndMigrate(indexer.Config.Database)
 		if err != nil {
 			config.Log.Fatal("Could not establish connection to the database", err)
 		}
