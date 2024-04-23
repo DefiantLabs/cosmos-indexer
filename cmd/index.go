@@ -328,7 +328,10 @@ func index(cmd *cobra.Command, args []string) {
 	srvTxs := service.NewTxs(repoTxs)
 
 	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs)
-	grpcServer := grpc.NewServer()
+	size := 1024 * 1024 * 50
+	grpcServer := grpc.NewServer(
+		grpc.MaxSendMsgSize(size),
+		grpc.MaxRecvMsgSize(size))
 	blocks.RegisterBlocksServiceServer(grpcServer, blocksServer)
 	go func() {
 		log.Println("blocks server started: " + grpcServUrl)
