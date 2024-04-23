@@ -191,6 +191,15 @@ func (r *blocksServer) TxsByBlock(ctx context.Context, in *pb.TxsByBlockRequest)
 	}, nil
 }
 
+func (s *blocksServer) TransactionRawLog(ctx context.Context, in *pb.TransactionRawLogRequest) (*pb.TransactionRawLogResponse, error) {
+	resp, err := s.srvTx.TransactionRawLog(ctx, in.TxHash)
+	if err != nil {
+		return &pb.TransactionRawLogResponse{}, err
+	}
+
+	return &pb.TransactionRawLogResponse{RawLog: resp}, nil
+}
+
 func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 	return &pb.TxByHash{
 		Memo:                        tx.Memo,

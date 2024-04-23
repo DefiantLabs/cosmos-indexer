@@ -96,7 +96,22 @@ func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decima
 }
 
 func (r *txs) TransactionRawLog(ctx context.Context, hash string) ([]byte, error) {
-	return nil, nil
+	query := `
+	   select
+		   resp.raw_log
+		from txes
+			 inner join tx_responses resp on txes.tx_response_id = resp.id
+		where txes.hash = $1`
+
+	row := r.db.QueryRow(ctx, query, hash)
+
+	var rawLog []byte
+	if err := row.Scan(&rawLog); err != nil {
+		log.Err(err).Msgf("repository.TransactionRawLog")
+		return nil, fmt.Errorf("not found")
+	}
+
+	return rawLog, nil
 }
 
 func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error) {

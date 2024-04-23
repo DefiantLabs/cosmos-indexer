@@ -20,6 +20,7 @@ type Txs interface {
 		int64, error)
 	TransactionsByBlock(ctx context.Context, height int64, offset int64,
 		limit int64) ([]*models.Tx, int64, error)
+	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
 }
 
 type txs struct {
@@ -32,6 +33,10 @@ func NewTxs(txRepo repository.Txs) *txs {
 
 func (s *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error) {
 	return s.txRepo.ChartTxByDay(ctx, from, to)
+}
+
+func (s *txs) TransactionRawLog(ctx context.Context, hash string) ([]byte, error) {
+	return s.txRepo.TransactionRawLog(ctx, hash)
 }
 
 func (s *txs) Transactions(ctx context.Context, offset int64, limit int64) ([]*models.Tx, int64, error) {
