@@ -184,6 +184,22 @@ func postgresManualMigration(ctx context.Context) {
 		);`
 	migrations = append(migrations, queryFees)
 
+	queryTxResponses := `create table tx_responses
+		(
+			id         bigserial primary key,
+			tx_hash    text,
+			height     text,
+			time_stamp text,
+			code       bigint,
+			raw_log    bytea,
+			gas_used   bigint,
+			gas_wanted bigint,
+			codespace  text,
+			data       text,
+			info       text
+		);`
+	migrations = append(migrations, queryTxResponses)
+
 	for _, query := range migrations {
 		_, err := postgresConn.Exec(ctx, query)
 		if err != nil {

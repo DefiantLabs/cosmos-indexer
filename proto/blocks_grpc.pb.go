@@ -29,6 +29,7 @@ const (
 	BlocksService_GetBlocks_FullMethodName         = "/blocks.BlocksService/GetBlocks"
 	BlocksService_BlockSignatures_FullMethodName   = "/blocks.BlocksService/BlockSignatures"
 	BlocksService_TxsByBlock_FullMethodName        = "/blocks.BlocksService/TxsByBlock"
+	BlocksService_TransactionRawLog_FullMethodName = "/blocks.BlocksService/TransactionRawLog"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -45,6 +46,7 @@ type BlocksServiceClient interface {
 	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 	BlockSignatures(ctx context.Context, in *BlockSignaturesRequest, opts ...grpc.CallOption) (*BlockSignaturesResponse, error)
 	TxsByBlock(ctx context.Context, in *TxsByBlockRequest, opts ...grpc.CallOption) (*TxsByBlockResponse, error)
+	TransactionRawLog(ctx context.Context, in *TransactionRawLogRequest, opts ...grpc.CallOption) (*TransactionRawLogResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -145,6 +147,15 @@ func (c *blocksServiceClient) TxsByBlock(ctx context.Context, in *TxsByBlockRequ
 	return out, nil
 }
 
+func (c *blocksServiceClient) TransactionRawLog(ctx context.Context, in *TransactionRawLogRequest, opts ...grpc.CallOption) (*TransactionRawLogResponse, error) {
+	out := new(TransactionRawLogResponse)
+	err := c.cc.Invoke(ctx, BlocksService_TransactionRawLog_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -159,6 +170,7 @@ type BlocksServiceServer interface {
 	GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	BlockSignatures(context.Context, *BlockSignaturesRequest) (*BlockSignaturesResponse, error)
 	TxsByBlock(context.Context, *TxsByBlockRequest) (*TxsByBlockResponse, error)
+	TransactionRawLog(context.Context, *TransactionRawLogRequest) (*TransactionRawLogResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -195,6 +207,9 @@ func (UnimplementedBlocksServiceServer) BlockSignatures(context.Context, *BlockS
 }
 func (UnimplementedBlocksServiceServer) TxsByBlock(context.Context, *TxsByBlockRequest) (*TxsByBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TxsByBlock not implemented")
+}
+func (UnimplementedBlocksServiceServer) TransactionRawLog(context.Context, *TransactionRawLogRequest) (*TransactionRawLogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TransactionRawLog not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -389,6 +404,24 @@ func _BlocksService_TxsByBlock_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_TransactionRawLog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionRawLogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).TransactionRawLog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_TransactionRawLog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).TransactionRawLog(ctx, req.(*TransactionRawLogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -435,6 +468,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TxsByBlock",
 			Handler:    _BlocksService_TxsByBlock_Handler,
+		},
+		{
+			MethodName: "TransactionRawLog",
+			Handler:    _BlocksService_TransactionRawLog_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
