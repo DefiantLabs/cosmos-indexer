@@ -23,6 +23,7 @@ type Txs interface {
 	VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error)
 	Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error)
 	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
+	TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error)
 }
 
 type TxsFilter struct {
@@ -93,6 +94,42 @@ func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, i
 func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error) {
 	// TODO understand in what denom to return
 	return decimal.NewFromInt(0), decimal.NewFromInt(0), nil
+}
+
+func (r *txs) TransactionSigners(ctx context.Context, txHash string) ([]*models.SignerInfo, error) {
+	querySignerInfos := `
+						select
+							txi.signer_info_id,
+							txnf.address_id,
+							txnf.mode_info,
+							txnf.sequence,
+							addr.address
+						from txes
+							inner join tx_auth_info tai on txes.auth_info_id = txes.id
+							inner join tx_signer_infos txi on tai.id = txi.auth_info_id
+							inner join tx_signer_info txnf on txi.signer_info_id = txnf.id
+							inner join addresses addr on txnf.address_id = addr.id
+						where txes.hash = $1`
+	signerInfos := make([]*models.SignerInfo, 0)
+	rowsSigners, err := r.db.Query(ctx, querySignerInfos, txHash)
+	if err != nil {
+		log.Err(err).Msgf("querySignerInfos error")
+		return nil, err
+	}
+	for rowsSigners.Next() {
+		var in models.SignerInfo
+		var addr models.Address
+
+		errScan := rowsSigners.Scan(&in.ID, &addr.ID, &in.ModeInfo, &in.Sequence, &addr.Address)
+		if errScan != nil {
+			log.Err(err).Msgf("rowsSigners.Scan error")
+			return nil, fmt.Errorf("repository.querySignerInfos, Scan: %v", errScan)
+		}
+		in.Address = &addr
+		signerInfos = append(signerInfos, &in)
+	}
+
+	return signerInfos, nil
 }
 
 func (r *txs) TransactionRawLog(ctx context.Context, hash string) ([]byte, error) {
@@ -206,18 +243,12 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 			tx.Block = *block
 		}
 
-		var signerInfos []*models.SignerInfo
-		if signerInfos, err = r.signerInfosByAuthID(ctx, tx.AuthInfoID); err != nil {
-			log.Err(err).Msgf("error in signerInfosByAuthID")
-		}
-
 		var fees []models.Fee
 		if fees, err = r.feesByTransaction(ctx, tx.ID); err != nil {
 			log.Err(err).Msgf("error in feesByTransaction")
 		}
 		tx.Fees = fees
 
-		authInfo.SignerInfos = signerInfos
 		authInfo.Fee = authInfoFee
 		authInfo.Tip = authInfoTip
 		tx.AuthInfo = authInfo
@@ -279,40 +310,6 @@ func (r *txs) feesByTransaction(ctx context.Context, txID uint) ([]models.Fee, e
 		feesRes = append(feesRes, in)
 	}
 	return feesRes, nil
-}
-
-func (r *txs) signerInfosByAuthID(ctx context.Context, authID uint) ([]*models.SignerInfo, error) {
-	querySignerInfos := `
-						select 
-						    txi.signer_info_id, 
-						    txnf.address_id, 
-						    txnf.mode_info, 
-						    txnf.sequence, 
-						    addr.address
-						from tx_signer_infos txi 
-						left join tx_signer_info txnf on txi.signer_info_id = txnf.id
-						left join addresses addr on txnf.address_id = addr.id
-                      	where txi.auth_info_id = $1`
-	signerInfos := make([]*models.SignerInfo, 0)
-	rowsSigners, err := r.db.Query(ctx, querySignerInfos, authID)
-	if err != nil {
-		log.Err(err).Msgf("querySignerInfos error")
-		return nil, err
-	}
-	for rowsSigners.Next() {
-		var in models.SignerInfo
-		var addr models.Address
-
-		errScan := rowsSigners.Scan(&in.ID, &addr.ID, &in.ModeInfo, &in.Sequence, &addr.Address)
-		if errScan != nil {
-			log.Err(err).Msgf("rowsSigners.Scan error")
-			return nil, fmt.Errorf("repository.querySignerInfos, Scan: %v", errScan)
-		}
-		in.Address = &addr
-		signerInfos = append(signerInfos, &in)
-	}
-
-	return signerInfos, nil
 }
 
 func (r *txs) blockInfo(ctx context.Context, blockID uint) (*models.Block, error) {

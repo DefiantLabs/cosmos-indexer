@@ -21,6 +21,7 @@ type Txs interface {
 	TransactionsByBlock(ctx context.Context, height int64, offset int64,
 		limit int64) ([]*models.Tx, int64, error)
 	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
+	TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error)
 }
 
 type txs struct {
@@ -85,4 +86,8 @@ func (s *txs) TransactionsByBlock(ctx context.Context, height int64, limit int64
 	}
 
 	return transactions, all, nil
+}
+
+func (s *txs) TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error) {
+	return s.txRepo.TransactionSigners(ctx, hash)
 }
