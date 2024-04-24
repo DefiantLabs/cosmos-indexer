@@ -101,8 +101,8 @@ func (r *txs) TransactionSigners(ctx context.Context, txHash string) ([]*models.
 						select
 							txi.signer_info_id,
 							txnf.address_id,
-							txnf.mode_info,
-							txnf.sequence,
+							coalesce(txnf.mode_info,''),
+							coalesce(txnf.sequence, 0),
 							addr.address
 						from txes
 							inner join tx_auth_info tai on txes.auth_info_id = txes.id
