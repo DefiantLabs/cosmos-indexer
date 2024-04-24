@@ -200,6 +200,46 @@ func postgresManualMigration(ctx context.Context) {
 		);`
 	migrations = append(migrations, queryTxResponses)
 
+	queryTxAuthInfo := `create table tx_auth_info
+			(
+				id     bigserial primary key,
+				fee_id bigint,
+				tip_id bigint
+			);`
+	migrations = append(migrations, queryTxAuthInfo)
+
+	queryTxSignerInfos := `create table tx_signer_infos
+		(
+			auth_info_id   bigint not null,
+			signer_info_id bigint not null,
+			primary key (auth_info_id, signer_info_id)
+		);`
+	migrations = append(migrations, queryTxSignerInfos)
+
+	queryTxSignerInfo := `create table tx_signer_info
+	(
+		id         bigserial primary key,
+		address_id bigint,
+		mode_info  text,
+		sequence   bigint
+	);`
+	migrations = append(migrations, queryTxSignerInfo)
+
+	queryAddresses := `create table addresses
+			(
+				id      bigserial primary key,
+				address text
+			);`
+	migrations = append(migrations, queryAddresses)
+
+	querySignerAddresses := `create table tx_signer_addresses
+			(
+				tx_id      bigint not null,
+				address_id bigint not null,
+				primary key (tx_id, address_id)
+			);`
+	migrations = append(migrations, querySignerAddresses)
+
 	for _, query := range migrations {
 		_, err := postgresConn.Exec(ctx, query)
 		if err != nil {
