@@ -19,17 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	BlocksService_BlockInfo_FullMethodName         = "/blocks.BlocksService/BlockInfo"
-	BlocksService_BlockValidators_FullMethodName   = "/blocks.BlocksService/BlockValidators"
-	BlocksService_TxChartByDay_FullMethodName      = "/blocks.BlocksService/TxChartByDay"
-	BlocksService_TxByHash_FullMethodName          = "/blocks.BlocksService/TxByHash"
-	BlocksService_TotalTransactions_FullMethodName = "/blocks.BlocksService/TotalTransactions"
-	BlocksService_Transactions_FullMethodName      = "/blocks.BlocksService/Transactions"
-	BlocksService_TotalBlocks_FullMethodName       = "/blocks.BlocksService/TotalBlocks"
-	BlocksService_GetBlocks_FullMethodName         = "/blocks.BlocksService/GetBlocks"
-	BlocksService_BlockSignatures_FullMethodName   = "/blocks.BlocksService/BlockSignatures"
-	BlocksService_TxsByBlock_FullMethodName        = "/blocks.BlocksService/TxsByBlock"
-	BlocksService_TransactionRawLog_FullMethodName = "/blocks.BlocksService/TransactionRawLog"
+	BlocksService_BlockInfo_FullMethodName          = "/blocks.BlocksService/BlockInfo"
+	BlocksService_BlockValidators_FullMethodName    = "/blocks.BlocksService/BlockValidators"
+	BlocksService_TxChartByDay_FullMethodName       = "/blocks.BlocksService/TxChartByDay"
+	BlocksService_TxByHash_FullMethodName           = "/blocks.BlocksService/TxByHash"
+	BlocksService_TotalTransactions_FullMethodName  = "/blocks.BlocksService/TotalTransactions"
+	BlocksService_Transactions_FullMethodName       = "/blocks.BlocksService/Transactions"
+	BlocksService_TotalBlocks_FullMethodName        = "/blocks.BlocksService/TotalBlocks"
+	BlocksService_GetBlocks_FullMethodName          = "/blocks.BlocksService/GetBlocks"
+	BlocksService_BlockSignatures_FullMethodName    = "/blocks.BlocksService/BlockSignatures"
+	BlocksService_TxsByBlock_FullMethodName         = "/blocks.BlocksService/TxsByBlock"
+	BlocksService_TransactionRawLog_FullMethodName  = "/blocks.BlocksService/TransactionRawLog"
+	BlocksService_TransactionSigners_FullMethodName = "/blocks.BlocksService/TransactionSigners"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -47,6 +48,7 @@ type BlocksServiceClient interface {
 	BlockSignatures(ctx context.Context, in *BlockSignaturesRequest, opts ...grpc.CallOption) (*BlockSignaturesResponse, error)
 	TxsByBlock(ctx context.Context, in *TxsByBlockRequest, opts ...grpc.CallOption) (*TxsByBlockResponse, error)
 	TransactionRawLog(ctx context.Context, in *TransactionRawLogRequest, opts ...grpc.CallOption) (*TransactionRawLogResponse, error)
+	TransactionSigners(ctx context.Context, in *TransactionSignersRequest, opts ...grpc.CallOption) (*TransactionSignersResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -156,6 +158,15 @@ func (c *blocksServiceClient) TransactionRawLog(ctx context.Context, in *Transac
 	return out, nil
 }
 
+func (c *blocksServiceClient) TransactionSigners(ctx context.Context, in *TransactionSignersRequest, opts ...grpc.CallOption) (*TransactionSignersResponse, error) {
+	out := new(TransactionSignersResponse)
+	err := c.cc.Invoke(ctx, BlocksService_TransactionSigners_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -171,6 +182,7 @@ type BlocksServiceServer interface {
 	BlockSignatures(context.Context, *BlockSignaturesRequest) (*BlockSignaturesResponse, error)
 	TxsByBlock(context.Context, *TxsByBlockRequest) (*TxsByBlockResponse, error)
 	TransactionRawLog(context.Context, *TransactionRawLogRequest) (*TransactionRawLogResponse, error)
+	TransactionSigners(context.Context, *TransactionSignersRequest) (*TransactionSignersResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -210,6 +222,9 @@ func (UnimplementedBlocksServiceServer) TxsByBlock(context.Context, *TxsByBlockR
 }
 func (UnimplementedBlocksServiceServer) TransactionRawLog(context.Context, *TransactionRawLogRequest) (*TransactionRawLogResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransactionRawLog not implemented")
+}
+func (UnimplementedBlocksServiceServer) TransactionSigners(context.Context, *TransactionSignersRequest) (*TransactionSignersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TransactionSigners not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -422,6 +437,24 @@ func _BlocksService_TransactionRawLog_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_TransactionSigners_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionSignersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).TransactionSigners(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_TransactionSigners_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).TransactionSigners(ctx, req.(*TransactionSignersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -472,6 +505,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TransactionRawLog",
 			Handler:    _BlocksService_TransactionRawLog_Handler,
+		},
+		{
+			MethodName: "TransactionSigners",
+			Handler:    _BlocksService_TransactionSigners_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

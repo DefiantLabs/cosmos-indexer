@@ -18,6 +18,7 @@ service BlocksService {
   rpc BlockSignatures(BlockSignaturesRequest) returns (BlockSignaturesResponse) {}
   rpc TxsByBlock(TxsByBlockRequest) returns (TxsByBlockResponse) {}
   rpc TransactionRawLog(TransactionRawLogRequest) returns (TransactionRawLogResponse) {}
+  rpc TransactionSigners(TransactionSignersRequest) returns (TransactionSignersResponse) {}
 }
 
 message Block {
@@ -229,4 +230,12 @@ message TransactionRawLogRequest{
 
 message TransactionRawLogResponse{
   bytes raw_log = 1;
+}
+
+message TransactionSignersRequest{
+  string tx_hash = 1;
+}
+
+message TransactionSignersResponse{
+  repeated SignerInfo signers = 1;
 }

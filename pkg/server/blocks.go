@@ -3,11 +3,11 @@ package server
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"time"
+
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/shopspring/decimal"
-	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/service"
@@ -219,7 +219,6 @@ func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 				Tipper: tx.AuthInfo.Tip.Tipper,
 				Amount: s.txTipToProto(tx.AuthInfo.Tip.Amount),
 			},
-			SignerInfos: s.toSignerInfosProto(tx.AuthInfo.SignerInfos),
 		},
 		Fees: s.toFeesProto(tx.Fees),
 		TxResponse: &pb.TxResponse{
@@ -229,7 +228,6 @@ func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 			Code:      int32(tx.TxResponse.Code),
 			Data:      tx.TxResponse.Data,
 			Info:      tx.TxResponse.Info,
-			RawLog:    base64.StdEncoding.EncodeToString(tx.TxResponse.RawLog),
 			GasWanted: fmt.Sprintf("%d", tx.TxResponse.GasWanted),
 			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
 			Timestamp: tx.TxResponse.TimeStamp,
@@ -268,6 +266,15 @@ func (s *blocksServer) txTipToProto(tips []models.TipAmount) []*pb.Denom {
 		})
 	}
 	return denoms
+}
+
+func (s *blocksServer) TransactionSigners(ctx context.Context, in *pb.TransactionSignersRequest) (*pb.TransactionSignersResponse, error) {
+	resp, err := s.srvTx.TransactionSigners(ctx, in.TxHash)
+	if err != nil {
+		return &pb.TransactionSignersResponse{}, err
+	}
+
+	return &pb.TransactionSignersResponse{Signers: s.toSignerInfosProto(resp)}, nil
 }
 
 func (s *blocksServer) toSignerInfosProto(signs []*models.SignerInfo) []*pb.SignerInfo {
