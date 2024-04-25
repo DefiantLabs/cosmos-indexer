@@ -66,7 +66,7 @@ func (s *txs) TotalTransactions(ctx context.Context, to time.Time) (*model.Total
 }
 
 func (s *txs) GetTxByHash(ctx context.Context, txHash string) (*models.Tx, error) {
-	transactions, _, err := s.txRepo.Transactions(ctx, 1000, 1, &repository.TxsFilter{TxHash: &txHash})
+	transactions, _, err := s.txRepo.Transactions(ctx, 10, 0, &repository.TxsFilter{TxHash: &txHash})
 	log.Info().Msgf("transactions len %d", len(transactions))
 	if err != nil {
 		return nil, err

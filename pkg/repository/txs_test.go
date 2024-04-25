@@ -201,3 +201,21 @@ func TestTxs_TransactionSigners(t *testing.T) {
 	require.NotNil(t, res[0].Address)
 	require.Equal(t, res[0].Address.Address, "test")
 }
+
+func TestTxs_Transactions_ByHash(t *testing.T) {
+	txes := `INSERT INTO txes (id, hash, code, block_id, signatures, timestamp, memo, timeout_height, extension_options, non_critical_extension_options, auth_info_id, tx_response_id)
+									VALUES
+									  (1, 'hash1', 123, 1, '{"signature1", "signature2"}', $1, 'Random memo 1', 100, '{"option1", "option2"}', '{"non_critical_option1", "non_critical_option2"}', 1, 1),
+									  (2, 'hash2', 456, 2, '{"signature3", "signature4"}', $1, 'Random memo 2', 200, '{"option3", "option4"}', '{"non_critical_option3", "non_critical_option4"}', 2, 2),
+									  (3, 'hash3', 789, 3, '{"signature5", "signature6"}', $1, 'Random memo 3', 300, '{"option5", "option6"}', '{"non_critical_option5", "non_critical_option6"}', 3, 3),
+									  (4, 'hash4', 101112, 4, '{"signature7", "signature8"}', $1, 'Random memo 4', 400, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4)
+									  `
+	_, err := postgresConn.Exec(context.Background(), txes, time.Now().UTC())
+	require.NoError(t, err)
+	txsRepo := NewTxs(postgresConn)
+	txHash := "hash1"
+
+	res, _, err := txsRepo.Transactions(context.Background(), 100, 0, &TxsFilter{TxHash: &txHash})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+}
