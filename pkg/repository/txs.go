@@ -166,18 +166,17 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 		   txes.non_critical_extension_options,
 		   txes.auth_info_id,
 		   txes.tx_response_id,
-		   auf.gas_limit, 
-		   auf.payer, 
-		   auf.granter, 
-		   tip.tipper,
-		   resp.code as tx_resp_code, 
-		   resp.gas_used as tx_res_gas_used,
-		   resp.gas_wanted as tx_res_gas_wanted, 
-		   NULL as raw_log, 
-		   resp.time_stamp, 
-		   resp.codespace, 
-		   resp.data, 
-		   resp.info
+		   COALESCE(auf.gas_limit,0), 
+		   COALESCE(auf.payer,''), 
+		   COALESCE(auf.granter,''), 
+		   COALESCE(tip.tipper,''),
+		   COALESCE(resp.code,0) as tx_resp_code,
+		   COALESCE(resp.gas_used,0) as tx_res_gas_used,
+		   COALESCE(resp.gas_wanted,0) as tx_res_gas_wanted,
+		   COALESCE(resp.time_stamp, '2000-01-01 00:00:00'), 
+		   COALESCE(resp.codespace,''), 
+		   COALESCE(resp.data,''), 
+		   COALESCE(resp.info,'')
 		from txes
 			 left join tx_auth_info au on auth_info_id = au.id
 			 left join tx_auth_info_fee auf on au.fee_id = auf.id
@@ -225,7 +224,7 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 			&authInfoFee.GasLimit, &authInfoFee.Payer,
 			&authInfoFee.Granter, &authInfoTip.Tipper,
 			&txResponse.Code, &txResponse.GasUsed,
-			&txResponse.GasWanted, &txResponse.RawLog,
+			&txResponse.GasWanted,
 			&txResponse.TimeStamp, &txResponse.Codespace,
 			&txResponse.Data, &txResponse.Info); err != nil {
 			log.Err(err).Msgf("rows.Scan error")
@@ -258,7 +257,7 @@ func (r *txs) Transactions(ctx context.Context, limit int64, offset int64, filte
 	}
 
 	blockID := -1
-	if filter != nil {
+	if filter != nil && filter.TxBlockHeight != nil {
 		queryBlock := `select id from blocks where blocks.height = $1`
 		row := r.db.QueryRow(ctx, queryBlock, *filter.TxBlockHeight)
 		if err = row.Scan(&blockID); err != nil {

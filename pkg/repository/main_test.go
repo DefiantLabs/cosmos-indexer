@@ -240,6 +240,31 @@ func postgresManualMigration(ctx context.Context) {
 			);`
 	migrations = append(migrations, querySignerAddresses)
 
+	queryAuthFee := `create table tx_auth_info_fee
+			(
+				id        bigserial primary key,
+				gas_limit bigint,
+				payer     text,
+				granter   text
+			);`
+	migrations = append(migrations, queryAuthFee)
+
+	queryTxTip := `create table tx_tip
+				(
+					id     bigserial
+						primary key,
+					tipper text
+				);`
+	migrations = append(migrations, queryTxTip)
+
+	queryDenoms := `create table denoms
+		(
+			id   bigserial
+				primary key,
+			base text
+		);`
+	migrations = append(migrations, queryDenoms)
+
 	for _, query := range migrations {
 		_, err := postgresConn.Exec(ctx, query)
 		if err != nil {
