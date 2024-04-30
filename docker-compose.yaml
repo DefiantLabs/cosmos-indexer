@@ -48,7 +48,7 @@ services:
     - |
       cosmos-indexer index \
       --log.pretty=${PRETTY_LOG} \
-      --log.level=${LOG_LEVEL \
+      --log.level=${LOG_LEVEL} \
       --base.index-transactions=${INDEX_TRANSACTIONS} \
       --base.index-block-events=${INDEX_BLOCK_EVENTS} \
       --base.start-block=${START_BLOCK} \
