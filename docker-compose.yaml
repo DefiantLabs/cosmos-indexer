@@ -52,7 +52,7 @@ services:
       --base.index-transactions=${INDEX_TRANSACTIONS} \
       --base.index-block-events=${INDEX_BLOCK_EVENTS} \
       --base.start-block=${START_BLOCK} \
-      --base.end-block=-${END_BLOCK} \
+      --base.end-block=${END_BLOCK} \
       --base.throttling=${THROTTLING} \
       --base.rpc-workers=${RPC_WORKERS} \
       --base.reindex=${REINDEX} \
