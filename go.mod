@@ -10,6 +10,7 @@ require (
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/lib/pq v1.10.7
 	github.com/ory/dockertest/v3 v3.10.0
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/rs/zerolog v1.30.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.7.0
@@ -78,6 +79,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/cli v20.10.17+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v20.10.19+incompatible // indirect

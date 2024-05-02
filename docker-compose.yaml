@@ -20,7 +20,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=postgres
     ports:
-      - "5432:5432/tcp"
+      - "5437:5432/tcp"
     healthcheck:
       test: ["CMD", "nc", "-z", "-v", "localhost", "5432"]
       interval: 5s
@@ -30,7 +30,14 @@ services:
       vpcbr-2:
         ipv4_address: 10.5.0.8
     <<: *logging
-
+  redis:
+    image: redis
+    ports:
+      - '6381:6379'
+    networks:
+      vpcbr-2:
+        ipv4_address: 10.5.0.10
+    <<: *logging
   indexer:
     restart: "always"
     build:
@@ -58,10 +65,10 @@ services:
       cosmos-indexer index \
       --log.pretty = true \
       --log.level = info \
-      --base.start-block 993665 \
+      --base.start-block 1349625 \
       --base.end-block -1 \
       --base.throttling 2.005 \
-      --base.rpc-workers 10 \
+      --base.rpc-workers 1 \
       --base.reindex false \
       --base.index-transactions true \
       --base.index-block-events true \
@@ -73,7 +80,8 @@ services:
       --database.database postgres \
       --database.user taxuser \
       --database.password password \
-      --server.port 9002
+      --server.port 9002 \
+      --redis.addr redis:6379
 
 networks:
   vpcbr-2:

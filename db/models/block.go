@@ -13,6 +13,7 @@ type Block struct {
 	ProposerConsAddress   Address
 	ProposerConsAddressID uint
 	TxIndexed             bool
+	TotalTxs              int
 	// TODO: Should block event indexing be split out or rolled up?
 	BlockEventsIndexed bool
 	BlockHash          string

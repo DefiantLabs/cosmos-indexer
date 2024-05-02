@@ -16,6 +16,7 @@ type IndexConfig struct {
 	Probe              Probe
 	Flags              flags
 	Server             Server
+	RedisConf          RedisConf
 }
 
 type indexBase struct {
