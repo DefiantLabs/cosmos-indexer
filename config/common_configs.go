@@ -37,6 +37,11 @@ type Server struct {
 	Port int
 }
 
+type RedisConf struct {
+	RedisAddr string
+	RedisPsw  string
+}
+
 type throttlingBase struct {
 	Throttling float64 `mapstructure:"throttling"`
 }
@@ -70,6 +75,11 @@ func SetupProbeFlags(probeConf *Probe, cmd *cobra.Command) {
 
 func SetupServerFlags(serverConf *Server, cmd *cobra.Command) {
 	cmd.PersistentFlags().IntVar(&serverConf.Port, "server.port", 9002, "inbound grpc port")
+}
+
+func SetupRedisFlags(redisConf *RedisConf, cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVar(&redisConf.RedisAddr, "redis.addr", "-", "redis address")
+	cmd.PersistentFlags().StringVar(&redisConf.RedisPsw, "redis.psw", "-", "redis password")
 }
 
 func SetupThrottlingFlag(throttlingValue *float64, cmd *cobra.Command) {

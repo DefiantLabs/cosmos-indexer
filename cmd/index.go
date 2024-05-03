@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/DefiantLabs/cosmos-indexer/pkg/consumer"
+	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/redis/go-redis/v9"
 	"io"
 	"log"
 	"net"
@@ -63,6 +66,7 @@ func init() {
 	config.SetupServerFlags(&indexer.cfg.Server, indexCmd)
 	config.SetupThrottlingFlag(&indexer.cfg.Base.Throttling, indexCmd)
 	config.SetupIndexSpecificFlags(indexer.cfg, indexCmd)
+	config.SetupRedisFlags(&indexer.cfg.RedisConf, indexCmd)
 
 	rootCmd.AddCommand(indexCmd)
 }
@@ -342,8 +346,34 @@ func index(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// setup cache
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     idxr.cfg.RedisConf.RedisAddr,
+		Password: idxr.cfg.RedisConf.RedisPsw,
+		DB:       0, // use default DB
+	})
+
+	ctxPing, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err = rdb.Ping(ctxPing).Err(); err != nil {
+		panic(err)
+	}
+
+	cache := repository.NewCache(rdb)
+	chBlocks := make(chan *model.BlockInfo, 1000)
+	defer close(chBlocks)
+	cacheConsumer := consumer.NewCacheConsumer(cache, chBlocks)
+	go cacheConsumer.RunBlocks(ctx)
+	defer ctx.Done()
+
 	wg.Add(1)
-	go idxr.processBlocks(&wg, core.HandleFailedBlock, blockRPCWorkerDataChan, blockEventsDataChan, txDataChan, dbChainID, indexer.blockEventFilterRegistries)
+	go idxr.processBlocks(&wg, core.HandleFailedBlock,
+		blockRPCWorkerDataChan,
+		blockEventsDataChan,
+		txDataChan,
+		dbChainID,
+		indexer.blockEventFilterRegistries,
+		chBlocks)
 
 	wg.Add(1)
 	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
@@ -446,7 +476,14 @@ type blockEventsDBData struct {
 
 // This function is responsible for processing raw RPC data into app-usable types. It handles both block events and transactions.
 // It parses each dataset according to the application configuration requirements and passes the data to the channels that handle the parsed data.
-func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.FailedBlockHandler, blockRPCWorkerChan chan core.IndexerBlockEventData, blockEventsDataChan chan *blockEventsDBData, txDataChan chan *dbData, chainID uint, blockEventFilterRegistry blockEventFilterRegistries) {
+func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
+	failedBlockHandler core.FailedBlockHandler,
+	blockRPCWorkerChan chan core.IndexerBlockEventData,
+	blockEventsDataChan chan *blockEventsDBData,
+	txDataChan chan *dbData,
+	chainID uint,
+	blockEventFilterRegistry blockEventFilterRegistries,
+	blocksCh chan *model.BlockInfo) {
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
 	defer wg.Done()
@@ -530,8 +567,18 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup, failedBlockHandler core.F
 					block:        block,
 				}
 			}
-
 		}
+		blocksCh <- idxr.toBlockInfo(block)
+	}
+}
+
+func (idxr *Indexer) toBlockInfo(in models.Block) *model.BlockInfo {
+	return &model.BlockInfo{
+		BlockHeight:              in.Height,
+		ProposedValidatorAddress: in.ProposerConsAddress.Address,
+		TotalTx:                  int64(in.TotalTxs),
+		GenerationTime:           in.TimeStamp,
+		BlockHash:                in.BlockHash,
 	}
 }
 

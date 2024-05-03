@@ -39,6 +39,7 @@ func ProcessBlock(blockData *ctypes.ResultBlock, blockResultsData *ctypes.Result
 	block.ProposerConsAddress = models.Address{Address: propAddressFromHex.String()}
 	block.TimeStamp = blockData.Block.Time
 	block.BlockHash = base64.StdEncoding.EncodeToString(blockData.Block.LastBlockID.Hash)
+	block.TotalTxs = blockData.Block.Txs.Len()
 
 	return block, nil
 }
