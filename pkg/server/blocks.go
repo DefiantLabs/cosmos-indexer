@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
+
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/shopspring/decimal"
 
@@ -20,10 +22,11 @@ type blocksServer struct {
 	pb.UnimplementedBlocksServiceServer
 	srv   service.Blocks
 	srvTx service.Txs
+	cache repository.Cache
 }
 
-func NewBlocksServer(srv service.Blocks, srvTx service.Txs) *blocksServer {
-	return &blocksServer{srv: srv, srvTx: srvTx}
+func NewBlocksServer(srv service.Blocks, srvTx service.Txs, cache repository.Cache) *blocksServer {
+	return &blocksServer{srv: srv, srvTx: srvTx, cache: cache}
 }
 
 func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
@@ -100,6 +103,22 @@ func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequ
 		Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
 
+func (r *blocksServer) CacheTransactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
+	transactions, err := r.cache.GetTransactions(ctx, in.Limit.Offset, in.Limit.Limit)
+	if err != nil {
+		return &pb.TransactionsResponse{}, err
+	}
+
+	res := make([]*pb.TxByHash, 0)
+	for _, tx := range transactions {
+		transaction := tx
+		res = append(res, r.txToProto(transaction))
+	}
+
+	return &pb.TransactionsResponse{Tx: res,
+		Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset}}, nil
+}
+
 func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksRequest) (*pb.TotalBlocksResponse, error) {
 	blocks, err := r.srv.TotalBlocks(ctx, in.To.AsTime())
 	if err != nil {
@@ -124,6 +143,19 @@ func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (
 		res = append(res, r.blockToProto(bl))
 	}
 	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: all}}, nil
+}
+
+func (r *blocksServer) CacheGetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (*pb.GetBlocksResponse, error) {
+	blocks, err := r.cache.GetBlocks(ctx, in.Limit.Offset, in.Limit.Limit)
+	if err != nil {
+		return &pb.GetBlocksResponse{}, err
+	}
+
+	res := make([]*pb.Block, 0)
+	for _, bl := range blocks {
+		res = append(res, r.blockToProto(bl))
+	}
+	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset}}, nil
 }
 
 func (r *blocksServer) blockToProto(bl *model.BlockInfo) *pb.Block {

@@ -19,7 +19,10 @@ service BlocksService {
   rpc TxsByBlock(TxsByBlockRequest) returns (TxsByBlockResponse) {}
   rpc TransactionRawLog(TransactionRawLogRequest) returns (TransactionRawLogResponse) {}
   rpc TransactionSigners(TransactionSignersRequest) returns (TransactionSignersResponse) {}
+  rpc CacheTransactions(TransactionsRequest) returns (TransactionsResponse) {}
+  rpc CacheGetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
 }
+
 
 message Block {
   int64 block_height = 1;

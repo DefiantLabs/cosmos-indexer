@@ -37,6 +37,6 @@ func GetProbeConfig(conf config.Probe, debug bool) *probeClient.ChainClientConfi
 		Debug:          debug,
 		Timeout:        "30s",
 		OutputFormat:   "json",
-		Modules:        probeClient.ModuleBasics,
+		Modules:        probeClient.DefaultModuleBasics,
 	}
 }

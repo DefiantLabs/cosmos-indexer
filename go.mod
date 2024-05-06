@@ -3,7 +3,7 @@ module github.com/DefiantLabs/cosmos-indexer
 go 1.21
 
 require (
-	github.com/DefiantLabs/probe v0.0.0-20240104015908-02d561c503a8
+	github.com/DefiantLabs/probe v0.0.0-20240402041649-8df4799d9ebc
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/cosmos/ibc-go/v7 v7.3.1
