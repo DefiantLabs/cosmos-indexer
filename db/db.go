@@ -328,13 +328,16 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				tx.Messages[messageIndex].Message.MessageTypeID = fullUniqueBlockMessageTypes[tx.Messages[messageIndex].Message.MessageType.MessageType].ID
 
 				tx.Messages[messageIndex].Message.MessageType = fullUniqueBlockMessageTypes[tx.Messages[messageIndex].Message.MessageType.MessageType]
-				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
-					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventTypeID = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type].ID
-					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type]
 
-					for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
-						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKeyID = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key].ID
-						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key]
+				if indexerConfig.Flags.IndexMessageEvents {
+					for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+						tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventTypeID = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type].ID
+						tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType = fullUniqueBlockMessageEventTypes[tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageEventType.Type]
+
+						for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
+							tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKeyID = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key].ID
+							tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey = fullUniqueBlockMessageEventAttributeKeys[tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventAttributeKey.Key]
+						}
 					}
 				}
 
@@ -355,45 +358,47 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 				}
 			}
 
-			var messagesEventsSlice []*models.MessageEvent
-			for messageIndex := range tx.Messages {
-				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
-					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageID = tx.Messages[messageIndex].Message.ID
-					tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.Message = tx.Messages[messageIndex].Message
+			if indexerConfig.Flags.IndexMessageEvents {
+				var messagesEventsSlice []*models.MessageEvent
+				for messageIndex := range tx.Messages {
+					for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+						tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.MessageID = tx.Messages[messageIndex].Message.ID
+						tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.Message = tx.Messages[messageIndex].Message
 
-					messagesEventsSlice = append(messagesEventsSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent)
-				}
-			}
-
-			if len(messagesEventsSlice) != 0 {
-				if err := dbTransaction.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "message_id"}, {Name: "index"}},
-					DoUpdates: clause.AssignmentColumns([]string{"message_event_type_id"}),
-				}).Create(messagesEventsSlice).Error; err != nil {
-					config.Log.Error("Error getting/creating message events.", err)
-					return err
-				}
-			}
-
-			var messagesEventsAttributesSlice []*models.MessageEventAttribute
-			for messageIndex := range tx.Messages {
-				for eventIndex := range tx.Messages[messageIndex].MessageEvents {
-					for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
-						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventID = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.ID
-						tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEvent = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent
-
-						messagesEventsAttributesSlice = append(messagesEventsAttributesSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex])
+						messagesEventsSlice = append(messagesEventsSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent)
 					}
 				}
-			}
 
-			if len(messagesEventsAttributesSlice) != 0 {
-				if err := dbTransaction.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "message_event_id"}, {Name: "index"}},
-					DoUpdates: clause.AssignmentColumns([]string{"value", "message_event_attribute_key_id"}),
-				}).Create(messagesEventsAttributesSlice).Error; err != nil {
-					config.Log.Error("Error getting/creating message event attributes.", err)
-					return err
+				if len(messagesEventsSlice) != 0 {
+					if err := dbTransaction.Clauses(clause.OnConflict{
+						Columns:   []clause.Column{{Name: "message_id"}, {Name: "index"}},
+						DoUpdates: clause.AssignmentColumns([]string{"message_event_type_id"}),
+					}).Create(messagesEventsSlice).Error; err != nil {
+						config.Log.Error("Error getting/creating message events.", err)
+						return err
+					}
+				}
+
+				var messagesEventsAttributesSlice []*models.MessageEventAttribute
+				for messageIndex := range tx.Messages {
+					for eventIndex := range tx.Messages[messageIndex].MessageEvents {
+						for attributeIndex := range tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes {
+							tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEventID = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent.ID
+							tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex].MessageEvent = tx.Messages[messageIndex].MessageEvents[eventIndex].MessageEvent
+
+							messagesEventsAttributesSlice = append(messagesEventsAttributesSlice, &tx.Messages[messageIndex].MessageEvents[eventIndex].Attributes[attributeIndex])
+						}
+					}
+				}
+
+				if len(messagesEventsAttributesSlice) != 0 {
+					if err := dbTransaction.Clauses(clause.OnConflict{
+						Columns:   []clause.Column{{Name: "message_event_id"}, {Name: "index"}},
+						DoUpdates: clause.AssignmentColumns([]string{"value", "message_event_attribute_key_id"}),
+					}).Create(messagesEventsAttributesSlice).Error; err != nil {
+						config.Log.Error("Error getting/creating message event attributes.", err)
+						return err
+					}
 				}
 			}
 		}

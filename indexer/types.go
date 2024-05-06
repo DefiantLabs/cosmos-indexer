@@ -12,6 +12,14 @@ import (
 	"gorm.io/gorm"
 )
 
+type PostIndexCustomMessageDataset struct {
+	Config         config.IndexConfig
+	DB             *gorm.DB
+	DryRun         bool
+	IndexedDataset *[]dbTypes.TxDBWrapper
+	MessageParser  map[string]models.MessageParser
+}
+
 type Indexer struct {
 	Config                              *config.IndexConfig
 	DryRun                              bool
@@ -28,6 +36,7 @@ type Indexer struct {
 	CustomMessageParserRegistry         map[string][]parsers.MessageParser    // Used for associating parsers to message types
 	CustomMessageParserTrackers         map[string]models.MessageParser       // Used for tracking message parsers in the database
 	CustomModels                        []any
+	PostIndexCustomMessageFunction      func(*PostIndexCustomMessageDataset) error // Called post indexing of the custom messages with the indexed dataset, useful for custom indexing on the whole dataset or for additional processing
 }
 
 type BlockEventFilterRegistries struct {

@@ -72,3 +72,17 @@ However, if a customized Gorm instance is desired, the application will respect 
 The application relies on the Probe [client package](https://github.com/DefiantLabs/probe/tree/main/client) for interacting with the chain's RPC node. The `Indexer` type contains a `Client` field that is a pointer to the Probe client.
 
 The client package provides functionality that uses built-in Cosmos SDK functionality to make requests to the chain's RPC for raw blockchain data.
+
+## Post Indexing Workflow
+
+The `Indexer` type contains a `PostIndexCustomMessage` function that is called after the indexing workflow is complete. This function is responsible for any post-processing that should be done after the indexer has finished indexing blocks.
+
+This function can be overridden by the developer to add custom post-processing logic. Leaving the function nil will result in no post-processing being done.
+
+The dataset passed to the function is a `core.PostIndexData` struct that contains the following datasets:
+
+1. The Indexer Config
+2. The DB connection
+3. Whether the indexer is in Dry Run mode
+4. The entire indexed dataset, including custom message parser datasets (if they were filled out during single indexing, they will contain their respective data)
+5. Trackers for the custom message parsers by Identifier
