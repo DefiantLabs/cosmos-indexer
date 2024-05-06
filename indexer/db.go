@@ -60,6 +60,23 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 				config.Log.Info(fmt.Sprintf("Processing block %d (dry run, block data will not be stored in DB).", data.block.Height))
 			}
 
+			if indexer.PostIndexCustomMessageFunction != nil {
+				config.Log.Info(fmt.Sprintf("Running PostIndexCustomMessageFunction for block %d", data.block.Height))
+
+				dataset := &PostIndexCustomMessageDataset{
+					Config:         *indexer.Config,
+					DB:             indexer.DB,
+					DryRun:         indexer.DryRun,
+					IndexedDataset: &data.txDBWrappers,
+					MessageParser:  indexer.CustomMessageParserTrackers,
+				}
+
+				err := indexer.PostIndexCustomMessageFunction(dataset)
+				if err != nil {
+					config.Log.Fatal(fmt.Sprintf("Error running PostIndexCustomMessageFunction for block %d", data.block.Height), err)
+				}
+			}
+
 			// Just measuring how many blocks/second we can process
 			if indexer.Config.Base.BlockTimer > 0 {
 				blocksProcessed++
