@@ -331,7 +331,21 @@ func index(cmd *cobra.Command, args []string) {
 	repoTxs := repository.NewTxs(dbConnRepo)
 	srvTxs := service.NewTxs(repoTxs)
 
-	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs)
+	// setup cache
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     idxr.cfg.RedisConf.RedisAddr,
+		Password: idxr.cfg.RedisConf.RedisPsw,
+		DB:       0, // use default DB
+	})
+
+	ctxPing, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err = rdb.Ping(ctxPing).Err(); err != nil {
+		panic(err)
+	}
+	cache := repository.NewCache(rdb)
+
+	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs, *cache)
 	size := 1024 * 1024 * 50
 	grpcServer := grpc.NewServer(
 		grpc.MaxSendMsgSize(size),
@@ -346,24 +360,14 @@ func index(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// setup cache
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     idxr.cfg.RedisConf.RedisAddr,
-		Password: idxr.cfg.RedisConf.RedisPsw,
-		DB:       0, // use default DB
-	})
-
-	ctxPing, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err = rdb.Ping(ctxPing).Err(); err != nil {
-		panic(err)
-	}
-
-	cache := repository.NewCache(rdb)
 	chBlocks := make(chan *model.BlockInfo, 1000)
 	defer close(chBlocks)
-	cacheConsumer := consumer.NewCacheConsumer(cache, chBlocks)
+	chTxs := make(chan *models.Tx, 1000)
+	defer close(chTxs)
+
+	cacheConsumer := consumer.NewCacheConsumer(cache, chBlocks, chTxs, cache)
 	go cacheConsumer.RunBlocks(ctx)
+	go cacheConsumer.RunTransactions(ctx)
 	defer ctx.Done()
 
 	wg.Add(1)
@@ -373,7 +377,7 @@ func index(cmd *cobra.Command, args []string) {
 		txDataChan,
 		dbChainID,
 		indexer.blockEventFilterRegistries,
-		chBlocks)
+		chBlocks, chTxs, repoTxs)
 
 	wg.Add(1)
 	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
@@ -483,7 +487,10 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 	txDataChan chan *dbData,
 	chainID uint,
 	blockEventFilterRegistry blockEventFilterRegistries,
-	blocksCh chan *model.BlockInfo) {
+	blocksCh chan *model.BlockInfo,
+	txsCh chan *models.Tx,
+	txRepo repository.Txs) {
+
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
 	defer wg.Done()
@@ -565,6 +572,15 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 				txDataChan <- &dbData{
 					txDBWrappers: txDBWrappers,
 					block:        block,
+				}
+				for _, tx := range txDBWrappers {
+					tx.Tx.Block = block
+					res, err := txRepo.GetSenderAndReceiver(context.Background(), tx.Tx.Hash)
+					if err != nil {
+						config.Log.Error("unable to find sender and receiver", err)
+					}
+					tx.Tx.SenderReceiver = res
+					txsCh <- &tx.Tx
 				}
 			}
 		}

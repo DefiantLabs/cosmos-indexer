@@ -124,14 +124,14 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 
 		// Get the Messages and Message Logs
 		for msgIdx := range txFull.Body.Messages {
-
 			shouldIndex, err := messageTypeShouldIndex(txFull.Body.Messages[msgIdx].TypeUrl, messageTypeFilters)
 			if err != nil {
 				return nil, blockTime, err
 			}
 
 			if !shouldIndex {
-				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
+				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.",
+					blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
 				currMessages = append(currMessages, nil)
 				currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
 					MessageIndex: msgIdx,
@@ -498,7 +498,8 @@ func ProcessTx(db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte) (txDBWapp
 	if code == 0 {
 		for messageIndex, message := range tx.Tx.Body.Messages {
 			if message != nil {
-				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
+				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message,
+					tx.TxResponse.Log, uniqueEventTypes, uniqueEventAttributeKeys)
 				currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
 				uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Found msg of type '%v'.", tx.TxResponse.Height, tx.TxResponse.TxHash, messageType))

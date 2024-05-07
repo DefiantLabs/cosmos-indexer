@@ -33,3 +33,10 @@ type TotalTransactions struct {
 	Volume24H decimal.Decimal
 	Volume30D decimal.Decimal
 }
+
+type TxSenderReceiver struct {
+	MessageType string `json:"message_type,omitempty"`
+	Sender      string `json:"sender,omitempty"`
+	Receiver    string `json:"receiver,omitempty"`
+	Amount      string `json:"amount,omitempty"`
+}

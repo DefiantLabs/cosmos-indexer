@@ -19,7 +19,10 @@ service BlocksService {
   rpc TxsByBlock(TxsByBlockRequest) returns (TxsByBlockResponse) {}
   rpc TransactionRawLog(TransactionRawLogRequest) returns (TransactionRawLogResponse) {}
   rpc TransactionSigners(TransactionSignersRequest) returns (TransactionSignersResponse) {}
+  rpc CacheTransactions(TransactionsRequest) returns (TransactionsResponse) {}
+  rpc CacheGetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
 }
+
 
 message Block {
   int64 block_height = 1;
@@ -87,6 +90,14 @@ message TxByHash {
   TxResponse tx_response = 7;
   Block block = 8;
   repeated Fee fees = 9;
+  optional TxSenderReceiver sender_receiver = 10;
+}
+
+message TxSenderReceiver {
+  string message_type = 1;
+  string sender = 2;
+  string receiver = 3;
+  string amount = 4;
 }
 
 message Fee {

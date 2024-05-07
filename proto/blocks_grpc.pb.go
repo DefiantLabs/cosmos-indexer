@@ -31,6 +31,8 @@ const (
 	BlocksService_TxsByBlock_FullMethodName         = "/blocks.BlocksService/TxsByBlock"
 	BlocksService_TransactionRawLog_FullMethodName  = "/blocks.BlocksService/TransactionRawLog"
 	BlocksService_TransactionSigners_FullMethodName = "/blocks.BlocksService/TransactionSigners"
+	BlocksService_CacheTransactions_FullMethodName  = "/blocks.BlocksService/CacheTransactions"
+	BlocksService_CacheGetBlocks_FullMethodName     = "/blocks.BlocksService/CacheGetBlocks"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -49,6 +51,8 @@ type BlocksServiceClient interface {
 	TxsByBlock(ctx context.Context, in *TxsByBlockRequest, opts ...grpc.CallOption) (*TxsByBlockResponse, error)
 	TransactionRawLog(ctx context.Context, in *TransactionRawLogRequest, opts ...grpc.CallOption) (*TransactionRawLogResponse, error)
 	TransactionSigners(ctx context.Context, in *TransactionSignersRequest, opts ...grpc.CallOption) (*TransactionSignersResponse, error)
+	CacheTransactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
+	CacheGetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -167,6 +171,24 @@ func (c *blocksServiceClient) TransactionSigners(ctx context.Context, in *Transa
 	return out, nil
 }
 
+func (c *blocksServiceClient) CacheTransactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error) {
+	out := new(TransactionsResponse)
+	err := c.cc.Invoke(ctx, BlocksService_CacheTransactions_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blocksServiceClient) CacheGetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error) {
+	out := new(GetBlocksResponse)
+	err := c.cc.Invoke(ctx, BlocksService_CacheGetBlocks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -183,6 +205,8 @@ type BlocksServiceServer interface {
 	TxsByBlock(context.Context, *TxsByBlockRequest) (*TxsByBlockResponse, error)
 	TransactionRawLog(context.Context, *TransactionRawLogRequest) (*TransactionRawLogResponse, error)
 	TransactionSigners(context.Context, *TransactionSignersRequest) (*TransactionSignersResponse, error)
+	CacheTransactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
+	CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -225,6 +249,12 @@ func (UnimplementedBlocksServiceServer) TransactionRawLog(context.Context, *Tran
 }
 func (UnimplementedBlocksServiceServer) TransactionSigners(context.Context, *TransactionSignersRequest) (*TransactionSignersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransactionSigners not implemented")
+}
+func (UnimplementedBlocksServiceServer) CacheTransactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CacheTransactions not implemented")
+}
+func (UnimplementedBlocksServiceServer) CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CacheGetBlocks not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -455,6 +485,42 @@ func _BlocksService_TransactionSigners_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_CacheTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).CacheTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_CacheTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).CacheTransactions(ctx, req.(*TransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlocksService_CacheGetBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).CacheGetBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_CacheGetBlocks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).CacheGetBlocks(ctx, req.(*GetBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -509,6 +575,14 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TransactionSigners",
 			Handler:    _BlocksService_TransactionSigners_Handler,
+		},
+		{
+			MethodName: "CacheTransactions",
+			Handler:    _BlocksService_CacheTransactions_Handler,
+		},
+		{
+			MethodName: "CacheGetBlocks",
+			Handler:    _BlocksService_CacheGetBlocks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

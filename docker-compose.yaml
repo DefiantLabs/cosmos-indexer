@@ -43,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    user: defiant
+    user: cosmos-indexer
     stop_grace_period: 10s
     ports:
       - "9002:9002/tcp"
@@ -65,7 +65,7 @@ services:
       cosmos-indexer index \
       --log.pretty = true \
       --log.level = info \
-      --base.start-block 1349625 \
+      --base.start-block 1386440 \
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \

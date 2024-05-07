@@ -2,10 +2,10 @@ package core
 
 import (
 	"errors"
-
 	probeClient "github.com/DefiantLabs/probe/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/rs/zerolog/log"
 )
 
 // Provides an in-app tx decoder.
@@ -25,9 +25,9 @@ func InAppTxDecoder(cdc probeClient.Codec) sdk.TxDecoder {
 		}
 
 		var body tx.TxBody
-
 		err = body.Unmarshal(raw.BodyBytes)
 		if err != nil {
+			log.Err(err).Msgf("failed to unmarshal tx body")
 			return nil, errors.New("failed to unmarshal tx body")
 		}
 

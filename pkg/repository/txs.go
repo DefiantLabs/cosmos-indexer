@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,6 +25,8 @@ type Txs interface {
 	Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error)
 	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
 	TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error)
+	Messages(ctx context.Context, hash string) ([]*models.Message, error)
+	GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error)
 }
 
 type TxsFilter struct {
@@ -332,4 +335,89 @@ func (r *txs) blockInfo(ctx context.Context, blockID uint) (*models.Block, error
 	}
 	block.ProposerConsAddress = address
 	return &block, nil
+}
+
+func (r *txs) Messages(ctx context.Context, hash string) ([]*models.Message, error) {
+	query := `select txes.id,
+       messages.message_index,
+       messages.message_bytes,
+       message_types.message_type
+		from txes
+		   left join messages on txes.id = messages.tx_id
+		   left join message_types on messages.message_type_id = message_types.id
+		   where txes.hash = $1`
+	rows, err := r.db.Query(ctx, query, hash)
+	if err != nil {
+		log.Err(err).Msgf("rows error")
+		return nil, err
+	}
+	res := make([]*models.Message, 0)
+	for rows.Next() {
+		var txID uint
+		var messageIndex int
+		var messageBytes []byte
+		var messageType string
+
+		if err := rows.Scan(&txID, &messageIndex, &messageBytes, &messageType); err != nil {
+			log.Err(err).Msgf("Messages: rows.Scan error")
+			return nil, err
+		}
+
+		res = append(res, &models.Message{
+			TxID:         txID,
+			MessageIndex: messageIndex,
+			MessageBytes: messageBytes,
+			MessageType:  models.MessageType{MessageType: messageType},
+		})
+	}
+	return res, nil
+}
+
+func (r *txs) GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error) {
+	query := `select
+		   message_types.message_type,
+		   message_event_attributes.value,
+		   message_event_attribute_keys.key
+	from txes
+			left join messages on txes.id = messages.tx_id
+			left join message_types on messages.message_type_id = message_types.id
+			left join message_events on messages.id = message_events.message_id
+			left join message_event_types on message_events.message_event_type_id=message_event_types.id
+			left join message_event_attributes on message_events.id = message_event_attributes.message_event_id
+			left join message_event_attribute_keys on message_event_attributes.message_event_attribute_key_id = message_event_attribute_keys.id
+		   where txes.hash = $1
+		   and message_event_types.type = ANY($2)
+	order by messages.message_index, message_events.index, message_event_attributes.index asc`
+	types := []string{"transfer", "fungible_token_packet"}
+	rows, err := r.db.Query(ctx, query, hash, types)
+	if err != nil {
+		log.Err(err).Msgf("GetSenderAndReceiver: rows error")
+		return nil, err
+	}
+
+	res := &model.TxSenderReceiver{}
+	for rows.Next() {
+		var messageType string
+		var key string
+		var value string
+		if err := rows.Scan(&messageType, &value, &key); err != nil {
+			return nil, err
+		}
+		if res.MessageType == "" {
+			res.MessageType = messageType
+		}
+
+		if strings.EqualFold(key, "sender") {
+			res.Sender = value
+		}
+
+		if strings.EqualFold(key, "recipient") {
+			res.Receiver = value
+		}
+
+		if strings.EqualFold(key, "amount") {
+			res.Amount = value
+		}
+	}
+	return res, nil
 }

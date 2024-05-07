@@ -22,6 +22,8 @@ type Txs interface {
 		limit int64) ([]*models.Tx, int64, error)
 	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
 	TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error)
+	Messages(ctx context.Context, hash string) ([]*models.Message, error)
+	GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error)
 }
 
 type txs struct {
@@ -90,4 +92,12 @@ func (s *txs) TransactionsByBlock(ctx context.Context, height int64, limit int64
 
 func (s *txs) TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error) {
 	return s.txRepo.TransactionSigners(ctx, hash)
+}
+
+func (s *txs) Messages(ctx context.Context, hash string) ([]*models.Message, error) {
+	return s.txRepo.Messages(ctx, hash)
+}
+
+func (s *txs) GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error) {
+	return s.txRepo.GetSenderAndReceiver(ctx, hash)
 }
