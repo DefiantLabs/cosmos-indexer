@@ -377,7 +377,7 @@ func index(cmd *cobra.Command, args []string) {
 		txDataChan,
 		dbChainID,
 		indexer.blockEventFilterRegistries,
-		chBlocks, chTxs)
+		chBlocks, chTxs, repoTxs)
 
 	wg.Add(1)
 	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
@@ -488,7 +488,8 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 	chainID uint,
 	blockEventFilterRegistry blockEventFilterRegistries,
 	blocksCh chan *model.BlockInfo,
-	txsCh chan *models.Tx) {
+	txsCh chan *models.Tx,
+	txRepo repository.Txs) {
 
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
@@ -574,6 +575,11 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 				}
 				for _, tx := range txDBWrappers {
 					tx.Tx.Block = block
+					res, err := txRepo.GetSenderAndReceiver(context.Background(), tx.Tx.Hash)
+					if err != nil {
+						config.Log.Error("unable to find sender and receiver", err)
+					}
+					tx.Tx.SenderReceiver = res
 					txsCh <- &tx.Tx
 				}
 			}

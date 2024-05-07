@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"time"
 
 	"github.com/lib/pq"
@@ -27,7 +28,8 @@ type Tx struct {
 	AuthInfoID                  uint
 	AuthInfo                    AuthInfo `gorm:"foreignKey:AuthInfoID;belongsTo"`
 	TxResponseID                uint
-	TxResponse                  TxResponse `gorm:"foreignKey:TxResponseID;belongsTo"`
+	TxResponse                  TxResponse              `gorm:"foreignKey:TxResponseID;belongsTo"`
+	SenderReceiver              *model.TxSenderReceiver `gorm:"-" json:"sender_receiver"`
 }
 
 type AuthInfo struct {

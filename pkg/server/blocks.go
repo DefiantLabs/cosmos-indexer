@@ -264,7 +264,20 @@ func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
 			Timestamp: tx.TxResponse.TimeStamp,
 		},
-		Block: s.toBlockProto(&tx.Block),
+		Block:          s.toBlockProto(&tx.Block),
+		SenderReceiver: s.txSenderToProto(tx.SenderReceiver),
+	}
+}
+
+func (s *blocksServer) txSenderToProto(in *model.TxSenderReceiver) *pb.TxSenderReceiver {
+	if in == nil {
+		return nil
+	}
+	return &pb.TxSenderReceiver{
+		MessageType: in.MessageType,
+		Sender:      in.Sender,
+		Receiver:    in.Receiver,
+		Amount:      in.Amount,
 	}
 }
 

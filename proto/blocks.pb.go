@@ -624,15 +624,16 @@ type TxByHash struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Messages                    []string    `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	Memo                        string      `protobuf:"bytes,2,opt,name=memo,proto3" json:"memo,omitempty"`
-	TimeoutHeight               string      `protobuf:"bytes,3,opt,name=timeout_height,json=timeoutHeight,proto3" json:"timeout_height,omitempty"`
-	ExtensionOptions            []string    `protobuf:"bytes,4,rep,name=extension_options,json=extensionOptions,proto3" json:"extension_options,omitempty"`
-	NonCriticalExtensionOptions []string    `protobuf:"bytes,5,rep,name=non_critical_extension_options,json=nonCriticalExtensionOptions,proto3" json:"non_critical_extension_options,omitempty"`
-	AuthInfo                    *TxAuthInfo `protobuf:"bytes,6,opt,name=auth_info,json=authInfo,proto3" json:"auth_info,omitempty"`
-	TxResponse                  *TxResponse `protobuf:"bytes,7,opt,name=tx_response,json=txResponse,proto3" json:"tx_response,omitempty"`
-	Block                       *Block      `protobuf:"bytes,8,opt,name=block,proto3" json:"block,omitempty"`
-	Fees                        []*Fee      `protobuf:"bytes,9,rep,name=fees,proto3" json:"fees,omitempty"`
+	Messages                    []string          `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	Memo                        string            `protobuf:"bytes,2,opt,name=memo,proto3" json:"memo,omitempty"`
+	TimeoutHeight               string            `protobuf:"bytes,3,opt,name=timeout_height,json=timeoutHeight,proto3" json:"timeout_height,omitempty"`
+	ExtensionOptions            []string          `protobuf:"bytes,4,rep,name=extension_options,json=extensionOptions,proto3" json:"extension_options,omitempty"`
+	NonCriticalExtensionOptions []string          `protobuf:"bytes,5,rep,name=non_critical_extension_options,json=nonCriticalExtensionOptions,proto3" json:"non_critical_extension_options,omitempty"`
+	AuthInfo                    *TxAuthInfo       `protobuf:"bytes,6,opt,name=auth_info,json=authInfo,proto3" json:"auth_info,omitempty"`
+	TxResponse                  *TxResponse       `protobuf:"bytes,7,opt,name=tx_response,json=txResponse,proto3" json:"tx_response,omitempty"`
+	Block                       *Block            `protobuf:"bytes,8,opt,name=block,proto3" json:"block,omitempty"`
+	Fees                        []*Fee            `protobuf:"bytes,9,rep,name=fees,proto3" json:"fees,omitempty"`
+	SenderReceiver              *TxSenderReceiver `protobuf:"bytes,10,opt,name=sender_receiver,json=senderReceiver,proto3,oneof" json:"sender_receiver,omitempty"`
 }
 
 func (x *TxByHash) Reset() {
@@ -730,6 +731,84 @@ func (x *TxByHash) GetFees() []*Fee {
 	return nil
 }
 
+func (x *TxByHash) GetSenderReceiver() *TxSenderReceiver {
+	if x != nil {
+		return x.SenderReceiver
+	}
+	return nil
+}
+
+type TxSenderReceiver struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	MessageType string `protobuf:"bytes,1,opt,name=message_type,json=messageType,proto3" json:"message_type,omitempty"`
+	Sender      string `protobuf:"bytes,2,opt,name=sender,proto3" json:"sender,omitempty"`
+	Receiver    string `protobuf:"bytes,3,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	Amount      string `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
+}
+
+func (x *TxSenderReceiver) Reset() {
+	*x = TxSenderReceiver{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TxSenderReceiver) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TxSenderReceiver) ProtoMessage() {}
+
+func (x *TxSenderReceiver) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TxSenderReceiver.ProtoReflect.Descriptor instead.
+func (*TxSenderReceiver) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *TxSenderReceiver) GetMessageType() string {
+	if x != nil {
+		return x.MessageType
+	}
+	return ""
+}
+
+func (x *TxSenderReceiver) GetSender() string {
+	if x != nil {
+		return x.Sender
+	}
+	return ""
+}
+
+func (x *TxSenderReceiver) GetReceiver() string {
+	if x != nil {
+		return x.Receiver
+	}
+	return ""
+}
+
+func (x *TxSenderReceiver) GetAmount() string {
+	if x != nil {
+		return x.Amount
+	}
+	return ""
+}
+
 type Fee struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -743,7 +822,7 @@ type Fee struct {
 func (x *Fee) Reset() {
 	*x = Fee{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[11]
+		mi := &file_blocks_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -756,7 +835,7 @@ func (x *Fee) String() string {
 func (*Fee) ProtoMessage() {}
 
 func (x *Fee) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[11]
+	mi := &file_blocks_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +848,7 @@ func (x *Fee) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Fee.ProtoReflect.Descriptor instead.
 func (*Fee) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{11}
+	return file_blocks_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Fee) GetAmount() string {
@@ -808,7 +887,7 @@ type TxAuthInfo struct {
 func (x *TxAuthInfo) Reset() {
 	*x = TxAuthInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[12]
+		mi := &file_blocks_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -821,7 +900,7 @@ func (x *TxAuthInfo) String() string {
 func (*TxAuthInfo) ProtoMessage() {}
 
 func (x *TxAuthInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[12]
+	mi := &file_blocks_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -834,7 +913,7 @@ func (x *TxAuthInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxAuthInfo.ProtoReflect.Descriptor instead.
 func (*TxAuthInfo) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{12}
+	return file_blocks_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *TxAuthInfo) GetPublicKey() []string {
@@ -885,7 +964,7 @@ type SignerInfo struct {
 func (x *SignerInfo) Reset() {
 	*x = SignerInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[13]
+		mi := &file_blocks_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -898,7 +977,7 @@ func (x *SignerInfo) String() string {
 func (*SignerInfo) ProtoMessage() {}
 
 func (x *SignerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[13]
+	mi := &file_blocks_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -911,7 +990,7 @@ func (x *SignerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignerInfo.ProtoReflect.Descriptor instead.
 func (*SignerInfo) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{13}
+	return file_blocks_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SignerInfo) GetAddress() string {
@@ -949,7 +1028,7 @@ type TxFee struct {
 func (x *TxFee) Reset() {
 	*x = TxFee{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[14]
+		mi := &file_blocks_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -962,7 +1041,7 @@ func (x *TxFee) String() string {
 func (*TxFee) ProtoMessage() {}
 
 func (x *TxFee) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[14]
+	mi := &file_blocks_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +1054,7 @@ func (x *TxFee) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxFee.ProtoReflect.Descriptor instead.
 func (*TxFee) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{14}
+	return file_blocks_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *TxFee) GetAmount() []*Denom {
@@ -1018,7 +1097,7 @@ type TxTip struct {
 func (x *TxTip) Reset() {
 	*x = TxTip{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[15]
+		mi := &file_blocks_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1031,7 +1110,7 @@ func (x *TxTip) String() string {
 func (*TxTip) ProtoMessage() {}
 
 func (x *TxTip) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[15]
+	mi := &file_blocks_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1044,7 +1123,7 @@ func (x *TxTip) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxTip.ProtoReflect.Descriptor instead.
 func (*TxTip) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{15}
+	return file_blocks_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TxTip) GetAmount() []*Denom {
@@ -1082,7 +1161,7 @@ type TxResponse struct {
 func (x *TxResponse) Reset() {
 	*x = TxResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[16]
+		mi := &file_blocks_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1095,7 +1174,7 @@ func (x *TxResponse) String() string {
 func (*TxResponse) ProtoMessage() {}
 
 func (x *TxResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[16]
+	mi := &file_blocks_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1108,7 +1187,7 @@ func (x *TxResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxResponse.ProtoReflect.Descriptor instead.
 func (*TxResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{16}
+	return file_blocks_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TxResponse) GetHeight() string {
@@ -1200,7 +1279,7 @@ type TxLog struct {
 func (x *TxLog) Reset() {
 	*x = TxLog{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[17]
+		mi := &file_blocks_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1213,7 +1292,7 @@ func (x *TxLog) String() string {
 func (*TxLog) ProtoMessage() {}
 
 func (x *TxLog) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[17]
+	mi := &file_blocks_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1305,7 @@ func (x *TxLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxLog.ProtoReflect.Descriptor instead.
 func (*TxLog) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{17}
+	return file_blocks_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TxLog) GetMsgIndex() int32 {
@@ -1255,7 +1334,7 @@ type Denom struct {
 func (x *Denom) Reset() {
 	*x = Denom{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[18]
+		mi := &file_blocks_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1268,7 +1347,7 @@ func (x *Denom) String() string {
 func (*Denom) ProtoMessage() {}
 
 func (x *Denom) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[18]
+	mi := &file_blocks_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1360,7 @@ func (x *Denom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Denom.ProtoReflect.Descriptor instead.
 func (*Denom) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{18}
+	return file_blocks_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Denom) GetDenom() string {
@@ -1309,7 +1388,7 @@ type TotalTransactionsRequest struct {
 func (x *TotalTransactionsRequest) Reset() {
 	*x = TotalTransactionsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[19]
+		mi := &file_blocks_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1322,7 +1401,7 @@ func (x *TotalTransactionsRequest) String() string {
 func (*TotalTransactionsRequest) ProtoMessage() {}
 
 func (x *TotalTransactionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[19]
+	mi := &file_blocks_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1335,7 +1414,7 @@ func (x *TotalTransactionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TotalTransactionsRequest.ProtoReflect.Descriptor instead.
 func (*TotalTransactionsRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{19}
+	return file_blocks_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TotalTransactionsRequest) GetTo() *timestamppb.Timestamp {
@@ -1360,7 +1439,7 @@ type TotalTransactionsResponse struct {
 func (x *TotalTransactionsResponse) Reset() {
 	*x = TotalTransactionsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[20]
+		mi := &file_blocks_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1373,7 +1452,7 @@ func (x *TotalTransactionsResponse) String() string {
 func (*TotalTransactionsResponse) ProtoMessage() {}
 
 func (x *TotalTransactionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[20]
+	mi := &file_blocks_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1386,7 +1465,7 @@ func (x *TotalTransactionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TotalTransactionsResponse.ProtoReflect.Descriptor instead.
 func (*TotalTransactionsResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{20}
+	return file_blocks_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *TotalTransactionsResponse) GetTotal() string {
@@ -1436,7 +1515,7 @@ type Limit struct {
 func (x *Limit) Reset() {
 	*x = Limit{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[21]
+		mi := &file_blocks_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1449,7 +1528,7 @@ func (x *Limit) String() string {
 func (*Limit) ProtoMessage() {}
 
 func (x *Limit) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[21]
+	mi := &file_blocks_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1462,7 +1541,7 @@ func (x *Limit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Limit.ProtoReflect.Descriptor instead.
 func (*Limit) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{21}
+	return file_blocks_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Limit) GetLimit() int64 {
@@ -1492,7 +1571,7 @@ type Result struct {
 func (x *Result) Reset() {
 	*x = Result{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[22]
+		mi := &file_blocks_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1505,7 +1584,7 @@ func (x *Result) String() string {
 func (*Result) ProtoMessage() {}
 
 func (x *Result) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[22]
+	mi := &file_blocks_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1518,7 +1597,7 @@ func (x *Result) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Result.ProtoReflect.Descriptor instead.
 func (*Result) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{22}
+	return file_blocks_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Result) GetLimit() int64 {
@@ -1553,7 +1632,7 @@ type TransactionsRequest struct {
 func (x *TransactionsRequest) Reset() {
 	*x = TransactionsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[23]
+		mi := &file_blocks_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1566,7 +1645,7 @@ func (x *TransactionsRequest) String() string {
 func (*TransactionsRequest) ProtoMessage() {}
 
 func (x *TransactionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[23]
+	mi := &file_blocks_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1579,7 +1658,7 @@ func (x *TransactionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionsRequest.ProtoReflect.Descriptor instead.
 func (*TransactionsRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{23}
+	return file_blocks_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TransactionsRequest) GetLimit() *Limit {
@@ -1601,7 +1680,7 @@ type TransactionsResponse struct {
 func (x *TransactionsResponse) Reset() {
 	*x = TransactionsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[24]
+		mi := &file_blocks_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1614,7 +1693,7 @@ func (x *TransactionsResponse) String() string {
 func (*TransactionsResponse) ProtoMessage() {}
 
 func (x *TransactionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[24]
+	mi := &file_blocks_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1706,7 @@ func (x *TransactionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionsResponse.ProtoReflect.Descriptor instead.
 func (*TransactionsResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{24}
+	return file_blocks_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *TransactionsResponse) GetTx() []*TxByHash {
@@ -1655,7 +1734,7 @@ type TotalBlocksRequest struct {
 func (x *TotalBlocksRequest) Reset() {
 	*x = TotalBlocksRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[25]
+		mi := &file_blocks_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1668,7 +1747,7 @@ func (x *TotalBlocksRequest) String() string {
 func (*TotalBlocksRequest) ProtoMessage() {}
 
 func (x *TotalBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[25]
+	mi := &file_blocks_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1681,7 +1760,7 @@ func (x *TotalBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TotalBlocksRequest.ProtoReflect.Descriptor instead.
 func (*TotalBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{25}
+	return file_blocks_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *TotalBlocksRequest) GetTo() *timestamppb.Timestamp {
@@ -1705,7 +1784,7 @@ type TotalBlocksResponse struct {
 func (x *TotalBlocksResponse) Reset() {
 	*x = TotalBlocksResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[26]
+		mi := &file_blocks_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1718,7 +1797,7 @@ func (x *TotalBlocksResponse) String() string {
 func (*TotalBlocksResponse) ProtoMessage() {}
 
 func (x *TotalBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[26]
+	mi := &file_blocks_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1731,7 +1810,7 @@ func (x *TotalBlocksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TotalBlocksResponse.ProtoReflect.Descriptor instead.
 func (*TotalBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{26}
+	return file_blocks_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *TotalBlocksResponse) GetHeight() int64 {
@@ -1773,7 +1852,7 @@ type GetBlocksRequest struct {
 func (x *GetBlocksRequest) Reset() {
 	*x = GetBlocksRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[27]
+		mi := &file_blocks_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1786,7 +1865,7 @@ func (x *GetBlocksRequest) String() string {
 func (*GetBlocksRequest) ProtoMessage() {}
 
 func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[27]
+	mi := &file_blocks_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1799,7 +1878,7 @@ func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksRequest.ProtoReflect.Descriptor instead.
 func (*GetBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{27}
+	return file_blocks_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetBlocksRequest) GetLimit() *Limit {
@@ -1821,7 +1900,7 @@ type GetBlocksResponse struct {
 func (x *GetBlocksResponse) Reset() {
 	*x = GetBlocksResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[28]
+		mi := &file_blocks_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1834,7 +1913,7 @@ func (x *GetBlocksResponse) String() string {
 func (*GetBlocksResponse) ProtoMessage() {}
 
 func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[28]
+	mi := &file_blocks_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1847,7 +1926,7 @@ func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksResponse.ProtoReflect.Descriptor instead.
 func (*GetBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{28}
+	return file_blocks_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetBlocksResponse) GetBlocks() []*Block {
@@ -1876,7 +1955,7 @@ type BlockSignaturesRequest struct {
 func (x *BlockSignaturesRequest) Reset() {
 	*x = BlockSignaturesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[29]
+		mi := &file_blocks_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1889,7 +1968,7 @@ func (x *BlockSignaturesRequest) String() string {
 func (*BlockSignaturesRequest) ProtoMessage() {}
 
 func (x *BlockSignaturesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[29]
+	mi := &file_blocks_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1902,7 +1981,7 @@ func (x *BlockSignaturesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockSignaturesRequest.ProtoReflect.Descriptor instead.
 func (*BlockSignaturesRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{29}
+	return file_blocks_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *BlockSignaturesRequest) GetBlockHeight() int64 {
@@ -1931,7 +2010,7 @@ type BlockSignaturesResponse struct {
 func (x *BlockSignaturesResponse) Reset() {
 	*x = BlockSignaturesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[30]
+		mi := &file_blocks_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1944,7 +2023,7 @@ func (x *BlockSignaturesResponse) String() string {
 func (*BlockSignaturesResponse) ProtoMessage() {}
 
 func (x *BlockSignaturesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[30]
+	mi := &file_blocks_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1957,7 +2036,7 @@ func (x *BlockSignaturesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockSignaturesResponse.ProtoReflect.Descriptor instead.
 func (*BlockSignaturesResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{30}
+	return file_blocks_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *BlockSignaturesResponse) GetSigners() []*SignerAddress {
@@ -1987,7 +2066,7 @@ type SignerAddress struct {
 func (x *SignerAddress) Reset() {
 	*x = SignerAddress{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[31]
+		mi := &file_blocks_proto_msgTypes[32]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2000,7 +2079,7 @@ func (x *SignerAddress) String() string {
 func (*SignerAddress) ProtoMessage() {}
 
 func (x *SignerAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[31]
+	mi := &file_blocks_proto_msgTypes[32]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,7 +2092,7 @@ func (x *SignerAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignerAddress.ProtoReflect.Descriptor instead.
 func (*SignerAddress) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{31}
+	return file_blocks_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SignerAddress) GetAddress() string {
@@ -2049,7 +2128,7 @@ type TxsByBlockRequest struct {
 func (x *TxsByBlockRequest) Reset() {
 	*x = TxsByBlockRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[32]
+		mi := &file_blocks_proto_msgTypes[33]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2062,7 +2141,7 @@ func (x *TxsByBlockRequest) String() string {
 func (*TxsByBlockRequest) ProtoMessage() {}
 
 func (x *TxsByBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[32]
+	mi := &file_blocks_proto_msgTypes[33]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2075,7 +2154,7 @@ func (x *TxsByBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxsByBlockRequest.ProtoReflect.Descriptor instead.
 func (*TxsByBlockRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{32}
+	return file_blocks_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TxsByBlockRequest) GetBlockHeight() int64 {
@@ -2104,7 +2183,7 @@ type TxsByBlockResponse struct {
 func (x *TxsByBlockResponse) Reset() {
 	*x = TxsByBlockResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[33]
+		mi := &file_blocks_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2117,7 +2196,7 @@ func (x *TxsByBlockResponse) String() string {
 func (*TxsByBlockResponse) ProtoMessage() {}
 
 func (x *TxsByBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[33]
+	mi := &file_blocks_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2130,7 +2209,7 @@ func (x *TxsByBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TxsByBlockResponse.ProtoReflect.Descriptor instead.
 func (*TxsByBlockResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{33}
+	return file_blocks_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *TxsByBlockResponse) GetData() []*TxByHash {
@@ -2158,7 +2237,7 @@ type TransactionRawLogRequest struct {
 func (x *TransactionRawLogRequest) Reset() {
 	*x = TransactionRawLogRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[34]
+		mi := &file_blocks_proto_msgTypes[35]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2171,7 +2250,7 @@ func (x *TransactionRawLogRequest) String() string {
 func (*TransactionRawLogRequest) ProtoMessage() {}
 
 func (x *TransactionRawLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[34]
+	mi := &file_blocks_proto_msgTypes[35]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2263,7 @@ func (x *TransactionRawLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionRawLogRequest.ProtoReflect.Descriptor instead.
 func (*TransactionRawLogRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{34}
+	return file_blocks_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TransactionRawLogRequest) GetTxHash() string {
@@ -2205,7 +2284,7 @@ type TransactionRawLogResponse struct {
 func (x *TransactionRawLogResponse) Reset() {
 	*x = TransactionRawLogResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[35]
+		mi := &file_blocks_proto_msgTypes[36]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2218,7 +2297,7 @@ func (x *TransactionRawLogResponse) String() string {
 func (*TransactionRawLogResponse) ProtoMessage() {}
 
 func (x *TransactionRawLogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[35]
+	mi := &file_blocks_proto_msgTypes[36]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2231,7 +2310,7 @@ func (x *TransactionRawLogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionRawLogResponse.ProtoReflect.Descriptor instead.
 func (*TransactionRawLogResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{35}
+	return file_blocks_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TransactionRawLogResponse) GetRawLog() []byte {
@@ -2252,7 +2331,7 @@ type TransactionSignersRequest struct {
 func (x *TransactionSignersRequest) Reset() {
 	*x = TransactionSignersRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[36]
+		mi := &file_blocks_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2265,7 +2344,7 @@ func (x *TransactionSignersRequest) String() string {
 func (*TransactionSignersRequest) ProtoMessage() {}
 
 func (x *TransactionSignersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[36]
+	mi := &file_blocks_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2357,7 @@ func (x *TransactionSignersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionSignersRequest.ProtoReflect.Descriptor instead.
 func (*TransactionSignersRequest) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{36}
+	return file_blocks_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TransactionSignersRequest) GetTxHash() string {
@@ -2299,7 +2378,7 @@ type TransactionSignersResponse struct {
 func (x *TransactionSignersResponse) Reset() {
 	*x = TransactionSignersResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[37]
+		mi := &file_blocks_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2312,7 +2391,7 @@ func (x *TransactionSignersResponse) String() string {
 func (*TransactionSignersResponse) ProtoMessage() {}
 
 func (x *TransactionSignersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[37]
+	mi := &file_blocks_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2325,7 +2404,7 @@ func (x *TransactionSignersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionSignersResponse.ProtoReflect.Descriptor instead.
 func (*TransactionSignersResponse) Descriptor() ([]byte, []int) {
-	return file_blocks_proto_rawDescGZIP(), []int{37}
+	return file_blocks_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TransactionSignersResponse) GetSigners() []*SignerInfo {
@@ -2411,8 +2490,8 @@ var file_blocks_proto_rawDesc = []byte{
 	0x28, 0x09, 0x52, 0x04, 0x68, 0x61, 0x73, 0x68, 0x22, 0x34, 0x0a, 0x10, 0x54, 0x78, 0x42, 0x79,
 	0x48, 0x61, 0x73, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x20, 0x0a, 0x02,
 	0x74, 0x78, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b,
-	0x73, 0x2e, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x02, 0x74, 0x78, 0x22, 0xff,
-	0x02, 0x0a, 0x08, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d,
+	0x73, 0x2e, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x52, 0x02, 0x74, 0x78, 0x22, 0xdb,
+	0x03, 0x0a, 0x08, 0x54, 0x78, 0x42, 0x79, 0x48, 0x61, 0x73, 0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d,
 	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x08, 0x6d,
 	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x6d, 0x65, 0x6d, 0x6f, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6d, 0x65, 0x6d, 0x6f, 0x12, 0x25, 0x0a, 0x0e, 0x74,
@@ -2436,6 +2515,20 @@ var file_blocks_proto_rawDesc = []byte{
 	0x6b, 0x73, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x05, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x12,
 	0x1f, 0x0a, 0x04, 0x66, 0x65, 0x65, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0b, 0x2e,
 	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x2e, 0x46, 0x65, 0x65, 0x52, 0x04, 0x66, 0x65, 0x65, 0x73,
+	0x12, 0x46, 0x0a, 0x0f, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x5f, 0x72, 0x65, 0x63, 0x65, 0x69,
+	0x76, 0x65, 0x72, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x62, 0x6c, 0x6f, 0x63,
+	0x6b, 0x73, 0x2e, 0x54, 0x78, 0x53, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x52, 0x65, 0x63, 0x65, 0x69,
+	0x76, 0x65, 0x72, 0x48, 0x00, 0x52, 0x0e, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x52, 0x65, 0x63,
+	0x65, 0x69, 0x76, 0x65, 0x72, 0x88, 0x01, 0x01, 0x42, 0x12, 0x0a, 0x10, 0x5f, 0x73, 0x65, 0x6e,
+	0x64, 0x65, 0x72, 0x5f, 0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72, 0x22, 0x81, 0x01, 0x0a,
+	0x10, 0x54, 0x78, 0x53, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65,
+	0x72, 0x12, 0x21, 0x0a, 0x0c, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x5f, 0x74, 0x79, 0x70,
+	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x54, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x12, 0x1a, 0x0a, 0x08,
+	0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x6d, 0x6f, 0x75,
+	0x6e, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74,
 	0x22, 0x49, 0x0a, 0x03, 0x46, 0x65, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e,
 	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x12,
 	0x14, 0x0a, 0x05, 0x64, 0x65, 0x6e, 0x6f, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
@@ -2686,7 +2779,7 @@ func file_blocks_proto_rawDescGZIP() []byte {
 	return file_blocks_proto_rawDescData
 }
 
-var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_blocks_proto_goTypes = []interface{}{
 	(*Block)(nil),                      // 0: blocks.Block
 	(*GetBlockInfoRequest)(nil),        // 1: blocks.GetBlockInfoRequest
@@ -2699,102 +2792,104 @@ var file_blocks_proto_goTypes = []interface{}{
 	(*TxByHashRequest)(nil),            // 8: blocks.TxByHashRequest
 	(*TxByHashResponse)(nil),           // 9: blocks.TxByHashResponse
 	(*TxByHash)(nil),                   // 10: blocks.TxByHash
-	(*Fee)(nil),                        // 11: blocks.Fee
-	(*TxAuthInfo)(nil),                 // 12: blocks.TxAuthInfo
-	(*SignerInfo)(nil),                 // 13: blocks.SignerInfo
-	(*TxFee)(nil),                      // 14: blocks.TxFee
-	(*TxTip)(nil),                      // 15: blocks.TxTip
-	(*TxResponse)(nil),                 // 16: blocks.TxResponse
-	(*TxLog)(nil),                      // 17: blocks.TxLog
-	(*Denom)(nil),                      // 18: blocks.Denom
-	(*TotalTransactionsRequest)(nil),   // 19: blocks.TotalTransactionsRequest
-	(*TotalTransactionsResponse)(nil),  // 20: blocks.TotalTransactionsResponse
-	(*Limit)(nil),                      // 21: blocks.Limit
-	(*Result)(nil),                     // 22: blocks.Result
-	(*TransactionsRequest)(nil),        // 23: blocks.TransactionsRequest
-	(*TransactionsResponse)(nil),       // 24: blocks.TransactionsResponse
-	(*TotalBlocksRequest)(nil),         // 25: blocks.TotalBlocksRequest
-	(*TotalBlocksResponse)(nil),        // 26: blocks.TotalBlocksResponse
-	(*GetBlocksRequest)(nil),           // 27: blocks.GetBlocksRequest
-	(*GetBlocksResponse)(nil),          // 28: blocks.GetBlocksResponse
-	(*BlockSignaturesRequest)(nil),     // 29: blocks.BlockSignaturesRequest
-	(*BlockSignaturesResponse)(nil),    // 30: blocks.BlockSignaturesResponse
-	(*SignerAddress)(nil),              // 31: blocks.SignerAddress
-	(*TxsByBlockRequest)(nil),          // 32: blocks.TxsByBlockRequest
-	(*TxsByBlockResponse)(nil),         // 33: blocks.TxsByBlockResponse
-	(*TransactionRawLogRequest)(nil),   // 34: blocks.TransactionRawLogRequest
-	(*TransactionRawLogResponse)(nil),  // 35: blocks.TransactionRawLogResponse
-	(*TransactionSignersRequest)(nil),  // 36: blocks.TransactionSignersRequest
-	(*TransactionSignersResponse)(nil), // 37: blocks.TransactionSignersResponse
-	(*timestamppb.Timestamp)(nil),      // 38: google.protobuf.Timestamp
+	(*TxSenderReceiver)(nil),           // 11: blocks.TxSenderReceiver
+	(*Fee)(nil),                        // 12: blocks.Fee
+	(*TxAuthInfo)(nil),                 // 13: blocks.TxAuthInfo
+	(*SignerInfo)(nil),                 // 14: blocks.SignerInfo
+	(*TxFee)(nil),                      // 15: blocks.TxFee
+	(*TxTip)(nil),                      // 16: blocks.TxTip
+	(*TxResponse)(nil),                 // 17: blocks.TxResponse
+	(*TxLog)(nil),                      // 18: blocks.TxLog
+	(*Denom)(nil),                      // 19: blocks.Denom
+	(*TotalTransactionsRequest)(nil),   // 20: blocks.TotalTransactionsRequest
+	(*TotalTransactionsResponse)(nil),  // 21: blocks.TotalTransactionsResponse
+	(*Limit)(nil),                      // 22: blocks.Limit
+	(*Result)(nil),                     // 23: blocks.Result
+	(*TransactionsRequest)(nil),        // 24: blocks.TransactionsRequest
+	(*TransactionsResponse)(nil),       // 25: blocks.TransactionsResponse
+	(*TotalBlocksRequest)(nil),         // 26: blocks.TotalBlocksRequest
+	(*TotalBlocksResponse)(nil),        // 27: blocks.TotalBlocksResponse
+	(*GetBlocksRequest)(nil),           // 28: blocks.GetBlocksRequest
+	(*GetBlocksResponse)(nil),          // 29: blocks.GetBlocksResponse
+	(*BlockSignaturesRequest)(nil),     // 30: blocks.BlockSignaturesRequest
+	(*BlockSignaturesResponse)(nil),    // 31: blocks.BlockSignaturesResponse
+	(*SignerAddress)(nil),              // 32: blocks.SignerAddress
+	(*TxsByBlockRequest)(nil),          // 33: blocks.TxsByBlockRequest
+	(*TxsByBlockResponse)(nil),         // 34: blocks.TxsByBlockResponse
+	(*TransactionRawLogRequest)(nil),   // 35: blocks.TransactionRawLogRequest
+	(*TransactionRawLogResponse)(nil),  // 36: blocks.TransactionRawLogResponse
+	(*TransactionSignersRequest)(nil),  // 37: blocks.TransactionSignersRequest
+	(*TransactionSignersResponse)(nil), // 38: blocks.TransactionSignersResponse
+	(*timestamppb.Timestamp)(nil),      // 39: google.protobuf.Timestamp
 }
 var file_blocks_proto_depIdxs = []int32{
-	38, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
+	39, // 0: blocks.Block.generation_time:type_name -> google.protobuf.Timestamp
 	0,  // 1: blocks.GetBlockInfoResponse.info:type_name -> blocks.Block
-	38, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
-	38, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
-	38, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
+	39, // 2: blocks.TxByDay.day:type_name -> google.protobuf.Timestamp
+	39, // 3: blocks.TxChartByDayRequest.from:type_name -> google.protobuf.Timestamp
+	39, // 4: blocks.TxChartByDayRequest.to:type_name -> google.protobuf.Timestamp
 	5,  // 5: blocks.TxChartByDayResponse.tx_by_day:type_name -> blocks.TxByDay
 	10, // 6: blocks.TxByHashResponse.tx:type_name -> blocks.TxByHash
-	12, // 7: blocks.TxByHash.auth_info:type_name -> blocks.TxAuthInfo
-	16, // 8: blocks.TxByHash.tx_response:type_name -> blocks.TxResponse
+	13, // 7: blocks.TxByHash.auth_info:type_name -> blocks.TxAuthInfo
+	17, // 8: blocks.TxByHash.tx_response:type_name -> blocks.TxResponse
 	0,  // 9: blocks.TxByHash.block:type_name -> blocks.Block
-	11, // 10: blocks.TxByHash.fees:type_name -> blocks.Fee
-	14, // 11: blocks.TxAuthInfo.fee:type_name -> blocks.TxFee
-	15, // 12: blocks.TxAuthInfo.tip:type_name -> blocks.TxTip
-	13, // 13: blocks.TxAuthInfo.signer_infos:type_name -> blocks.SignerInfo
-	18, // 14: blocks.TxFee.amount:type_name -> blocks.Denom
-	18, // 15: blocks.TxTip.amount:type_name -> blocks.Denom
-	17, // 16: blocks.TxResponse.logs:type_name -> blocks.TxLog
-	38, // 17: blocks.TotalTransactionsRequest.to:type_name -> google.protobuf.Timestamp
-	21, // 18: blocks.TransactionsRequest.limit:type_name -> blocks.Limit
-	10, // 19: blocks.TransactionsResponse.tx:type_name -> blocks.TxByHash
-	22, // 20: blocks.TransactionsResponse.result:type_name -> blocks.Result
-	38, // 21: blocks.TotalBlocksRequest.to:type_name -> google.protobuf.Timestamp
-	21, // 22: blocks.GetBlocksRequest.limit:type_name -> blocks.Limit
-	0,  // 23: blocks.GetBlocksResponse.blocks:type_name -> blocks.Block
-	22, // 24: blocks.GetBlocksResponse.result:type_name -> blocks.Result
-	21, // 25: blocks.BlockSignaturesRequest.limit:type_name -> blocks.Limit
-	31, // 26: blocks.BlockSignaturesResponse.signers:type_name -> blocks.SignerAddress
-	22, // 27: blocks.BlockSignaturesResponse.result:type_name -> blocks.Result
-	38, // 28: blocks.SignerAddress.time:type_name -> google.protobuf.Timestamp
-	21, // 29: blocks.TxsByBlockRequest.limit:type_name -> blocks.Limit
-	10, // 30: blocks.TxsByBlockResponse.data:type_name -> blocks.TxByHash
-	22, // 31: blocks.TxsByBlockResponse.result:type_name -> blocks.Result
-	13, // 32: blocks.TransactionSignersResponse.signers:type_name -> blocks.SignerInfo
-	1,  // 33: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
-	3,  // 34: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
-	6,  // 35: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
-	8,  // 36: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
-	19, // 37: blocks.BlocksService.TotalTransactions:input_type -> blocks.TotalTransactionsRequest
-	23, // 38: blocks.BlocksService.Transactions:input_type -> blocks.TransactionsRequest
-	25, // 39: blocks.BlocksService.TotalBlocks:input_type -> blocks.TotalBlocksRequest
-	27, // 40: blocks.BlocksService.GetBlocks:input_type -> blocks.GetBlocksRequest
-	29, // 41: blocks.BlocksService.BlockSignatures:input_type -> blocks.BlockSignaturesRequest
-	32, // 42: blocks.BlocksService.TxsByBlock:input_type -> blocks.TxsByBlockRequest
-	34, // 43: blocks.BlocksService.TransactionRawLog:input_type -> blocks.TransactionRawLogRequest
-	36, // 44: blocks.BlocksService.TransactionSigners:input_type -> blocks.TransactionSignersRequest
-	23, // 45: blocks.BlocksService.CacheTransactions:input_type -> blocks.TransactionsRequest
-	27, // 46: blocks.BlocksService.CacheGetBlocks:input_type -> blocks.GetBlocksRequest
-	2,  // 47: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
-	4,  // 48: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
-	7,  // 49: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
-	9,  // 50: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
-	20, // 51: blocks.BlocksService.TotalTransactions:output_type -> blocks.TotalTransactionsResponse
-	24, // 52: blocks.BlocksService.Transactions:output_type -> blocks.TransactionsResponse
-	26, // 53: blocks.BlocksService.TotalBlocks:output_type -> blocks.TotalBlocksResponse
-	28, // 54: blocks.BlocksService.GetBlocks:output_type -> blocks.GetBlocksResponse
-	30, // 55: blocks.BlocksService.BlockSignatures:output_type -> blocks.BlockSignaturesResponse
-	33, // 56: blocks.BlocksService.TxsByBlock:output_type -> blocks.TxsByBlockResponse
-	35, // 57: blocks.BlocksService.TransactionRawLog:output_type -> blocks.TransactionRawLogResponse
-	37, // 58: blocks.BlocksService.TransactionSigners:output_type -> blocks.TransactionSignersResponse
-	24, // 59: blocks.BlocksService.CacheTransactions:output_type -> blocks.TransactionsResponse
-	28, // 60: blocks.BlocksService.CacheGetBlocks:output_type -> blocks.GetBlocksResponse
-	47, // [47:61] is the sub-list for method output_type
-	33, // [33:47] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	12, // 10: blocks.TxByHash.fees:type_name -> blocks.Fee
+	11, // 11: blocks.TxByHash.sender_receiver:type_name -> blocks.TxSenderReceiver
+	15, // 12: blocks.TxAuthInfo.fee:type_name -> blocks.TxFee
+	16, // 13: blocks.TxAuthInfo.tip:type_name -> blocks.TxTip
+	14, // 14: blocks.TxAuthInfo.signer_infos:type_name -> blocks.SignerInfo
+	19, // 15: blocks.TxFee.amount:type_name -> blocks.Denom
+	19, // 16: blocks.TxTip.amount:type_name -> blocks.Denom
+	18, // 17: blocks.TxResponse.logs:type_name -> blocks.TxLog
+	39, // 18: blocks.TotalTransactionsRequest.to:type_name -> google.protobuf.Timestamp
+	22, // 19: blocks.TransactionsRequest.limit:type_name -> blocks.Limit
+	10, // 20: blocks.TransactionsResponse.tx:type_name -> blocks.TxByHash
+	23, // 21: blocks.TransactionsResponse.result:type_name -> blocks.Result
+	39, // 22: blocks.TotalBlocksRequest.to:type_name -> google.protobuf.Timestamp
+	22, // 23: blocks.GetBlocksRequest.limit:type_name -> blocks.Limit
+	0,  // 24: blocks.GetBlocksResponse.blocks:type_name -> blocks.Block
+	23, // 25: blocks.GetBlocksResponse.result:type_name -> blocks.Result
+	22, // 26: blocks.BlockSignaturesRequest.limit:type_name -> blocks.Limit
+	32, // 27: blocks.BlockSignaturesResponse.signers:type_name -> blocks.SignerAddress
+	23, // 28: blocks.BlockSignaturesResponse.result:type_name -> blocks.Result
+	39, // 29: blocks.SignerAddress.time:type_name -> google.protobuf.Timestamp
+	22, // 30: blocks.TxsByBlockRequest.limit:type_name -> blocks.Limit
+	10, // 31: blocks.TxsByBlockResponse.data:type_name -> blocks.TxByHash
+	23, // 32: blocks.TxsByBlockResponse.result:type_name -> blocks.Result
+	14, // 33: blocks.TransactionSignersResponse.signers:type_name -> blocks.SignerInfo
+	1,  // 34: blocks.BlocksService.BlockInfo:input_type -> blocks.GetBlockInfoRequest
+	3,  // 35: blocks.BlocksService.BlockValidators:input_type -> blocks.GetBlockValidatorsRequest
+	6,  // 36: blocks.BlocksService.TxChartByDay:input_type -> blocks.TxChartByDayRequest
+	8,  // 37: blocks.BlocksService.TxByHash:input_type -> blocks.TxByHashRequest
+	20, // 38: blocks.BlocksService.TotalTransactions:input_type -> blocks.TotalTransactionsRequest
+	24, // 39: blocks.BlocksService.Transactions:input_type -> blocks.TransactionsRequest
+	26, // 40: blocks.BlocksService.TotalBlocks:input_type -> blocks.TotalBlocksRequest
+	28, // 41: blocks.BlocksService.GetBlocks:input_type -> blocks.GetBlocksRequest
+	30, // 42: blocks.BlocksService.BlockSignatures:input_type -> blocks.BlockSignaturesRequest
+	33, // 43: blocks.BlocksService.TxsByBlock:input_type -> blocks.TxsByBlockRequest
+	35, // 44: blocks.BlocksService.TransactionRawLog:input_type -> blocks.TransactionRawLogRequest
+	37, // 45: blocks.BlocksService.TransactionSigners:input_type -> blocks.TransactionSignersRequest
+	24, // 46: blocks.BlocksService.CacheTransactions:input_type -> blocks.TransactionsRequest
+	28, // 47: blocks.BlocksService.CacheGetBlocks:input_type -> blocks.GetBlocksRequest
+	2,  // 48: blocks.BlocksService.BlockInfo:output_type -> blocks.GetBlockInfoResponse
+	4,  // 49: blocks.BlocksService.BlockValidators:output_type -> blocks.GetBlockValidatorsResponse
+	7,  // 50: blocks.BlocksService.TxChartByDay:output_type -> blocks.TxChartByDayResponse
+	9,  // 51: blocks.BlocksService.TxByHash:output_type -> blocks.TxByHashResponse
+	21, // 52: blocks.BlocksService.TotalTransactions:output_type -> blocks.TotalTransactionsResponse
+	25, // 53: blocks.BlocksService.Transactions:output_type -> blocks.TransactionsResponse
+	27, // 54: blocks.BlocksService.TotalBlocks:output_type -> blocks.TotalBlocksResponse
+	29, // 55: blocks.BlocksService.GetBlocks:output_type -> blocks.GetBlocksResponse
+	31, // 56: blocks.BlocksService.BlockSignatures:output_type -> blocks.BlockSignaturesResponse
+	34, // 57: blocks.BlocksService.TxsByBlock:output_type -> blocks.TxsByBlockResponse
+	36, // 58: blocks.BlocksService.TransactionRawLog:output_type -> blocks.TransactionRawLogResponse
+	38, // 59: blocks.BlocksService.TransactionSigners:output_type -> blocks.TransactionSignersResponse
+	25, // 60: blocks.BlocksService.CacheTransactions:output_type -> blocks.TransactionsResponse
+	29, // 61: blocks.BlocksService.CacheGetBlocks:output_type -> blocks.GetBlocksResponse
+	48, // [48:62] is the sub-list for method output_type
+	34, // [34:48] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_blocks_proto_init() }
@@ -2936,7 +3031,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Fee); i {
+			switch v := v.(*TxSenderReceiver); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2948,7 +3043,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxAuthInfo); i {
+			switch v := v.(*Fee); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2960,7 +3055,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignerInfo); i {
+			switch v := v.(*TxAuthInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2972,7 +3067,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxFee); i {
+			switch v := v.(*SignerInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2984,7 +3079,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxTip); i {
+			switch v := v.(*TxFee); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2996,7 +3091,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxResponse); i {
+			switch v := v.(*TxTip); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3008,7 +3103,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxLog); i {
+			switch v := v.(*TxResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3020,7 +3115,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Denom); i {
+			switch v := v.(*TxLog); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3032,7 +3127,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TotalTransactionsRequest); i {
+			switch v := v.(*Denom); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3044,7 +3139,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TotalTransactionsResponse); i {
+			switch v := v.(*TotalTransactionsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3056,7 +3151,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Limit); i {
+			switch v := v.(*TotalTransactionsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3068,7 +3163,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Result); i {
+			switch v := v.(*Limit); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3080,7 +3175,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionsRequest); i {
+			switch v := v.(*Result); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3092,7 +3187,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionsResponse); i {
+			switch v := v.(*TransactionsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3104,7 +3199,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TotalBlocksRequest); i {
+			switch v := v.(*TransactionsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3116,7 +3211,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TotalBlocksResponse); i {
+			switch v := v.(*TotalBlocksRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3128,7 +3223,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetBlocksRequest); i {
+			switch v := v.(*TotalBlocksResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3140,7 +3235,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetBlocksResponse); i {
+			switch v := v.(*GetBlocksRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3152,7 +3247,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BlockSignaturesRequest); i {
+			switch v := v.(*GetBlocksResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3164,7 +3259,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BlockSignaturesResponse); i {
+			switch v := v.(*BlockSignaturesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3176,7 +3271,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignerAddress); i {
+			switch v := v.(*BlockSignaturesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3188,7 +3283,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxsByBlockRequest); i {
+			switch v := v.(*SignerAddress); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3200,7 +3295,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxsByBlockResponse); i {
+			switch v := v.(*TxsByBlockRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3212,7 +3307,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionRawLogRequest); i {
+			switch v := v.(*TxsByBlockResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3224,7 +3319,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionRawLogResponse); i {
+			switch v := v.(*TransactionRawLogRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3236,7 +3331,7 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionSignersRequest); i {
+			switch v := v.(*TransactionRawLogResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3248,6 +3343,18 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionSignersRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_blocks_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TransactionSignersResponse); i {
 			case 0:
 				return &v.state
@@ -3260,13 +3367,14 @@ func file_blocks_proto_init() {
 			}
 		}
 	}
+	file_blocks_proto_msgTypes[10].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_blocks_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   38,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

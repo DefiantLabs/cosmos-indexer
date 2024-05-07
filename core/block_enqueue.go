@@ -213,6 +213,7 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client 
 		startBlock = 1
 	}
 
+	/* TODO - I dont' see any reason to keep this config
 	var blocksFromStart []models.Block
 
 	if !reindexing {
@@ -226,6 +227,12 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client 
 		}
 
 	} else {
+		config.Log.Info("Reindexing is enabled starting from initial start height")
+	}*/
+	config.Log.Info("Reindexing is disabled, skipping blocks that have already been indexed")
+	blocksFromStart, err := dbTypes.GetBlocksFromStart(db, chainID, startBlock, endBlock)
+	if err != nil {
+		config.Log.Errorf("Error retrieving blocks from startBlock. Err: %v", err)
 		config.Log.Info("Reindexing is enabled starting from initial start height")
 	}
 
