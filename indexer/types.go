@@ -12,6 +12,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// DB is not safe to add here just yet, since the index command in cmd/ defers a close of the DB connection
+// Maybe the defer should be removed?
+type PostSetupDataset struct {
+	Config      *config.IndexConfig
+	DryRun      bool
+	ChainClient *client.ChainClient
+}
+
 type PostIndexCustomMessageDataset struct {
 	Config         config.IndexConfig
 	DB             *gorm.DB
@@ -37,6 +45,7 @@ type Indexer struct {
 	CustomMessageParserTrackers         map[string]models.MessageParser       // Used for tracking message parsers in the database
 	CustomModels                        []any
 	PostIndexCustomMessageFunction      func(*PostIndexCustomMessageDataset) error // Called post indexing of the custom messages with the indexed dataset, useful for custom indexing on the whole dataset or for additional processing
+	PostSetupDatasetChannel             chan *PostSetupDataset                     // passes configured indexer data to any reader
 }
 
 type BlockEventFilterRegistries struct {
