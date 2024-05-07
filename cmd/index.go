@@ -43,7 +43,6 @@ var indexCmd = &cobra.Command{
 
 // GetBuiltinIndexer returns the indexer instance for the index command. Usable for customizing pre-run setup.
 func GetBuiltinIndexer() *indexerPackage.Indexer {
-
 	if indexer.PostSetupDatasetChannel == nil {
 		indexer.PostSetupDatasetChannel = make(chan *indexerPackage.PostSetupDataset)
 	}
