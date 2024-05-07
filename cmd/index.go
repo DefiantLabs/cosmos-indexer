@@ -43,11 +43,19 @@ var indexCmd = &cobra.Command{
 
 // GetBuiltinIndexer returns the indexer instance for the index command. Usable for customizing pre-run setup.
 func GetBuiltinIndexer() *indexerPackage.Indexer {
+	if indexer.PostSetupDatasetChannel == nil {
+		indexer.PostSetupDatasetChannel = make(chan *indexerPackage.PostSetupDataset)
+	}
+
 	return &indexer
 }
 
 // setupIndex loads the configuration from file and command line flags, validates the configuration, and sets up the logger and database connection.
 func setupIndex(cmd *cobra.Command, args []string) error {
+	if indexer.PostSetupDatasetChannel == nil {
+		indexer.PostSetupDatasetChannel = make(chan *indexerPackage.PostSetupDataset)
+	}
+
 	BindFlags(cmd, viperConf)
 
 	err := indexer.Config.Validate()
@@ -176,6 +184,16 @@ func setupIndexer() *indexerPackage.Indexer {
 	if err != nil {
 		config.Log.Fatal("Error querying chain status.", err)
 	}
+
+	if indexer.PostSetupDatasetChannel != nil {
+		indexer.PostSetupDatasetChannel <- &indexerPackage.PostSetupDataset{
+			Config:      indexer.Config,
+			DryRun:      indexer.DryRun,
+			ChainClient: indexer.ChainClient,
+		}
+	}
+
+	close(indexer.PostSetupDatasetChannel)
 
 	return &indexer
 }
