@@ -20,6 +20,11 @@ type PostSetupDataset struct {
 	ChainClient *client.ChainClient
 }
 
+type PostSetupCustomDataset struct {
+	Config config.IndexConfig
+	DB     *gorm.DB
+}
+
 type PostIndexCustomMessageDataset struct {
 	Config         config.IndexConfig
 	DB             *gorm.DB
@@ -46,6 +51,7 @@ type Indexer struct {
 	CustomMessageParserTrackers         map[string]models.MessageParser       // Used for tracking message parsers in the database
 	CustomModels                        []any
 	PostIndexCustomMessageFunction      func(*PostIndexCustomMessageDataset) error // Called post indexing of the custom messages with the indexed dataset, useful for custom indexing on the whole dataset or for additional processing
+	PostSetupCustomFunction             func(PostSetupCustomDataset) error         // Called post setup of the indexer, useful for custom indexing on the whole dataset or for additional processing
 	PostSetupDatasetChannel             chan *PostSetupDataset                     // passes configured indexer data to any reader
 }
 
