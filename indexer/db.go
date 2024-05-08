@@ -37,9 +37,13 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 			dbWrites++
 			// While debugging we'll sometimes want to turn off INSERTS to the DB
 			// Note that this does not turn off certain reads or DB connections.
+			indexedBlock := data.block
+			indexedDataset := data.txDBWrappers
+
 			if !indexer.DryRun {
+				var err error
 				config.Log.Info(fmt.Sprintf("Indexing %v TXs from block %d", len(data.txDBWrappers), data.block.Height))
-				_, indexedDataset, err := dbTypes.IndexNewBlock(indexer.DB, data.block, data.txDBWrappers, *indexer.Config)
+				indexedBlock, indexedDataset, err = dbTypes.IndexNewBlock(indexer.DB, data.block, data.txDBWrappers, *indexer.Config)
 				if err != nil {
 					// Do a single reattempt on failure
 					dbReattempts++
@@ -67,8 +71,9 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 					Config:         *indexer.Config,
 					DB:             indexer.DB,
 					DryRun:         indexer.DryRun,
-					IndexedDataset: &data.txDBWrappers,
+					IndexedDataset: &indexedDataset,
 					MessageParser:  indexer.CustomMessageParserTrackers,
+					IndexedBlock:   indexedBlock,
 				}
 
 				err := indexer.PostIndexCustomMessageFunction(dataset)
