@@ -195,6 +195,17 @@ func setupIndexer() *indexerPackage.Indexer {
 
 	close(indexer.PostSetupDatasetChannel)
 
+	if indexer.PostSetupCustomFunction != nil {
+		err = indexer.PostSetupCustomFunction(indexerPackage.PostSetupCustomDataset{
+			Config: *indexer.Config,
+			DB:     indexer.DB,
+		})
+
+		if err != nil {
+			config.Log.Fatal("Failed to run post setup custom function", err)
+		}
+	}
+
 	return &indexer
 }
 
