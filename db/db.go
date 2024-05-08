@@ -204,6 +204,7 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 		block.ProposerConsAddress = consAddress
 		block.TxIndexed = true
 		if err := dbTransaction.
+			Preload("Chain").
 			Where(models.Block{Height: block.Height, ChainID: block.ChainID}).
 			Assign(models.Block{TxIndexed: true, TimeStamp: block.TimeStamp}).
 			FirstOrCreate(&block).Error; err != nil {

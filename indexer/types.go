@@ -26,6 +26,7 @@ type PostIndexCustomMessageDataset struct {
 	DryRun         bool
 	IndexedDataset *[]dbTypes.TxDBWrapper
 	MessageParser  map[string]models.MessageParser
+	IndexedBlock   models.Block
 }
 
 type Indexer struct {
