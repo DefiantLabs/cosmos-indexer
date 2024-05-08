@@ -7,7 +7,6 @@ import (
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
 )
 
 // doDBUpdates will read the data out of the db data chan that had been processed by the workers
@@ -38,8 +37,8 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 			dbWrites++
 			// While debugging we'll sometimes want to turn off INSERTS to the DB
 			// Note that this does not turn off certain reads or DB connections.
-			var indexedBlock models.Block = data.block
-			var indexedDataset []dbTypes.TxDBWrapper = data.txDBWrappers
+			indexedBlock := data.block
+			indexedDataset := data.txDBWrappers
 
 			if !indexer.DryRun {
 				var err error
@@ -72,7 +71,7 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 					Config:         *indexer.Config,
 					DB:             indexer.DB,
 					DryRun:         indexer.DryRun,
-					IndexedDataset: &data.txDBWrappers,
+					IndexedDataset: &indexedDataset,
 					MessageParser:  indexer.CustomMessageParserTrackers,
 					IndexedBlock:   indexedBlock,
 				}
