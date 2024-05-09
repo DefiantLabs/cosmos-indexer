@@ -4,8 +4,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
 
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -162,7 +160,7 @@ func (r *blocksServer) blockToProto(bl *model.BlockInfo) *pb.Block {
 	return &pb.Block{
 		BlockHeight:       bl.BlockHeight,
 		ProposedValidator: bl.ProposedValidatorAddress,
-		GenerationTime:    timestamppb.New(time.Now()), // TODO
+		GenerationTime:    timestamppb.New(bl.GenerationTime),
 		TxHash:            bl.BlockHash,
 		TotalTx:           bl.TotalTx,
 		GasUsed:           bl.GasUsed.String(),
