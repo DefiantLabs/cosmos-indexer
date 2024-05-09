@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
@@ -31,7 +32,8 @@ func ProcessBlock(blockData *ctypes.ResultBlock, blockResultsData *ctypes.Result
 		ChainID: chainID,
 	}
 
-	propAddressFromHex, err := sdkTypes.ConsAddressFromHex(blockData.Block.ProposerAddress.String())
+	propAddressFromHex, err := sdkTypes.ConsAddressFromHex(
+		hex.EncodeToString(blockData.Block.ProposerAddress.Bytes()))
 	if err != nil {
 		return block, err
 	}
