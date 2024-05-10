@@ -377,10 +377,10 @@ func index(cmd *cobra.Command, args []string) {
 		txDataChan,
 		dbChainID,
 		indexer.blockEventFilterRegistries,
-		chBlocks, chTxs, repoTxs)
+		chBlocks)
 
 	wg.Add(1)
-	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID)
+	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID, chTxs, repoTxs)
 
 	switch {
 	// If block enqueue function has been explicitly set, use that
@@ -487,9 +487,7 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 	txDataChan chan *dbData,
 	chainID uint,
 	blockEventFilterRegistry blockEventFilterRegistries,
-	blocksCh chan *model.BlockInfo,
-	txsCh chan *models.Tx,
-	txRepo repository.Txs) {
+	blocksCh chan *model.BlockInfo) {
 
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
@@ -573,15 +571,6 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 					txDBWrappers: txDBWrappers,
 					block:        block,
 				}
-				for _, tx := range txDBWrappers {
-					tx.Tx.Block = block
-					res, err := txRepo.GetSenderAndReceiver(context.Background(), tx.Tx.Hash)
-					if err != nil {
-						config.Log.Error("unable to find sender and receiver", err)
-					}
-					tx.Tx.SenderReceiver = res
-					txsCh <- &tx.Tx
-				}
 			}
 		}
 		blocksCh <- idxr.toBlockInfo(block)
@@ -602,7 +591,13 @@ func (idxr *Indexer) toBlockInfo(in models.Block) *model.BlockInfo {
 // if this is a dry run, we will simply empty the channel and track progress
 // otherwise we will index the data in the DB.
 // it will also read rewars data and index that.
-func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, blockEventsDataChan chan *blockEventsDBData, dbChainID uint) {
+func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup,
+	txDataChan chan *dbData,
+	blockEventsDataChan chan *blockEventsDBData,
+	dbChainID uint,
+	txsCh chan *models.Tx,
+	txRepo repository.Txs) {
+
 	blocksProcessed := 0
 	dbWrites := 0
 	dbReattempts := 0
@@ -653,6 +648,19 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup, txDataChan chan *dbData, bl
 					config.Log.Fatalf("More than 10%% of the last %v DB writes have failed.", dbWrites)
 				}
 			}
+
+			for _, tx := range data.txDBWrappers {
+				transaction := tx.Tx
+
+				transaction.Block = data.block
+				res, err := txRepo.GetSenderAndReceiver(context.Background(), transaction.Hash)
+				if err != nil {
+					config.Log.Error("unable to find sender and receiver", err)
+				}
+				transaction.SenderReceiver = res
+				txsCh <- &transaction
+			}
+
 		case eventData, ok := <-blockEventsDataChan:
 			if !ok {
 				blockEventsDataChan = nil
