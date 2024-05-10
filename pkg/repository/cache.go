@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/redis/go-redis/v9"
@@ -15,6 +16,7 @@ const (
 	maxBlocksCacheSize       = 50
 	transactionsKey          = "c/latest_transactions"
 	blocksKey                = "c/latest_blocks"
+	totalsKey                = "c/totals"
 )
 
 type TransactionsCache interface {
@@ -26,6 +28,11 @@ type BlocksCache interface {
 	AddBlock(ctx context.Context, info *model.BlockInfo) error
 	GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, error)
 	PublishBlock(ctx context.Context, info *model.BlockInfo) error
+}
+
+type TotalsCache interface {
+	AddTotals(ctx context.Context, info *model.AggregatedInfo) error
+	GetTotals(ctx context.Context) (*model.AggregatedInfo, error)
 }
 
 type Cache struct {
@@ -122,4 +129,21 @@ func (s *Cache) GetBlocks(ctx context.Context, start, stop int64) ([]*model.Bloc
 	}
 
 	return blcs, nil
+}
+
+func (s *Cache) AddTotals(ctx context.Context, info *model.AggregatedInfo) error {
+	res, err := json.Marshal(&info)
+	if err != nil {
+		return err
+	}
+	return s.rdb.Set(ctx, totalsKey, string(res), 1*time.Minute).Err()
+}
+
+func (s *Cache) GetTotals(ctx context.Context) (*model.AggregatedInfo, error) {
+	res, err := s.rdb.Get(ctx, totalsKey).Result()
+	var info model.AggregatedInfo
+	if err = json.Unmarshal([]byte(res), &info); err != nil {
+		return nil, err
+	}
+	return &info, err
 }

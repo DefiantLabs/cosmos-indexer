@@ -54,7 +54,7 @@ func (s *txs) Transactions(ctx context.Context, offset int64, limit int64) ([]*m
 func (s *txs) TotalTransactions(ctx context.Context, to time.Time) (*model.TotalTransactions, error) {
 	var res model.TotalTransactions
 	var err error
-	res.Total, res.Total24H, res.Total30D, err = s.txRepo.TransactionsPerPeriod(ctx, to)
+	res.Total, res.Total24H, res.Total48H, res.Total30D, err = s.txRepo.TransactionsPerPeriod(ctx, to)
 	if err != nil {
 		return nil, err
 	}

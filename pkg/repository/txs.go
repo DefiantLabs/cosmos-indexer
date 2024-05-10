@@ -20,7 +20,7 @@ import (
 
 type Txs interface {
 	ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error)
-	TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, int64, int64, error)
+	TransactionsPerPeriod(ctx context.Context, to time.Time) (allTx, all24H, all48H, all30D int64, err error)
 	VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error)
 	Transactions(ctx context.Context, limit int64, offset int64, filter *TxsFilter) ([]*models.Tx, int64, error)
 	TransactionRawLog(ctx context.Context, hash string) ([]byte, error)
@@ -67,31 +67,46 @@ func (r *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([
 	return data, nil
 }
 
-func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (int64, int64, int64, error) {
+func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (allTx,
+	all24H, all48H, all30D int64, err error) {
+
 	query := `select count(*) from txes`
 	row := r.db.QueryRow(ctx, query)
-	var allTx int64
 	if err := row.Scan(&allTx); err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
 	from := to.UTC().Add(-24 * time.Hour)
-	query = `select count(*) from txes where txes.timestamp between $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
-	var all24H int64
-	if err := row.Scan(&all24H); err != nil {
-		return 0, 0, 0, err
+	all24H, err = r.txCountPerPeriod(ctx, from, to)
+	if err != nil {
+		log.Err(err).Msg("repository.TransactionsPerPeriod txCountPerPeriod")
+		return 0, 0, 0, 0, err
+	}
+
+	all48H, err = r.txCountPerPeriod(ctx, from.Add(-24*time.Hour), from)
+	if err != nil {
+		log.Err(err).Msg("repository.TransactionsPerPeriod txCountPerPeriod")
+		return 0, 0, 0, 0, err
 	}
 
 	from = to.UTC().Add(-720 * time.Hour)
-	query = `select count(*) from txes where txes.timestamp between $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
-	var all30D int64
-	if err := row.Scan(&all30D); err != nil {
-		return 0, 0, 0, err
+	all30D, err = r.txCountPerPeriod(ctx, from.Add(-24*time.Hour), from)
+	if err != nil {
+		log.Err(err).Msg("repository.TransactionsPerPeriod txCountPerPeriod")
+		return 0, 0, 0, 0, err
 	}
 
-	return allTx, all24H, all30D, nil
+	return allTx, all24H, all48H, all30D, nil
+}
+
+func (r *txs) txCountPerPeriod(ctx context.Context, from, to time.Time) (int64, error) {
+	query := `select count(*) from txes where txes.timestamp between $1 AND $2`
+	row := r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
+	var res int64
+	if err := row.Scan(&res); err != nil {
+		return 0, err
+	}
+	return res, nil
 }
 
 func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error) {

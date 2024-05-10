@@ -33,6 +33,7 @@ const (
 	BlocksService_TransactionSigners_FullMethodName = "/blocks.BlocksService/TransactionSigners"
 	BlocksService_CacheTransactions_FullMethodName  = "/blocks.BlocksService/CacheTransactions"
 	BlocksService_CacheGetBlocks_FullMethodName     = "/blocks.BlocksService/CacheGetBlocks"
+	BlocksService_CacheAggregated_FullMethodName    = "/blocks.BlocksService/CacheAggregated"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -53,6 +54,7 @@ type BlocksServiceClient interface {
 	TransactionSigners(ctx context.Context, in *TransactionSignersRequest, opts ...grpc.CallOption) (*TransactionSignersResponse, error)
 	CacheTransactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
 	CacheGetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
+	CacheAggregated(ctx context.Context, in *CacheAggregatedRequest, opts ...grpc.CallOption) (*CacheAggregatedResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -189,6 +191,15 @@ func (c *blocksServiceClient) CacheGetBlocks(ctx context.Context, in *GetBlocksR
 	return out, nil
 }
 
+func (c *blocksServiceClient) CacheAggregated(ctx context.Context, in *CacheAggregatedRequest, opts ...grpc.CallOption) (*CacheAggregatedResponse, error) {
+	out := new(CacheAggregatedResponse)
+	err := c.cc.Invoke(ctx, BlocksService_CacheAggregated_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -207,6 +218,7 @@ type BlocksServiceServer interface {
 	TransactionSigners(context.Context, *TransactionSignersRequest) (*TransactionSignersResponse, error)
 	CacheTransactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
 	CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
+	CacheAggregated(context.Context, *CacheAggregatedRequest) (*CacheAggregatedResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -255,6 +267,9 @@ func (UnimplementedBlocksServiceServer) CacheTransactions(context.Context, *Tran
 }
 func (UnimplementedBlocksServiceServer) CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CacheGetBlocks not implemented")
+}
+func (UnimplementedBlocksServiceServer) CacheAggregated(context.Context, *CacheAggregatedRequest) (*CacheAggregatedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CacheAggregated not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -521,6 +536,24 @@ func _BlocksService_CacheGetBlocks_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_CacheAggregated_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheAggregatedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).CacheAggregated(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_CacheAggregated_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).CacheAggregated(ctx, req.(*CacheAggregatedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -583,6 +616,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CacheGetBlocks",
 			Handler:    _BlocksService_CacheGetBlocks_Handler,
+		},
+		{
+			MethodName: "CacheAggregated",
+			Handler:    _BlocksService_CacheAggregated_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

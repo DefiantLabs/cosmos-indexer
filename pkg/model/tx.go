@@ -27,11 +27,12 @@ type Denom struct {
 }
 
 type TotalTransactions struct {
-	Total     int64
-	Total24H  int64
-	Total30D  int64
-	Volume24H decimal.Decimal
-	Volume30D decimal.Decimal
+	Total     int64           `json:"total"`
+	Total24H  int64           `json:"total_24h"`
+	Total48H  int64           `json:"total_48h"`
+	Total30D  int64           `json:"total_30d"`
+	Volume24H decimal.Decimal `json:"volume_24h"`
+	Volume30D decimal.Decimal `json:"volume_30d"`
 }
 
 type TxSenderReceiver struct {

@@ -368,7 +368,11 @@ func index(cmd *cobra.Command, args []string) {
 	cacheConsumer := consumer.NewCacheConsumer(cache, chBlocks, chTxs, cache)
 	go cacheConsumer.RunBlocks(ctx)
 	go cacheConsumer.RunTransactions(ctx)
+	go cacheConsumer.RunTransactions(ctx)
 	defer ctx.Done()
+
+	aggregatesConsumer := consumer.NewAggregatesConsumer(cache, repoBlocks, repoTxs)
+	go aggregatesConsumer.Consume(ctx)
 
 	wg.Add(1)
 	go idxr.processBlocks(&wg, core.HandleFailedBlock,
