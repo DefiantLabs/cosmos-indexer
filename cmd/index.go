@@ -50,6 +50,21 @@ func GetBuiltinIndexer() *indexerPackage.Indexer {
 	return &indexer
 }
 
+func safeCleanupSetupExit(indexer *indexerPackage.Indexer) {
+	close(indexer.PostSetupDatasetChannel)
+
+	if indexer.PreExitCustomFunction != nil {
+		err := indexer.PreExitCustomFunction(&indexerPackage.PreExitCustomDataset{
+			Config: *indexer.Config,
+			DB:     indexer.DB,
+			DryRun: indexer.DryRun,
+		})
+		if err != nil {
+			config.Log.Fatal("Failed to run pre-exit custom function", err)
+		}
+	}
+}
+
 // setupIndex loads the configuration from file and command line flags, validates the configuration, and sets up the logger and database connection.
 func setupIndex(cmd *cobra.Command, args []string) error {
 	if indexer.PostSetupDatasetChannel == nil {
@@ -60,6 +75,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 
 	err := indexer.Config.Validate()
 	if err != nil {
+		safeCleanupSetupExit(&indexer)
 		return err
 	}
 
@@ -80,6 +96,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if indexer.DB == nil {
 		db, err := ConnectToDBAndMigrate(indexer.Config.Database)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Could not establish connection to the database", err)
 		}
 
@@ -87,6 +104,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	} else {
 		err = dbTypes.MigrateModels(indexer.DB)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Error running DB migrations", err)
 		}
 	}
@@ -101,11 +119,13 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if indexer.Config.Base.FilterFile != "" {
 		f, err := os.Open(indexer.Config.Base.FilterFile)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatalf("Failed to open block event filter file %s: %s", indexer.Config.Base.FilterFile, err)
 		}
 
 		b, err := io.ReadAll(f)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to parse block event filter config", err)
 		}
 
@@ -119,6 +139,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 			err = config.ParseJSONFilterConfig(b)
 
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to parse block event filter config", err)
 		}
 
@@ -128,6 +149,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if len(indexer.CustomModels) != 0 {
 		err = dbTypes.MigrateInterfaces(indexer.DB, indexer.CustomModels)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to migrate custom models", err)
 		}
 	}
@@ -135,6 +157,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if len(indexer.CustomBeginBlockParserTrackers) != 0 {
 		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.DB, indexer.CustomBeginBlockParserTrackers)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
@@ -142,6 +165,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if len(indexer.CustomEndBlockParserTrackers) != 0 {
 		err = dbTypes.FindOrCreateCustomBlockEventParsers(indexer.DB, indexer.CustomEndBlockParserTrackers)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to migrate custom block event parsers", err)
 		}
 	}
@@ -149,6 +173,7 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 	if len(indexer.CustomMessageParserTrackers) != 0 {
 		err = dbTypes.FindOrCreateCustomMessageParsers(indexer.DB, indexer.CustomMessageParserTrackers)
 		if err != nil {
+			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to migrate custom message parsers", err)
 		}
 
@@ -182,6 +207,7 @@ func setupIndexer() *indexerPackage.Indexer {
 		}
 	}
 	if err != nil {
+		close(indexer.PostSetupDatasetChannel)
 		config.Log.Fatal("Error querying chain status.", err)
 	}
 
@@ -300,4 +326,16 @@ func index(cmd *cobra.Command, args []string) {
 	close(blockEnqueueChan)
 
 	wg.Wait()
+
+	if indexer.PreExitCustomFunction != nil {
+		err = indexer.PreExitCustomFunction(&indexerPackage.PreExitCustomDataset{
+			Config: *idxr.Config,
+			DB:     indexer.DB,
+			DryRun: indexer.DryRun,
+		})
+
+		if err != nil {
+			config.Log.Fatal("Failed to run pre-exit custom function", err)
+		}
+	}
 }
