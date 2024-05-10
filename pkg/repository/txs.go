@@ -411,7 +411,7 @@ func (r *txs) GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxS
 			res.Sender = value
 		}
 
-		if strings.EqualFold(key, "recipient") {
+		if strings.EqualFold(key, "recipient") || strings.EqualFold(key, "receiver") {
 			res.Receiver = value
 		}
 

@@ -14,7 +14,7 @@ const (
 	maxTransactionsCacheSize = 50
 	maxBlocksCacheSize       = 50
 	transactionsKey          = "c/latest_transactions"
-	blocksKey                = "c/latest_blocs"
+	blocksKey                = "c/latest_blocks"
 )
 
 type TransactionsCache interface {
