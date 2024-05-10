@@ -34,6 +34,12 @@ type PostIndexCustomMessageDataset struct {
 	IndexedBlock   models.Block
 }
 
+type PreExitCustomDataset struct {
+	Config config.IndexConfig
+	DB     *gorm.DB
+	DryRun bool
+}
+
 type Indexer struct {
 	Config                              *config.IndexConfig
 	DryRun                              bool
@@ -53,6 +59,7 @@ type Indexer struct {
 	PostIndexCustomMessageFunction      func(*PostIndexCustomMessageDataset) error // Called post indexing of the custom messages with the indexed dataset, useful for custom indexing on the whole dataset or for additional processing
 	PostSetupCustomFunction             func(PostSetupCustomDataset) error         // Called post setup of the indexer, useful for custom indexing on the whole dataset or for additional processing
 	PostSetupDatasetChannel             chan *PostSetupDataset                     // passes configured indexer data to any reader
+	PreExitCustomFunction               func(*PreExitCustomDataset) error          // Called post indexing of the custom messages with the indexed dataset, useful for custom indexing on the whole dataset or for additional processing
 }
 
 type BlockEventFilterRegistries struct {
