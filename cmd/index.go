@@ -54,13 +54,15 @@ func safeCleanupSetupExit(indexer *indexerPackage.Indexer) {
 	close(indexer.PostSetupDatasetChannel)
 
 	if indexer.PreExitCustomFunction != nil {
-		indexer.PreExitCustomFunction(&indexerPackage.PreExitCustomDataset{
+		err := indexer.PreExitCustomFunction(&indexerPackage.PreExitCustomDataset{
 			Config: *indexer.Config,
 			DB:     indexer.DB,
 			DryRun: indexer.DryRun,
 		})
+		if err != nil {
+			config.Log.Fatal("Failed to run pre-exit custom function", err)
+		}
 	}
-
 }
 
 // setupIndex loads the configuration from file and command line flags, validates the configuration, and sets up the logger and database connection.
