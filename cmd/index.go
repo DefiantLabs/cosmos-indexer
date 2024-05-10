@@ -18,7 +18,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var indexer indexerPackage.Indexer
+var (
+	indexer        indexerPackage.Indexer
+	oldHelpCommand func(cmd *cobra.Command, args []string)
+)
 
 func init() {
 	indexer.Config = &config.IndexConfig{}
@@ -28,6 +31,8 @@ func init() {
 	config.SetupThrottlingFlag(&indexer.Config.Base.Throttling, indexCmd)
 	config.SetupIndexSpecificFlags(indexer.Config, indexCmd)
 
+	oldHelpCommand = indexCmd.HelpFunc()
+	indexCmd.SetHelpFunc(HelpOverride)
 	rootCmd.AddCommand(indexCmd)
 }
 
@@ -39,6 +44,11 @@ var indexCmd = &cobra.Command{
 	highly recommended to keep this command running as a background service to keep your index up to date.`,
 	PreRunE: setupIndex,
 	Run:     index,
+}
+
+func HelpOverride(cmd *cobra.Command, args []string) {
+	oldHelpCommand(indexCmd, nil)
+	safeCleanupSetupExit(&indexer)
 }
 
 // GetBuiltinIndexer returns the indexer instance for the index command. Usable for customizing pre-run setup.
