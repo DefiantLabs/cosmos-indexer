@@ -52,11 +52,17 @@ func (s *aggregatesConsumer) storeAggregated(ctx context.Context) error {
 		return err
 	}
 
+	wallets, err := s.txs.GetWalletsCount(ctx)
+	if err != nil {
+		log.Err(err).Msg("failed to fetch GetWalletsCount")
+		return err
+	}
+
 	info := &model.AggregatedInfo{
 		UpdatedAt:    time.Now().UTC(),
 		Blocks:       *blocksTotal,
 		Transactions: res,
-		Wallets:      model.TotalWallets{Total: 0, Count48H: 0, Count24H: 0},
+		Wallets:      *wallets,
 	}
 
 	return s.totals.AddTotals(ctx, info)

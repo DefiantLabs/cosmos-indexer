@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"time"
 
@@ -132,6 +133,10 @@ func (s *Cache) GetBlocks(ctx context.Context, start, stop int64) ([]*model.Bloc
 }
 
 func (s *Cache) AddTotals(ctx context.Context, info *model.AggregatedInfo) error {
+	if info == nil {
+		return nil
+	}
+
 	res, err := json.Marshal(&info)
 	if err != nil {
 		return err
@@ -141,6 +146,10 @@ func (s *Cache) AddTotals(ctx context.Context, info *model.AggregatedInfo) error
 
 func (s *Cache) GetTotals(ctx context.Context) (*model.AggregatedInfo, error) {
 	res, err := s.rdb.Get(ctx, totalsKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get totals: %w", err)
+	}
+
 	var info model.AggregatedInfo
 	if err = json.Unmarshal([]byte(res), &info); err != nil {
 		return nil, err
