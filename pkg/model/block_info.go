@@ -24,10 +24,11 @@ type Validators struct {
 }
 
 type TotalBlocks struct {
-	BlockHeight int64
-	Count24H    int64
-	BlockTime   int64
-	TotalFee24H decimal.Decimal
+	BlockHeight int64           `json:"block_height"`
+	Count24H    int64           `json:"count_24h"`
+	Count48H    int64           `json:"count_48h"`
+	BlockTime   int64           `json:"block_time"`
+	TotalFee24H decimal.Decimal `json:"total_fee_24h"`
 }
 
 type BlockSigners struct {
@@ -35,4 +36,17 @@ type BlockSigners struct {
 	Validator   string
 	Time        time.Time
 	Rank        int64
+}
+
+type AggregatedInfo struct {
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Blocks       TotalBlocks       `json:"blocks"`
+	Transactions TotalTransactions `json:"transactions"`
+	Wallets      TotalWallets      `json:"wallets"`
+}
+
+type TotalWallets struct {
+	Total    int64 `json:"total"`
+	Count24H int64 `json:"count_24h"`
+	Count48H int64 `json:"count_48h"`
 }

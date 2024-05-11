@@ -111,11 +111,15 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 		return nil, err
 	}
 
-	from := to.Add(-24 * time.Hour)
-	query = `select count(*) from blocks where blocks.time_stamp between $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
-	var count24H int64
-	if err := row.Scan(&count24H); err != nil {
+	from := to.UTC().Truncate(24 * time.Hour)
+	count24H, err := r.blocksCount(ctx, from, to.UTC())
+	if err != nil {
+		return nil, err
+	}
+
+	from48h := from.Add(-24 * time.Hour)
+	count48H, err := r.blocksCount(ctx, from48h.Truncate(24*time.Hour), from)
+	if err != nil {
 		return nil, err
 	}
 
@@ -126,7 +130,7 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 				INNER JOIN txes ON fees.tx_id = txes.id
 				INNER JOIN blocks ON txes.block_id = blocks.id
 				WHERE blocks.time_stamp BETWEEN $1 AND $2`
-	row = r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
+	row = r.db.QueryRow(ctx, query, from, to.UTC())
 	feeSum := int64(0)
 	if err := row.Scan(&feeSum); err != nil {
 		log.Err(err).Msgf("row.Scan(&feeSum)")
@@ -136,9 +140,20 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 	return &model.TotalBlocks{
 		BlockHeight: blockHeight,
 		Count24H:    count24H,
+		Count48H:    count48H,
 		BlockTime:   int64(blockTime),
 		TotalFee24H: decimal.NewFromInt(feeSum),
 	}, nil
+}
+
+func (r *blocks) blocksCount(ctx context.Context, from, to time.Time) (int64, error) {
+	query := `select count(*) from blocks where blocks.time_stamp between $1 AND $2`
+	row := r.db.QueryRow(ctx, query, from, to)
+	var res int64
+	if err := row.Scan(&res); err != nil {
+		return 0, err
+	}
+	return res, nil
 }
 
 func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error) {

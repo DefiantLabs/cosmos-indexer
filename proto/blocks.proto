@@ -21,6 +21,7 @@ service BlocksService {
   rpc TransactionSigners(TransactionSignersRequest) returns (TransactionSignersResponse) {}
   rpc CacheTransactions(TransactionsRequest) returns (TransactionsResponse) {}
   rpc CacheGetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
+  rpc CacheAggregated(CacheAggregatedRequest) returns (CacheAggregatedResponse) {}
 }
 
 
@@ -166,6 +167,7 @@ message TotalTransactionsResponse {
   string total30d = 3;
   string volume24h = 4;
   string volume30d = 5;
+  string total48h = 6;
 }
 
 message Limit {
@@ -197,6 +199,7 @@ message TotalBlocksResponse {
   int64 count24H = 2;
   int64 time = 3;
   string totalFee24H = 4;
+  int64 count48H = 5;
 }
 
 message GetBlocksRequest{
@@ -249,4 +252,19 @@ message TransactionSignersRequest{
 
 message TransactionSignersResponse{
   repeated SignerInfo signers = 1;
+}
+
+message CacheAggregatedRequest{
+}
+
+message CacheAggregatedResponse{
+    TotalTransactionsResponse transactions = 1;
+    TotalBlocksResponse blocks = 2;
+    TotalWallets wallets = 3;
+}
+
+message TotalWallets {
+  int64 total = 1;
+  int64 count_24H = 2;
+  int64 count_48H = 3;
 }

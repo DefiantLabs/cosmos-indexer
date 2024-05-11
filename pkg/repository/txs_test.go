@@ -73,7 +73,7 @@ func TestTransactionsPerPeriod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.before()
 			txsRepo := NewTxs(postgresConn)
-			allTx, all24H, all30D, err := txsRepo.TransactionsPerPeriod(context.Background(), tt.to)
+			allTx, all24H, _, all30D, err := txsRepo.TransactionsPerPeriod(context.Background(), tt.to)
 			require.Equal(t, tt.result.err, err)
 			require.Equal(t, tt.result.allTx, allTx)
 			require.Equal(t, tt.result.all24H, all24H)

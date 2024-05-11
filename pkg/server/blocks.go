@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+
 	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
 
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
@@ -76,13 +77,18 @@ func (r *blocksServer) TotalTransactions(ctx context.Context, in *pb.TotalTransa
 	if err != nil {
 		return &pb.TotalTransactionsResponse{}, err
 	}
+	return r.toTotalTransactionsProto(res), nil
+}
+
+func (r *blocksServer) toTotalTransactionsProto(res *model.TotalTransactions) *pb.TotalTransactionsResponse {
 	return &pb.TotalTransactionsResponse{
 		Total:     fmt.Sprintf("%d", res.Total),
 		Total24H:  fmt.Sprintf("%d", res.Total24H),
 		Total30D:  fmt.Sprintf("%d", res.Total30D),
+		Total48H:  fmt.Sprintf("%d", res.Total48H),
 		Volume24H: res.Volume24H.String(),
 		Volume30D: res.Volume30D.String(),
-	}, nil
+	}
 }
 
 func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
@@ -122,12 +128,17 @@ func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksReques
 	if err != nil {
 		return &pb.TotalBlocksResponse{}, err
 	}
+	return r.toTotalBlocksProto(blocks), nil
+}
+
+func (r *blocksServer) toTotalBlocksProto(blocks *model.TotalBlocks) *pb.TotalBlocksResponse {
 	return &pb.TotalBlocksResponse{
 		Height:      blocks.BlockHeight,
 		Count24H:    blocks.Count24H,
+		Count48H:    blocks.Count48H,
 		Time:        blocks.BlockTime,
 		TotalFee24H: blocks.TotalFee24H.String(),
-	}, nil
+	}
 }
 
 func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (*pb.GetBlocksResponse, error) {
@@ -221,8 +232,8 @@ func (r *blocksServer) TxsByBlock(ctx context.Context, in *pb.TxsByBlockRequest)
 	}, nil
 }
 
-func (s *blocksServer) TransactionRawLog(ctx context.Context, in *pb.TransactionRawLogRequest) (*pb.TransactionRawLogResponse, error) {
-	resp, err := s.srvTx.TransactionRawLog(ctx, in.TxHash)
+func (r *blocksServer) TransactionRawLog(ctx context.Context, in *pb.TransactionRawLogRequest) (*pb.TransactionRawLogResponse, error) {
+	resp, err := r.srvTx.TransactionRawLog(ctx, in.TxHash)
 	if err != nil {
 		return &pb.TransactionRawLogResponse{}, err
 	}
@@ -230,7 +241,7 @@ func (s *blocksServer) TransactionRawLog(ctx context.Context, in *pb.Transaction
 	return &pb.TransactionRawLogResponse{RawLog: resp}, nil
 }
 
-func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
+func (r *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 	return &pb.TxByHash{
 		Memo:                        tx.Memo,
 		TimeoutHeight:               fmt.Sprintf("%d", tx.TimeoutHeight),
@@ -247,10 +258,10 @@ func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 			},
 			Tip: &pb.TxTip{
 				Tipper: tx.AuthInfo.Tip.Tipper,
-				Amount: s.txTipToProto(tx.AuthInfo.Tip.Amount),
+				Amount: r.txTipToProto(tx.AuthInfo.Tip.Amount),
 			},
 		},
-		Fees: s.toFeesProto(tx.Fees),
+		Fees: r.toFeesProto(tx.Fees),
 		TxResponse: &pb.TxResponse{
 			Height:    tx.TxResponse.Height,
 			Txhash:    tx.Hash,
@@ -262,12 +273,12 @@ func (s *blocksServer) txToProto(tx *models.Tx) *pb.TxByHash {
 			GasUsed:   fmt.Sprintf("%d", tx.TxResponse.GasUsed),
 			Timestamp: tx.TxResponse.TimeStamp,
 		},
-		Block:          s.toBlockProto(&tx.Block),
-		SenderReceiver: s.txSenderToProto(tx.SenderReceiver),
+		Block:          r.toBlockProto(&tx.Block),
+		SenderReceiver: r.txSenderToProto(tx.SenderReceiver),
 	}
 }
 
-func (s *blocksServer) txSenderToProto(in *model.TxSenderReceiver) *pb.TxSenderReceiver {
+func (r *blocksServer) txSenderToProto(in *model.TxSenderReceiver) *pb.TxSenderReceiver {
 	if in == nil {
 		return nil
 	}
@@ -279,7 +290,7 @@ func (s *blocksServer) txSenderToProto(in *model.TxSenderReceiver) *pb.TxSenderR
 	}
 }
 
-func (s *blocksServer) toFeesProto(fees []models.Fee) []*pb.Fee {
+func (r *blocksServer) toFeesProto(fees []models.Fee) []*pb.Fee {
 	res := make([]*pb.Fee, 0)
 	for _, fee := range fees {
 		res = append(res, &pb.Fee{
@@ -291,7 +302,7 @@ func (s *blocksServer) toFeesProto(fees []models.Fee) []*pb.Fee {
 	return res
 }
 
-func (s *blocksServer) toBlockProto(bl *models.Block) *pb.Block {
+func (r *blocksServer) toBlockProto(bl *models.Block) *pb.Block {
 	return &pb.Block{
 		BlockHeight:       bl.Height,
 		ProposedValidator: bl.ProposerConsAddress.Address,
@@ -300,7 +311,7 @@ func (s *blocksServer) toBlockProto(bl *models.Block) *pb.Block {
 	}
 }
 
-func (s *blocksServer) txTipToProto(tips []models.TipAmount) []*pb.Denom {
+func (r *blocksServer) txTipToProto(tips []models.TipAmount) []*pb.Denom {
 	denoms := make([]*pb.Denom, 0)
 	for _, tip := range tips {
 		denoms = append(denoms, &pb.Denom{
@@ -311,16 +322,16 @@ func (s *blocksServer) txTipToProto(tips []models.TipAmount) []*pb.Denom {
 	return denoms
 }
 
-func (s *blocksServer) TransactionSigners(ctx context.Context, in *pb.TransactionSignersRequest) (*pb.TransactionSignersResponse, error) {
-	resp, err := s.srvTx.TransactionSigners(ctx, in.TxHash)
+func (r *blocksServer) TransactionSigners(ctx context.Context, in *pb.TransactionSignersRequest) (*pb.TransactionSignersResponse, error) {
+	resp, err := r.srvTx.TransactionSigners(ctx, in.TxHash)
 	if err != nil {
 		return &pb.TransactionSignersResponse{}, err
 	}
 
-	return &pb.TransactionSignersResponse{Signers: s.toSignerInfosProto(resp)}, nil
+	return &pb.TransactionSignersResponse{Signers: r.toSignerInfosProto(resp)}, nil
 }
 
-func (s *blocksServer) toSignerInfosProto(signs []*models.SignerInfo) []*pb.SignerInfo {
+func (r *blocksServer) toSignerInfosProto(signs []*models.SignerInfo) []*pb.SignerInfo {
 	res := make([]*pb.SignerInfo, 0)
 	for _, sign := range signs {
 		res = append(res, &pb.SignerInfo{
@@ -330,4 +341,21 @@ func (s *blocksServer) toSignerInfosProto(signs []*models.SignerInfo) []*pb.Sign
 		})
 	}
 	return res
+}
+
+func (r *blocksServer) CacheAggregated(ctx context.Context,
+	_ *pb.CacheAggregatedRequest) (*pb.CacheAggregatedResponse, error) {
+	info, err := r.cache.GetTotals(ctx)
+	if err != nil {
+		return &pb.CacheAggregatedResponse{}, err
+	}
+
+	return &pb.CacheAggregatedResponse{
+		Transactions: r.toTotalTransactionsProto(&info.Transactions),
+		Blocks:       r.toTotalBlocksProto(&info.Blocks),
+		Wallets: &pb.TotalWallets{
+			Total:     info.Wallets.Total,
+			Count_24H: info.Wallets.Count24H,
+			Count_48H: info.Wallets.Count48H},
+	}, nil
 }

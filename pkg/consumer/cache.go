@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
