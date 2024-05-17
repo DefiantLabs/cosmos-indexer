@@ -402,7 +402,8 @@ func index(cmd *cobra.Command, args []string) {
 		txDataChan,
 		dbChainID,
 		indexer.blockEventFilterRegistries,
-		chBlocks, *cache)
+		chBlocks,
+		*cache)
 
 	wg.Add(1)
 	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID, chTxs, repoTxs, cache)

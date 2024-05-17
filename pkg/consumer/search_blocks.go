@@ -13,18 +13,18 @@ type SearchBlocksConsumer interface {
 	Consume(ctx context.Context) error
 }
 
-type searchBlocksPublisher struct {
+type searchBlocks struct {
 	rdb   *redis.Client
 	topic string
 	repo  repository.Search
 }
 
 func NewSearchBlocksConsumer(rdb *redis.Client,
-	blocksTopic string, repo repository.Search) *searchTxPublisher {
-	return &searchTxPublisher{rdb: rdb, repo: repo, topic: blocksTopic}
+	blocksTopic string, repo repository.Search) *searchBlocks {
+	return &searchBlocks{rdb: rdb, repo: repo, topic: blocksTopic}
 }
 
-func (s *searchBlocksPublisher) Consume(ctx context.Context) error {
+func (s *searchBlocks) Consume(ctx context.Context) error {
 	log.Info().Msgf("SearchBlocksConsumer started.")
 	subscriber := s.rdb.Subscribe(ctx, s.topic)
 	defer func() {
