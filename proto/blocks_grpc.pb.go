@@ -34,6 +34,7 @@ const (
 	BlocksService_CacheTransactions_FullMethodName  = "/blocks.BlocksService/CacheTransactions"
 	BlocksService_CacheGetBlocks_FullMethodName     = "/blocks.BlocksService/CacheGetBlocks"
 	BlocksService_CacheAggregated_FullMethodName    = "/blocks.BlocksService/CacheAggregated"
+	BlocksService_SearchHashByText_FullMethodName   = "/blocks.BlocksService/SearchHashByText"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -55,6 +56,7 @@ type BlocksServiceClient interface {
 	CacheTransactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
 	CacheGetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 	CacheAggregated(ctx context.Context, in *CacheAggregatedRequest, opts ...grpc.CallOption) (*CacheAggregatedResponse, error)
+	SearchHashByText(ctx context.Context, in *SearchHashByTextRequest, opts ...grpc.CallOption) (*SearchHashByTextResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -200,6 +202,15 @@ func (c *blocksServiceClient) CacheAggregated(ctx context.Context, in *CacheAggr
 	return out, nil
 }
 
+func (c *blocksServiceClient) SearchHashByText(ctx context.Context, in *SearchHashByTextRequest, opts ...grpc.CallOption) (*SearchHashByTextResponse, error) {
+	out := new(SearchHashByTextResponse)
+	err := c.cc.Invoke(ctx, BlocksService_SearchHashByText_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -219,6 +230,7 @@ type BlocksServiceServer interface {
 	CacheTransactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
 	CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	CacheAggregated(context.Context, *CacheAggregatedRequest) (*CacheAggregatedResponse, error)
+	SearchHashByText(context.Context, *SearchHashByTextRequest) (*SearchHashByTextResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -270,6 +282,9 @@ func (UnimplementedBlocksServiceServer) CacheGetBlocks(context.Context, *GetBloc
 }
 func (UnimplementedBlocksServiceServer) CacheAggregated(context.Context, *CacheAggregatedRequest) (*CacheAggregatedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CacheAggregated not implemented")
+}
+func (UnimplementedBlocksServiceServer) SearchHashByText(context.Context, *SearchHashByTextRequest) (*SearchHashByTextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchHashByText not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -554,6 +569,24 @@ func _BlocksService_CacheAggregated_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_SearchHashByText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchHashByTextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).SearchHashByText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_SearchHashByText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).SearchHashByText(ctx, req.(*SearchHashByTextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -620,6 +653,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CacheAggregated",
 			Handler:    _BlocksService_CacheAggregated_Handler,
+		},
+		{
+			MethodName: "SearchHashByText",
+			Handler:    _BlocksService_SearchHashByText_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

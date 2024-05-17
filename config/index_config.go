@@ -17,6 +17,7 @@ type IndexConfig struct {
 	Flags              flags
 	Server             Server
 	RedisConf          RedisConf
+	MongoConf          MongoConf
 }
 
 type indexBase struct {

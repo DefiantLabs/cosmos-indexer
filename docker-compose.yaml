@@ -38,6 +38,20 @@ services:
       vpcbr-2:
         ipv4_address: 10.5.0.10
     <<: *logging
+  mongodb:
+    image: mongo:5.0.2
+    container_name: mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=search_indexer
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - db:/data/db
+    networks:
+      vpcbr-2:
+        ipv4_address: 10.5.0.21
+    ports:
+      - '27017-27019:27017-27019'
   indexer:
     restart: "always"
     build:
@@ -81,7 +95,12 @@ services:
       --database.user taxuser \
       --database.password password \
       --server.port 9002 \
-      --redis.addr redis:6379
+      --redis.addr redis:6379 \
+      --mongo.addr mongodb://admin:password@mongodb:27017 \
+      --mongo.db search_indexer
+
+volumes:
+  db:
 
 networks:
   vpcbr-2:

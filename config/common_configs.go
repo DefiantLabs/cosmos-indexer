@@ -42,6 +42,11 @@ type RedisConf struct {
 	RedisPsw  string
 }
 
+type MongoConf struct {
+	MongoAddr string
+	MongoDB   string
+}
+
 type throttlingBase struct {
 	Throttling float64 `mapstructure:"throttling"`
 }
@@ -80,6 +85,11 @@ func SetupServerFlags(serverConf *Server, cmd *cobra.Command) {
 func SetupRedisFlags(redisConf *RedisConf, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&redisConf.RedisAddr, "redis.addr", "-", "redis address")
 	cmd.PersistentFlags().StringVar(&redisConf.RedisPsw, "redis.psw", "-", "redis password")
+}
+
+func SetupMongoDBFlags(mongoConf *MongoConf, cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVar(&mongoConf.MongoAddr, "mongo.addr", "-", "mongodb address")
+	cmd.PersistentFlags().StringVar(&mongoConf.MongoDB, "mongo.db", "-", "mongodb name")
 }
 
 func SetupThrottlingFlag(throttlingValue *float64, cmd *cobra.Command) {
