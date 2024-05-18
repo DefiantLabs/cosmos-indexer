@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,8 +27,18 @@ func NewSearch(pool *mongo.Database) *search {
 }
 
 func (a *search) AddHash(ctx context.Context, hash string, hashType string) error {
-	res, err := a.pool.Collection(searchCollection).InsertOne(ctx,
-		model.SearchResult{TxHash: hash, Type: hashType})
+	searchResult := model.SearchResult{TxHash: hash, Type: hashType}
+
+	filter := bson.D{primitive.E{Key: "tx_hash", Value: hash}, primitive.E{Key: "type", Value: hashType}}
+	update := bson.D{{"$set",
+		searchResult,
+	}}
+
+	upsert := true
+	opts := options.UpdateOptions{Upsert: &upsert}
+
+	res, err := a.pool.Collection(searchCollection).UpdateOne(ctx,
+		filter, update, &opts)
 	if err != nil {
 		return err
 	}
@@ -35,8 +47,7 @@ func (a *search) AddHash(ctx context.Context, hash string, hashType string) erro
 }
 
 func (a *search) HashByText(ctx context.Context, text string) ([]model.SearchResult, error) {
-	regex := bson.M{"$regex": primitive.Regex{Pattern: "^" + text, Options: "i"}}
-	filter := bson.M{"hash": regex}
+	filter := bson.D{{"tx_hash", primitive.Regex{Pattern: text, Options: "i"}}}
 	cursor, err := a.pool.Collection(searchCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, err

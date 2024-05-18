@@ -352,6 +352,7 @@ func index(cmd *cobra.Command, args []string) {
 
 	db := mongoClient.Database(idxr.cfg.MongoConf.MongoDB)
 	searchRepo := repository.NewSearch(db)
+	srvSearch := service.NewSearch(searchRepo)
 
 	// setup cache
 	rdb := redis.NewClient(&redis.Options{
@@ -367,7 +368,7 @@ func index(cmd *cobra.Command, args []string) {
 	}
 	cache := repository.NewCache(rdb)
 
-	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs, *cache)
+	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs, srvSearch, *cache)
 	size := 1024 * 1024 * 50
 	grpcServer := grpc.NewServer(
 		grpc.MaxSendMsgSize(size),

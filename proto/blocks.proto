@@ -270,11 +270,15 @@ message TotalWallets {
   int64 count_48H = 3;
 }
 
+message SearchResults {
+  string hash = 1;
+  string hash_type = 2;
+}
+
 message SearchHashByTextRequest{
   string text = 1;
 }
 
 message SearchHashByTextResponse{
-  repeated string tx = 1;
-  repeated string blocks = 2;
+  repeated SearchResults results = 1;
 }

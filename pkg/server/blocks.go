@@ -21,11 +21,12 @@ type blocksServer struct {
 	pb.UnimplementedBlocksServiceServer
 	srv   service.Blocks
 	srvTx service.Txs
+	srvS  service.Search
 	cache repository.Cache
 }
 
-func NewBlocksServer(srv service.Blocks, srvTx service.Txs, cache repository.Cache) *blocksServer {
-	return &blocksServer{srv: srv, srvTx: srvTx, cache: cache}
+func NewBlocksServer(srv service.Blocks, srvTx service.Txs, srvS service.Search, cache repository.Cache) *blocksServer {
+	return &blocksServer{srv: srv, srvTx: srvTx, srvS: srvS, cache: cache}
 }
 
 func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
@@ -358,4 +359,21 @@ func (r *blocksServer) CacheAggregated(ctx context.Context,
 			Count_24H: info.Wallets.Count24H,
 			Count_48H: info.Wallets.Count48H},
 	}, nil
+}
+
+func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashByTextRequest) (*pb.SearchHashByTextResponse, error) {
+	res, err := r.srvS.SearchByText(ctx, in.Text)
+	if err != nil {
+		return &pb.SearchHashByTextResponse{}, err
+	}
+
+	data := make([]*pb.SearchResults, 0)
+	for _, s := range res {
+		data = append(data, &pb.SearchResults{
+			Hash:     s.TxHash,
+			HashType: s.Type,
+		})
+	}
+
+	return &pb.SearchHashByTextResponse{Results: data}, nil
 }
