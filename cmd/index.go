@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/consumer"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -36,6 +39,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/spf13/cobra"
 
+	migrate "github.com/xakep666/mongo-migrate"
 	"gorm.io/gorm"
 )
 
@@ -354,6 +358,14 @@ func index(cmd *cobra.Command, args []string) {
 	searchRepo := repository.NewSearch(db)
 	srvSearch := service.NewSearch(searchRepo)
 
+	// migration
+	config.Log.Info("Starting migration")
+	db, err = mongoDBMigrate(ctx, db, dbConnRepo, searchRepo)
+	if err != nil {
+		panic(err)
+	}
+	config.Log.Info("Migration complete")
+
 	// setup cache
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     idxr.cfg.RedisConf.RedisAddr,
@@ -445,6 +457,80 @@ func index(cmd *cobra.Command, args []string) {
 	close(blockEnqueueChan)
 
 	wg.Wait()
+}
+
+func mongoDBMigrate(ctx context.Context,
+	db *mongo.Database,
+	pg *pgxpool.Pool, search repository.Search) (*mongo.Database, error) {
+	m := migrate.NewMigrate(db, migrate.Migration{
+		Version:     1,
+		Description: "add unique index idx_txhash_type",
+		Up: func(ctx context.Context, db *mongo.Database) error {
+			opt := options.Index().SetName("idx_txhash_type").SetUnique(true)
+			keys := bson.D{{"tx_hash", 1}, {"type", 1}}
+			model := mongo.IndexModel{Keys: keys, Options: opt}
+			_, err := db.Collection("search").Indexes().CreateOne(ctx, model)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Down: func(ctx context.Context, db *mongo.Database) error {
+			_, err := db.Collection("search").Indexes().DropOne(ctx, "idx_txhash_type")
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}, migrate.Migration{ // TODO not the best place to migrate data
+		Version:     2,
+		Description: "migrate existing hashes",
+		Up: func(ctx context.Context, db *mongo.Database) error {
+			config.Log.Info("starting txs migration")
+			rows, err := pg.Query(ctx, `select distinct hash from txes`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					if err = rows.Scan(&txHash); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "transaction"); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			config.Log.Info("starting blocks migration")
+			rows, err = pg.Query(ctx, `select distinct block_hash from blocks`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					if err = rows.Scan(&txHash); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "block"); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			return nil
+		},
+		Down: func(ctx context.Context, db *mongo.Database) error {
+			// ignoring, what's done is done.
+			return nil
+		},
+	})
+	if err := m.Up(ctx, migrate.AllAvailable); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 // connectPgxPool establishes a connection to a PostgreSQL database.
