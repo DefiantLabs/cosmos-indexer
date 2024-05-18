@@ -13,6 +13,7 @@ import (
 
 const (
 	blocksChannel            = "pub/blocks"
+	txsChannel               = "pub/txs"
 	maxTransactionsCacheSize = 50
 	maxBlocksCacheSize       = 50
 	transactionsKey          = "c/latest_transactions"
@@ -28,12 +29,16 @@ type TransactionsCache interface {
 type BlocksCache interface {
 	AddBlock(ctx context.Context, info *model.BlockInfo) error
 	GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, error)
-	PublishBlock(ctx context.Context, info *model.BlockInfo) error
 }
 
 type TotalsCache interface {
 	AddTotals(ctx context.Context, info *model.AggregatedInfo) error
 	GetTotals(ctx context.Context) (*model.AggregatedInfo, error)
+}
+
+type PubSubCache interface {
+	PublishTx(ctx context.Context, tx *models.Tx) error
+	PublishBlock(ctx context.Context, info *models.Block) error
 }
 
 type Cache struct {
@@ -84,13 +89,22 @@ func (s *Cache) GetTransactions(ctx context.Context, start, stop int64) ([]*mode
 	return transactions, nil
 }
 
-func (s *Cache) PublishBlock(ctx context.Context, info *model.BlockInfo) error {
+func (s *Cache) PublishBlock(ctx context.Context, info *models.Block) error {
 	res, err := json.Marshal(&info)
 	if err != nil {
 		return err
 	}
 
 	return s.rdb.Publish(ctx, blocksChannel, res).Err()
+}
+
+func (s *Cache) PublishTx(ctx context.Context, tx *models.Tx) error {
+	res, err := json.Marshal(&tx)
+	if err != nil {
+		return err
+	}
+
+	return s.rdb.Publish(ctx, txsChannel, res).Err()
 }
 
 func (s *Cache) AddBlock(ctx context.Context, info *model.BlockInfo) error {

@@ -2,10 +2,16 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/consumer"
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"io"
 	"log"
 	"net"
@@ -33,6 +39,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/spf13/cobra"
 
+	migrate "github.com/xakep666/mongo-migrate"
 	"gorm.io/gorm"
 )
 
@@ -67,6 +74,7 @@ func init() {
 	config.SetupThrottlingFlag(&indexer.cfg.Base.Throttling, indexCmd)
 	config.SetupIndexSpecificFlags(indexer.cfg, indexCmd)
 	config.SetupRedisFlags(&indexer.cfg.RedisConf, indexCmd)
+	config.SetupMongoDBFlags(&indexer.cfg.MongoConf, indexCmd)
 
 	rootCmd.AddCommand(indexCmd)
 }
@@ -331,6 +339,33 @@ func index(cmd *cobra.Command, args []string) {
 	repoTxs := repository.NewTxs(dbConnRepo)
 	srvTxs := service.NewTxs(repoTxs)
 
+	// setup mongoDB
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(idxr.cfg.MongoConf.MongoAddr))
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err = mongoClient.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+	err = mongoClient.Ping(ctx, &readpref.ReadPref{})
+	if err != nil {
+		panic(err)
+	}
+
+	db := mongoClient.Database(idxr.cfg.MongoConf.MongoDB)
+	searchRepo := repository.NewSearch(db)
+	srvSearch := service.NewSearch(searchRepo)
+
+	// migration
+	config.Log.Info("Starting migration")
+	db, err = mongoDBMigrate(ctx, db, dbConnRepo, searchRepo)
+	if err != nil {
+		panic(err)
+	}
+	config.Log.Info("Migration complete")
+
 	// setup cache
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     idxr.cfg.RedisConf.RedisAddr,
@@ -345,7 +380,7 @@ func index(cmd *cobra.Command, args []string) {
 	}
 	cache := repository.NewCache(rdb)
 
-	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs, *cache)
+	blocksServer := server.NewBlocksServer(srvBlocks, srvTxs, srvSearch, *cache)
 	size := 1024 * 1024 * 50
 	grpcServer := grpc.NewServer(
 		grpc.MaxSendMsgSize(size),
@@ -380,10 +415,18 @@ func index(cmd *cobra.Command, args []string) {
 		txDataChan,
 		dbChainID,
 		indexer.blockEventFilterRegistries,
-		chBlocks)
+		chBlocks,
+		*cache)
 
 	wg.Add(1)
-	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID, chTxs, repoTxs)
+	go idxr.doDBUpdates(&wg, txDataChan, blockEventsDataChan, dbChainID, chTxs, repoTxs, cache)
+
+	// search index
+	txSearchConsumer := consumer.NewSearchTxConsumer(rdb, "pub/txs", searchRepo) // TODO
+	go txSearchConsumer.Consume(ctx)
+
+	blSearchConsumer := consumer.NewSearchBlocksConsumer(rdb, "pub/blocks", searchRepo) // TODO
+	go blSearchConsumer.Consume(ctx)
 
 	switch {
 	// If block enqueue function has been explicitly set, use that
@@ -414,6 +457,80 @@ func index(cmd *cobra.Command, args []string) {
 	close(blockEnqueueChan)
 
 	wg.Wait()
+}
+
+func mongoDBMigrate(ctx context.Context,
+	db *mongo.Database,
+	pg *pgxpool.Pool, search repository.Search) (*mongo.Database, error) {
+	m := migrate.NewMigrate(db, migrate.Migration{
+		Version:     1,
+		Description: "add unique index idx_txhash_type",
+		Up: func(ctx context.Context, db *mongo.Database) error {
+			opt := options.Index().SetName("idx_txhash_type").SetUnique(true)
+			keys := bson.D{{"tx_hash", 1}, {"type", 1}}
+			model := mongo.IndexModel{Keys: keys, Options: opt}
+			_, err := db.Collection("search").Indexes().CreateOne(ctx, model)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Down: func(ctx context.Context, db *mongo.Database) error {
+			_, err := db.Collection("search").Indexes().DropOne(ctx, "idx_txhash_type")
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}, migrate.Migration{ // TODO not the best place to migrate data
+		Version:     2,
+		Description: "migrate existing hashes",
+		Up: func(ctx context.Context, db *mongo.Database) error {
+			config.Log.Info("starting txs migration")
+			rows, err := pg.Query(ctx, `select distinct hash from txes`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					if err = rows.Scan(&txHash); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "transaction"); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			config.Log.Info("starting blocks migration")
+			rows, err = pg.Query(ctx, `select distinct block_hash from blocks`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					if err = rows.Scan(&txHash); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "block"); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			return nil
+		},
+		Down: func(ctx context.Context, db *mongo.Database) error {
+			// ignoring, what's done is done.
+			return nil
+		},
+	})
+	if err := m.Up(ctx, migrate.AllAvailable); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 // connectPgxPool establishes a connection to a PostgreSQL database.
@@ -490,7 +607,8 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 	txDataChan chan *dbData,
 	chainID uint,
 	blockEventFilterRegistry blockEventFilterRegistries,
-	blocksCh chan *model.BlockInfo) {
+	blocksCh chan *model.BlockInfo,
+	cache repository.Cache) {
 
 	defer close(blockEventsDataChan)
 	defer close(txDataChan)
@@ -577,6 +695,9 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 			}
 		}
 		blocksCh <- idxr.toBlockInfo(block)
+		if err := cache.PublishBlock(context.Background(), &block); err != nil {
+			config.Log.Error("Failed to publish block info", err)
+		}
 	}
 }
 
@@ -599,7 +720,8 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup,
 	blockEventsDataChan chan *blockEventsDBData,
 	dbChainID uint,
 	txsCh chan *models.Tx,
-	txRepo repository.Txs) {
+	txRepo repository.Txs,
+	cache repository.PubSubCache) {
 
 	blocksProcessed := 0
 	dbWrites := 0
@@ -661,7 +783,11 @@ func (idxr *Indexer) doDBUpdates(wg *sync.WaitGroup,
 					config.Log.Error("unable to find sender and receiver", err)
 				}
 				transaction.SenderReceiver = res
+				// TODO decomposite everything
 				txsCh <- &transaction
+				if err := cache.PublishTx(context.Background(), &transaction); err != nil {
+					config.Log.Error(err.Error())
+				}
 			}
 
 		case eventData, ok := <-blockEventsDataChan:
