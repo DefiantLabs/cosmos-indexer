@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 service BlocksService {
   rpc BlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse) {}
+  rpc BlockInfoByHash(BlockInfoByHashRequest) returns (BlockInfoByHashResponse) {}
   rpc BlockValidators(GetBlockValidatorsRequest) returns (GetBlockValidatorsResponse) {}
   rpc TxChartByDay(TxChartByDayRequest) returns (TxChartByDayResponse) {}
   rpc TxByHash(TxByHashRequest) returns (TxByHashResponse) {}
@@ -281,4 +282,12 @@ message SearchHashByTextRequest{
 
 message SearchHashByTextResponse{
   repeated SearchResults results = 1;
+}
+
+message BlockInfoByHashRequest {
+  string hash = 1;
+}
+
+message BlockInfoByHashResponse {
+  Block info = 1;
 }

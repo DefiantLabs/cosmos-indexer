@@ -35,7 +35,8 @@ func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 		return &pb.GetBlockInfoResponse{}, err
 	}
 
-	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, Info: r.blockToProto(res)}, nil
+	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber,
+		ChainId: in.ChainId, Info: r.blockToProto(res)}, nil
 }
 
 func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
@@ -376,4 +377,13 @@ func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashBy
 	}
 
 	return &pb.SearchHashByTextResponse{Results: data}, nil
+}
+
+func (r *blocksServer) BlockInfoByHash(ctx context.Context, in *pb.BlockInfoByHashRequest) (*pb.BlockInfoByHashResponse, error) {
+	res, err := r.srv.BlockInfoByHash(ctx, in.Hash)
+	if err != nil {
+		return &pb.BlockInfoByHashResponse{}, err
+	}
+
+	return &pb.BlockInfoByHashResponse{Info: r.blockToProto(res)}, nil
 }

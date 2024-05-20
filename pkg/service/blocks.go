@@ -10,6 +10,7 @@ import (
 
 type Blocks interface {
 	BlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
+	BlockInfoByHash(ctx context.Context, hash string) (*model.BlockInfo, error)
 	BlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
 	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
@@ -26,6 +27,10 @@ func NewBlocks(blocksRepo repository.Blocks) *blocks {
 
 func (s *blocks) BlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error) {
 	return s.blocksRepo.GetBlockInfo(ctx, block, chainID)
+}
+
+func (s *blocks) BlockInfoByHash(ctx context.Context, hash string) (*model.BlockInfo, error) {
+	return s.blocksRepo.GetBlockInfoByHash(ctx, hash)
 }
 
 func (s *blocks) BlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error) {

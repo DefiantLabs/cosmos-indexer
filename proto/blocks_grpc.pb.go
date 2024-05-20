@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	BlocksService_BlockInfo_FullMethodName          = "/blocks.BlocksService/BlockInfo"
+	BlocksService_BlockInfoByHash_FullMethodName    = "/blocks.BlocksService/BlockInfoByHash"
 	BlocksService_BlockValidators_FullMethodName    = "/blocks.BlocksService/BlockValidators"
 	BlocksService_TxChartByDay_FullMethodName       = "/blocks.BlocksService/TxChartByDay"
 	BlocksService_TxByHash_FullMethodName           = "/blocks.BlocksService/TxByHash"
@@ -42,6 +43,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BlocksServiceClient interface {
 	BlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error)
+	BlockInfoByHash(ctx context.Context, in *BlockInfoByHashRequest, opts ...grpc.CallOption) (*BlockInfoByHashResponse, error)
 	BlockValidators(ctx context.Context, in *GetBlockValidatorsRequest, opts ...grpc.CallOption) (*GetBlockValidatorsResponse, error)
 	TxChartByDay(ctx context.Context, in *TxChartByDayRequest, opts ...grpc.CallOption) (*TxChartByDayResponse, error)
 	TxByHash(ctx context.Context, in *TxByHashRequest, opts ...grpc.CallOption) (*TxByHashResponse, error)
@@ -70,6 +72,15 @@ func NewBlocksServiceClient(cc grpc.ClientConnInterface) BlocksServiceClient {
 func (c *blocksServiceClient) BlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error) {
 	out := new(GetBlockInfoResponse)
 	err := c.cc.Invoke(ctx, BlocksService_BlockInfo_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blocksServiceClient) BlockInfoByHash(ctx context.Context, in *BlockInfoByHashRequest, opts ...grpc.CallOption) (*BlockInfoByHashResponse, error) {
+	out := new(BlockInfoByHashResponse)
+	err := c.cc.Invoke(ctx, BlocksService_BlockInfoByHash_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +227,7 @@ func (c *blocksServiceClient) SearchHashByText(ctx context.Context, in *SearchHa
 // for forward compatibility
 type BlocksServiceServer interface {
 	BlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error)
+	BlockInfoByHash(context.Context, *BlockInfoByHashRequest) (*BlockInfoByHashResponse, error)
 	BlockValidators(context.Context, *GetBlockValidatorsRequest) (*GetBlockValidatorsResponse, error)
 	TxChartByDay(context.Context, *TxChartByDayRequest) (*TxChartByDayResponse, error)
 	TxByHash(context.Context, *TxByHashRequest) (*TxByHashResponse, error)
@@ -240,6 +252,9 @@ type UnimplementedBlocksServiceServer struct {
 
 func (UnimplementedBlocksServiceServer) BlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BlockInfo not implemented")
+}
+func (UnimplementedBlocksServiceServer) BlockInfoByHash(context.Context, *BlockInfoByHashRequest) (*BlockInfoByHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BlockInfoByHash not implemented")
 }
 func (UnimplementedBlocksServiceServer) BlockValidators(context.Context, *GetBlockValidatorsRequest) (*GetBlockValidatorsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BlockValidators not implemented")
@@ -313,6 +328,24 @@ func _BlocksService_BlockInfo_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BlocksServiceServer).BlockInfo(ctx, req.(*GetBlockInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlocksService_BlockInfoByHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockInfoByHashRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).BlockInfoByHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_BlockInfoByHash_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).BlockInfoByHash(ctx, req.(*BlockInfoByHashRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -597,6 +630,10 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BlockInfo",
 			Handler:    _BlocksService_BlockInfo_Handler,
+		},
+		{
+			MethodName: "BlockInfoByHash",
+			Handler:    _BlocksService_BlockInfoByHash_Handler,
 		},
 		{
 			MethodName: "BlockValidators",
