@@ -9,6 +9,7 @@ import (
 
 type Search interface {
 	SearchByText(ctx context.Context, text string) ([]model.SearchResult, error)
+	SearchByBlock(ctx context.Context, height int64) ([]model.SearchResult, error)
 }
 
 type search struct {
@@ -21,4 +22,8 @@ func NewSearch(repo repository.Search) *search {
 
 func (s *search) SearchByText(ctx context.Context, text string) ([]model.SearchResult, error) {
 	return s.repo.HashByText(ctx, text)
+}
+
+func (s *search) SearchByBlock(ctx context.Context, height int64) ([]model.SearchResult, error) {
+	return s.repo.BlockByHeight(ctx, height)
 }

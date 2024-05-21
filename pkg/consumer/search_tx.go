@@ -65,7 +65,7 @@ func (s *searchTxPublisher) Consume(ctx context.Context) error {
 			log.Debug().Msgf("breaking the worker loop.")
 			return nil
 		case newRecord := <-innerReceiver:
-			s.repo.AddHash(ctx, newRecord.Hash, "transaction")
+			s.repo.AddHash(ctx, newRecord.Hash, "transaction", newRecord.Block.Height)
 		}
 	}
 }

@@ -65,7 +65,7 @@ func (s *searchBlocks) Consume(ctx context.Context) error {
 			log.Debug().Msgf("breaking the worker loop.")
 			return nil
 		case newRecord := <-innerReceiver:
-			s.repo.AddHash(ctx, newRecord.BlockHash, "block")
+			s.repo.AddHash(ctx, newRecord.BlockHash, "block", newRecord.Height)
 		}
 	}
 }
