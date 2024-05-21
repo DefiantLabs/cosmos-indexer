@@ -497,7 +497,7 @@ func mongoDBMigrate(ctx context.Context,
 					if err = rows.Scan(&txHash); err != nil {
 						return err
 					}
-					if err = search.AddHash(context.Background(), txHash, "transaction"); err != nil {
+					if err = search.AddHash(context.Background(), txHash, "transaction", 0); err != nil {
 						log.Println(err)
 					}
 				}
@@ -513,7 +513,7 @@ func mongoDBMigrate(ctx context.Context,
 					if err = rows.Scan(&txHash); err != nil {
 						return err
 					}
-					if err = search.AddHash(context.Background(), txHash, "block"); err != nil {
+					if err = search.AddHash(context.Background(), txHash, "block", 0); err != nil {
 						log.Println(err)
 					}
 				}
@@ -525,7 +525,51 @@ func mongoDBMigrate(ctx context.Context,
 			// ignoring, what's done is done.
 			return nil
 		},
-	})
+	}, migrate.Migration{ // TODO not the best place to migrate data
+		Version:     3,
+		Description: "migrate existing hashes with block height",
+		Up: func(ctx context.Context, db *mongo.Database) error {
+			config.Log.Info("starting txs migration")
+			db.Collection("search").Drop(ctx)
+
+			rows, err := pg.Query(ctx, `select distinct hash from txes`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					if err = rows.Scan(&txHash); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "transaction", 0); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			config.Log.Info("starting blocks migration")
+			rows, err = pg.Query(ctx, `select distinct block_hash,height from blocks`)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			} else {
+				for rows.Next() {
+					var txHash string
+					var blockHeight int64
+					if err = rows.Scan(&txHash, &blockHeight); err != nil {
+						return err
+					}
+					if err = search.AddHash(context.Background(), txHash, "block", blockHeight); err != nil {
+						log.Println(err)
+					}
+				}
+			}
+
+			return nil
+		},
+		Down: func(ctx context.Context, db *mongo.Database) error {
+			// ignoring, what's done is done.
+			return nil
+		}})
 	if err := m.Up(ctx, migrate.AllAvailable); err != nil {
 		return nil, err
 	}

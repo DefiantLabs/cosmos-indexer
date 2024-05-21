@@ -15,6 +15,7 @@ import (
 
 type Blocks interface {
 	GetBlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
+	GetBlockInfoByHash(ctx context.Context, hash string) (*model.BlockInfo, error)
 	GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
 	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
@@ -63,6 +64,50 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (
 	o.TotalTx = allTx
 
 	return o, nil
+}
+
+func (r *blocks) GetBlockInfoByHash(ctx context.Context, hash string) (*model.BlockInfo, error) {
+	query := `
+				SELECT bl.id, bl.height, COALESCE(addr.address,'') as proposed_validator, bl.time_stamp, bl.block_hash
+				from blocks bl 
+				LEFT JOIN addresses addr on bl.proposer_cons_address_id = addr.id
+				where bl.block_hash = $1
+				`
+	o := new(model.BlockInfo)
+	var blockID int64
+	err := r.db.QueryRow(ctx, query, hash).Scan(
+		&blockID,
+		&o.BlockHeight,
+		&o.ProposedValidatorAddress,
+		&o.GenerationTime,
+		&o.BlockHash)
+	if err != nil {
+		return nil, fmt.Errorf("exec %v", err)
+	}
+
+	totalFees, err := r.totalBlockFees(ctx, blockID)
+	if err != nil {
+		return nil, fmt.Errorf("exec total fees %v", err)
+	}
+	o.TotalFees = totalFees
+
+	allTx, err := r.countAllTxs(ctx, blockID)
+	if err != nil {
+		return nil, fmt.Errorf("countAllTxs %v", err)
+	}
+	o.TotalTx = allTx
+
+	return o, nil
+}
+
+func (r *blocks) totalBlockFees(ctx context.Context, blockID int64) (decimal.Decimal, error) {
+	queryTotalFees := `select COALESCE(sum(amount),0) from fees where tx_id IN (select id from txes where block_id=$1)`
+	var totalFees decimal.Decimal
+	err := r.db.QueryRow(ctx, queryTotalFees, blockID).Scan(&totalFees)
+	if err != nil {
+		return decimal.NewFromInt(0), fmt.Errorf("exec total fees %v", err)
+	}
+	return totalFees, nil
 }
 
 func (r *blocks) countAllTxs(ctx context.Context, blockID int64) (int64, error) {

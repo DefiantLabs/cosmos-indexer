@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
@@ -14,8 +15,9 @@ import (
 const searchCollection = "search"
 
 type Search interface {
-	AddHash(ctx context.Context, hash string, hashType string) error
+	AddHash(ctx context.Context, hash string, hashType string, blockHeight int64) error
 	HashByText(ctx context.Context, text string) ([]model.SearchResult, error)
+	BlockByHeight(ctx context.Context, blockHeight int64) ([]model.SearchResult, error)
 }
 
 type search struct {
@@ -26,8 +28,8 @@ func NewSearch(pool *mongo.Database) *search {
 	return &search{pool: pool}
 }
 
-func (a *search) AddHash(ctx context.Context, hash string, hashType string) error {
-	searchResult := model.SearchResult{TxHash: hash, Type: hashType}
+func (a *search) AddHash(ctx context.Context, hash string, hashType string, blockHeight int64) error {
+	searchResult := model.SearchResult{TxHash: hash, Type: hashType, BlockHeight: fmt.Sprintf("%d", blockHeight)}
 
 	filter := bson.D{primitive.E{Key: "tx_hash", Value: hash}, primitive.E{Key: "type", Value: hashType}}
 	update := bson.D{{"$set",
@@ -48,6 +50,21 @@ func (a *search) AddHash(ctx context.Context, hash string, hashType string) erro
 
 func (a *search) HashByText(ctx context.Context, text string) ([]model.SearchResult, error) {
 	filter := bson.D{{"tx_hash", primitive.Regex{Pattern: text, Options: "i"}}}
+	cursor, err := a.pool.Collection(searchCollection).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	var dbResult []model.SearchResult
+	if err = cursor.All(ctx, &dbResult); err != nil {
+		return nil, err
+	}
+	return dbResult, nil
+}
+
+func (a *search) BlockByHeight(ctx context.Context, blockHeight int64) ([]model.SearchResult, error) {
+	filter := bson.D{
+		{"block_height", primitive.Regex{Pattern: fmt.Sprintf("%d", blockHeight), Options: "i"}},
+	}
 	cursor, err := a.pool.Collection(searchCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, err

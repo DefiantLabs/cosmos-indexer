@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
 
@@ -35,7 +36,8 @@ func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 		return &pb.GetBlockInfoResponse{}, err
 	}
 
-	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber, ChainId: in.ChainId, Info: r.blockToProto(res)}, nil
+	return &pb.GetBlockInfoResponse{BlockNumber: in.BlockNumber,
+		ChainId: in.ChainId, Info: r.blockToProto(res)}, nil
 }
 
 func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
@@ -362,7 +364,9 @@ func (r *blocksServer) CacheAggregated(ctx context.Context,
 }
 
 func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashByTextRequest) (*pb.SearchHashByTextResponse, error) {
-	res, err := r.srvS.SearchByText(ctx, in.Text)
+	searchStr := in.Text
+
+	res, err := r.srvS.SearchByText(ctx, searchStr)
 	if err != nil {
 		return &pb.SearchHashByTextResponse{}, err
 	}
@@ -375,5 +379,28 @@ func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashBy
 		})
 	}
 
+	// hard-limit for search by block number
+	if len(searchStr) > 3 {
+		height, err := strconv.Atoi(searchStr)
+		if err == nil {
+			res, err = r.srvS.SearchByBlock(ctx, int64(height))
+			for _, s := range res {
+				data = append(data, &pb.SearchResults{
+					Hash:     s.TxHash,
+					HashType: "block_by_height",
+				})
+			}
+		}
+	}
+
 	return &pb.SearchHashByTextResponse{Results: data}, nil
+}
+
+func (r *blocksServer) BlockInfoByHash(ctx context.Context, in *pb.BlockInfoByHashRequest) (*pb.BlockInfoByHashResponse, error) {
+	res, err := r.srv.BlockInfoByHash(ctx, in.Hash)
+	if err != nil {
+		return &pb.BlockInfoByHashResponse{}, err
+	}
+
+	return &pb.BlockInfoByHashResponse{Info: r.blockToProto(res)}, nil
 }
