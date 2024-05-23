@@ -3,8 +3,8 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
-	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
+	"github.com/nodersteam/cosmos-indexer/db/models"
+	"github.com/nodersteam/cosmos-indexer/pkg/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )

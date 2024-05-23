@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"regexp"
 
-	txModule "github.com/DefiantLabs/cosmos-indexer/cosmos/modules/tx"
+	txModule "github.com/nodersteam/cosmos-indexer/cosmos/modules/tx"
 
 	"github.com/shopspring/decimal"
 )

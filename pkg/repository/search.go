@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

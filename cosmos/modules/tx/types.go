@@ -1,8 +1,8 @@
 package tx
 
 import (
-	parsingTypes "github.com/DefiantLabs/cosmos-indexer/cosmos/modules"
 	cosmTx "github.com/cosmos/cosmos-sdk/types/tx"
+	parsingTypes "github.com/nodersteam/cosmos-indexer/cosmos/modules"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

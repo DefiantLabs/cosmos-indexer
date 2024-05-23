@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
-	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
+	"github.com/nodersteam/cosmos-indexer/pkg/repository"
 )
 
 type Search interface {

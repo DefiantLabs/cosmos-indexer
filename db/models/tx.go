@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
 	"time"
 
 	"github.com/lib/pq"

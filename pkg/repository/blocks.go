@@ -9,8 +9,8 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
 )
 
 type Blocks interface {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DefiantLabs/cosmos-indexer/filter"
+	"github.com/nodersteam/cosmos-indexer/filter"
 )
 
 const (

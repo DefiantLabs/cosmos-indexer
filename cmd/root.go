@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DefiantLabs/cosmos-indexer/config"
-	"github.com/DefiantLabs/cosmos-indexer/db"
+	"github.com/nodersteam/cosmos-indexer/config"
+	"github.com/nodersteam/cosmos-indexer/db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"

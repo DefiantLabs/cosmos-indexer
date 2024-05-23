@@ -43,7 +43,7 @@ FROM scratch
 WORKDIR /home/cosmos-indexer
 
 # Label should match your github repo
-LABEL org.opencontainers.image.source="https://github.com/defiantlabs/cosmos-indexer"
+LABEL org.opencontainers.image.source="https://github.com/nodersteam/cosmos-indexer"
 
 # Installs all binaries built with go.
 COPY --from=build-env /go/bin /bin

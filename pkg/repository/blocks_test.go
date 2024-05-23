@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
 	"testing"
 	"time"
 
