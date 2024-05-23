@@ -1,4 +1,4 @@
-module github.com/DefiantLabs/cosmos-indexer
+module github.com/nodersteam/cosmos-indexer
 
 go 1.21
 

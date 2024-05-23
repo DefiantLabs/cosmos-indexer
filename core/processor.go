@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/DefiantLabs/cosmos-indexer/config"
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdkTypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/nodersteam/cosmos-indexer/config"
+	"github.com/nodersteam/cosmos-indexer/db/models"
 )
 
 type BlockProcessingFailure int

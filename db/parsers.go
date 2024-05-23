@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/nodersteam/cosmos-indexer/db/models"
 	"gorm.io/gorm"
 )
 

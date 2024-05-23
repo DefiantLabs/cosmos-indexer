@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/nodersteam/cosmos-indexer/db/models"
 )
 
 type EventData struct {

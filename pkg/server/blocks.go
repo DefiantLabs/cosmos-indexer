@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DefiantLabs/cosmos-indexer/pkg/repository"
+	"github.com/nodersteam/cosmos-indexer/pkg/repository"
 
-	"github.com/DefiantLabs/cosmos-indexer/db/models"
+	"github.com/nodersteam/cosmos-indexer/db/models"
 	"github.com/shopspring/decimal"
 
-	"github.com/DefiantLabs/cosmos-indexer/pkg/model"
-	"github.com/DefiantLabs/cosmos-indexer/pkg/service"
+	"github.com/nodersteam/cosmos-indexer/pkg/model"
+	"github.com/nodersteam/cosmos-indexer/pkg/service"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/DefiantLabs/cosmos-indexer/proto"
+	pb "github.com/nodersteam/cosmos-indexer/proto"
 )
 
 type blocksServer struct {

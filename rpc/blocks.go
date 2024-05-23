@@ -12,11 +12,11 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/DefiantLabs/cosmos-indexer/config"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	jsonrpc "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
+	"github.com/nodersteam/cosmos-indexer/config"
 )
 
 func argsToURLValues(args map[string]interface{}) (url.Values, error) {

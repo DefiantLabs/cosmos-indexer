@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-	testdb "github.com/DefiantLabs/cosmos-indexer/pkg/repository/test_db"
+	testdb "github.com/nodersteam/cosmos-indexer/pkg/repository/test_db"
 	"github.com/stretchr/testify/suite"
 	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
