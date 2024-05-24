@@ -358,14 +358,6 @@ func index(cmd *cobra.Command, args []string) {
 	searchRepo := repository.NewSearch(db)
 	srvSearch := service.NewSearch(searchRepo)
 
-	// migration
-	config.Log.Info("Starting migration")
-	db, err = mongoDBMigrate(ctx, db, dbConnRepo, searchRepo)
-	if err != nil {
-		panic(err)
-	}
-	config.Log.Info("Migration complete")
-
 	// setup cache
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     idxr.cfg.RedisConf.RedisAddr,
@@ -428,6 +420,16 @@ func index(cmd *cobra.Command, args []string) {
 	blSearchConsumer := consumer.NewSearchBlocksConsumer(rdb, "pub/blocks", searchRepo) // TODO
 	go blSearchConsumer.Consume(ctx)
 
+	// migration
+	go func() {
+		config.Log.Info("Starting migration")
+		db, err = mongoDBMigrate(ctx, db, dbConnRepo, searchRepo)
+		if err != nil {
+			panic(err)
+		}
+		config.Log.Info("Migration complete")
+	}()
+
 	switch {
 	// If block enqueue function has been explicitly set, use that
 	case idxr.blockEnqueueFunction != nil:
@@ -487,7 +489,7 @@ func mongoDBMigrate(ctx context.Context,
 		Version:     2,
 		Description: "migrate existing hashes",
 		Up: func(ctx context.Context, db *mongo.Database) error {
-			config.Log.Info("starting txs migration")
+			config.Log.Info("starting txs v2 migration")
 			rows, err := pg.Query(ctx, `select distinct hash from txes`)
 			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 				return err
@@ -529,7 +531,7 @@ func mongoDBMigrate(ctx context.Context,
 		Version:     3,
 		Description: "migrate existing hashes with block height",
 		Up: func(ctx context.Context, db *mongo.Database) error {
-			config.Log.Info("starting txs migration")
+			config.Log.Info("starting txs v3 migration")
 			db.Collection("search").Drop(ctx)
 
 			rows, err := pg.Query(ctx, `select distinct hash from txes`)
