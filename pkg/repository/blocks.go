@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -168,7 +169,10 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 		return nil, err
 	}
 
-	blockTime := 0 // TODO understand how to calculate
+	blockTime, err := r.blockTime(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	query = `SELECT COALESCE(SUM(fees.amount), 0)
 				FROM fees
@@ -189,6 +193,57 @@ func (r *blocks) TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlo
 		BlockTime:   int64(blockTime),
 		TotalFee24H: decimal.NewFromInt(feeSum),
 	}, nil
+}
+
+func (r *blocks) blockTime(ctx context.Context) (float64, error) {
+	query := `SELECT time_stamp from blocks order by height desc limit 100`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var times []int64
+
+	var prevBlockTime *time.Time
+	for rows.Next() {
+		var time time.Time
+		if err = rows.Scan(&time); err != nil {
+			return 0, err
+		}
+		if prevBlockTime == nil {
+			prevBlockTime = &time
+			continue
+		}
+		dur := prevBlockTime.Sub(time)
+		times = append(times, int64(dur.Seconds()))
+		prevBlockTime = &time
+	}
+
+	return r.calculateMedian(times), nil
+}
+
+// CalculateMedian calculates the median of a slice of int64
+func (r *blocks) calculateMedian(times []int64) float64 {
+	sort.Slice(times, func(i, j int) bool {
+		return times[i] < times[j]
+	})
+
+	n := len(times)
+	if n == 0 {
+		// Return a default value or handle the empty slice case
+		return 0
+	}
+
+	if n%2 == 1 {
+		// If odd, return the middle element
+		return float64(times[n/2])
+	} else {
+		// If even, return the average of the two middle elements
+		mid1 := times[n/2-1]
+		mid2 := times[n/2]
+		return float64(mid1+mid2) / 2.0
+	}
 }
 
 func (r *blocks) blocksCount(ctx context.Context, from, to time.Time) (int64, error) {

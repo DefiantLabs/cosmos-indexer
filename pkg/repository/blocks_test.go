@@ -16,6 +16,7 @@ func TestTotalBlocks(t *testing.T) {
 		blockHeight int64
 		count24H    int64
 		totalFees   decimal.Decimal
+		blockTime   int64
 		err         error
 	}
 
@@ -35,10 +36,10 @@ func TestTotalBlocks(t *testing.T) {
 	sampleBlocks := `INSERT INTO blocks (id, time_stamp, height, chain_id, proposer_cons_address_id, tx_indexed, block_events_indexed, block_hash) 
 VALUES 
     (1, $1, 1000, 1, 1, true, true, 'block_hash_1'),
-    (2, $1, 1001, 1, 2, true, true, 'block_hash_2'),
-    (3, $1, 1002, 1, 3, true, true, 'block_hash_3'),
-    (4, $1, 1003, 1, 4, true, true, 'block_hash_4'),
-    (5, $1, 1004, 1, 5, true, true, 'block_hash_5');`
+    (2, $2, 1001, 1, 2, true, true, 'block_hash_2'),
+    (3, $3, 1002, 1, 3, true, true, 'block_hash_3'),
+    (4, $4, 1003, 1, 4, true, true, 'block_hash_4'),
+    (5, $5, 1004, 1, 5, true, true, 'block_hash_5');`
 
 	sampleFees := `INSERT INTO fees (tx_id, amount) 
 VALUES 
@@ -58,12 +59,21 @@ VALUES
 		{"success",
 			func() {
 				tm := time.Now().Add(-5 * time.Minute).UTC()
-				postgresConn.Exec(context.Background(), sampleBlocks, tm)
+				var blockTimes []interface{}
+				for i := 1; i < 6; i++ {
+					tm = tm.Add(1 * time.Second)
+					blockTimes = append(blockTimes, tm)
+				}
+
+				_, err := postgresConn.Exec(context.Background(), sampleBlocks, blockTimes...)
+				if err != nil {
+					panic(err)
+				}
 				postgresConn.Exec(context.Background(), sampleTxes, tm)
 				postgresConn.Exec(context.Background(), sampleFees)
 			},
 			time.Now(),
-			expected{blockHeight: 1004, count24H: 5, totalFees: decimal.NewFromInt(11)},
+			expected{blockHeight: 1004, count24H: 5, totalFees: decimal.NewFromInt(11), blockTime: 1},
 			func() {
 				postgresConn.Exec(context.Background(), `delete from blocks`)
 				postgresConn.Exec(context.Background(), `delete from txes`)
@@ -79,6 +89,7 @@ VALUES
 			require.Equal(t, tt.result.err, err)
 			require.Equal(t, tt.result.blockHeight, total.BlockHeight)
 			require.Equal(t, tt.result.count24H, total.Count24H)
+			require.Equal(t, tt.result.blockTime, total.BlockTime)
 			require.Equal(t, tt.result.totalFees.String(), total.TotalFee24H.String())
 			tt.after()
 		})
