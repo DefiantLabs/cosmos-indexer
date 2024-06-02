@@ -83,7 +83,6 @@ services:
       --base.end-block -1 \
       --base.throttling 2.005 \
       --base.rpc-workers 1 \
-      --base.reindex false \
       --base.index-transactions true \
       --base.index-block-events true \
       --probe.rpc https://celestia-rpc.publicnode.com:443  \
