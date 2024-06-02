@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"regexp"
 
 	"github.com/nodersteam/cosmos-indexer/pkg/model"
 	"github.com/rs/zerolog/log"
@@ -49,7 +50,7 @@ func (a *search) AddHash(ctx context.Context, hash string, hashType string, bloc
 }
 
 func (a *search) HashByText(ctx context.Context, text string) ([]model.SearchResult, error) {
-	filter := bson.D{{"tx_hash", primitive.Regex{Pattern: text, Options: "i"}}}
+	filter := bson.D{{"tx_hash", primitive.Regex{Pattern: regexp.QuoteMeta(text), Options: "i"}}}
 	cursor, err := a.pool.Collection(searchCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, err
