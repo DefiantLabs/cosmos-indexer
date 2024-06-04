@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"strconv"
 
 	"github.com/nodersteam/cosmos-indexer/pkg/repository"
@@ -366,6 +367,7 @@ func (r *blocksServer) CacheAggregated(ctx context.Context,
 func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashByTextRequest) (*pb.SearchHashByTextResponse, error) {
 	searchStr := in.Text
 
+	log.Info().Msgf("SearchHashByText: %s", searchStr)
 	res, err := r.srvS.SearchByText(ctx, searchStr)
 	if err != nil {
 		return &pb.SearchHashByTextResponse{}, err
