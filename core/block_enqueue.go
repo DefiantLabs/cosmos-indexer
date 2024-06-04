@@ -147,6 +147,7 @@ func GenerateMsgTypeEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, chainID
 	}, nil
 }
 
+// GenerateDefaultEnqueueFunction
 // The default enqueue function will enqueue blocks according to the configuration passed in. It has a few default cases detailed here:
 // Based on whether transaction indexing or block event indexing are enabled, it will choose a start block based on passed in config values.
 // If reindexing is disabled, it will not reindex blocks that have already been indexed. This means it may skip around finding blocks that have not been
@@ -206,14 +207,11 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client 
 	endBlock := cfg.Base.EndBlock
 	var latestBlock int64 = math.MaxInt64
 	reindexing := cfg.Base.ReIndex
-	// var lastBlock = cfg.Base.EndBlock
-	// var latestBlock int64 = math.MaxInt64
 
 	if startBlock <= 0 {
 		startBlock = 1
 	}
 
-	/* TODO - I dont' see any reason to keep this config
 	var blocksFromStart []models.Block
 
 	if !reindexing {
@@ -227,12 +225,6 @@ func GenerateDefaultEnqueueFunction(db *gorm.DB, cfg config.IndexConfig, client 
 		}
 
 	} else {
-		config.Log.Info("Reindexing is enabled starting from initial start height")
-	}*/
-	config.Log.Info("Reindexing is disabled, skipping blocks that have already been indexed")
-	blocksFromStart, err := dbTypes.GetBlocksFromStart(db, chainID, startBlock, endBlock)
-	if err != nil {
-		config.Log.Errorf("Error retrieving blocks from startBlock. Err: %v", err)
 		config.Log.Info("Reindexing is enabled starting from initial start height")
 	}
 

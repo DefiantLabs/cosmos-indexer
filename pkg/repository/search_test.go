@@ -6,6 +6,7 @@ import (
 	testdb "github.com/nodersteam/cosmos-indexer/pkg/repository/test_db"
 	"github.com/stretchr/testify/suite"
 	"go.mongodb.org/mongo-driver/mongo"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -50,8 +51,9 @@ func (suite *SearchRepositorySuite) TestCreate() {
 	suite.Assert().NoError(err)
 
 	result, err = suite.repository.HashByText(ctx, "Qd74Fl")
-	suite.Assert().Len(result, 1)
 	suite.Assert().NoError(err)
+	suite.Assert().Len(result, 1)
+
 	suite.Equal(result[0].TxHash, "Qd74FlZyrasFfT97l3KLoEiKAu4bb7zPwQ30N+ZrYbI=")
 	suite.Equal(result[0].Type, "block")
 
@@ -80,6 +82,30 @@ func (suite *SearchRepositorySuite) TestCreate() {
 	result, err = suite.repository.HashByText(ctx, "qd74fl")
 	suite.Assert().Len(result, 2)
 	suite.Assert().NoError(err)
+}
+
+func (suite *SearchRepositorySuite) TestSearchEncoded() {
+	ctx := context.Background()
+	decoded := "vsi6TjOqIeH8xsTzWQ+HHX0uvOLv0eTpkQMzpa+h0ns="
+
+	err := suite.repository.AddHash(ctx, decoded, "block", 778392)
+	suite.Assert().NoError(err)
+
+	enc := "vsi6TjOqIeH8xsTzWQ%2BH"
+	text, err := url.QueryUnescape(enc)
+	suite.Assert().NoError(err)
+
+	result, err := suite.repository.HashByText(ctx, text)
+	suite.Assert().NoError(err)
+	suite.Assert().Len(result, 1)
+
+	encoded := "vsi6TjOqIeH8xsTzWQ%2BHHX0uvOLv0eTpkQMzpa%2Bh0ns%3D"
+	text, err = url.QueryUnescape(encoded)
+	suite.Assert().NoError(err)
+
+	result, err = suite.repository.HashByText(ctx, text)
+	suite.Assert().NoError(err)
+	suite.Assert().Len(result, 1)
 }
 
 func (suite *SearchRepositorySuite) TearDownSuite() {
