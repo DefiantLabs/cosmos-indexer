@@ -116,7 +116,7 @@ void runApplication() {
     sh """
         docker run -d --name ${env.DOCKER_APP} \
             --restart unless-stopped \
-            -p 9002:9002 \
+            -p 9002:9002/tcp \
             --network ${env.DOCKER_NET_NAME} \
             --ip 10.5.0.7 \
             --link ${env.POSTGRES_CONTAINER} \
