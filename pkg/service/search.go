@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"net/url"
-
 	"github.com/nodersteam/cosmos-indexer/pkg/model"
 	"github.com/nodersteam/cosmos-indexer/pkg/repository"
 )
@@ -22,11 +20,6 @@ func NewSearch(repo repository.Search) *search {
 }
 
 func (s *search) SearchByText(ctx context.Context, text string) ([]model.SearchResult, error) {
-	text, err := url.QueryUnescape(text)
-	if err != nil {
-		return nil, err
-	}
-
 	return s.repo.HashByText(ctx, text)
 }
 
