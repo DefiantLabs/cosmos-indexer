@@ -23,12 +23,12 @@ const (
 
 type TransactionsCache interface {
 	AddTransaction(ctx context.Context, transaction *models.Tx) error
-	GetTransactions(ctx context.Context, start, stop int64) ([]*models.Tx, error)
+	GetTransactions(ctx context.Context, start, stop int64) ([]*models.Tx, int64, error)
 }
 
 type BlocksCache interface {
 	AddBlock(ctx context.Context, info *model.BlockInfo) error
-	GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, error)
+	GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, int64, error)
 }
 
 type TotalsCache interface {
@@ -68,25 +68,35 @@ func (s *Cache) AddTransaction(ctx context.Context, transaction *models.Tx) erro
 	return nil
 }
 
-func (s *Cache) GetTransactions(ctx context.Context, start, stop int64) ([]*models.Tx, error) {
+func (s *Cache) GetTransactions(ctx context.Context, start, stop int64) ([]*models.Tx, int64, error) {
 	if stop > maxTransactionsCacheSize {
 		stop = maxTransactionsCacheSize
 	}
-	res, err := s.rdb.LRange(ctx, transactionsKey, start, stop).Result()
+	res, err := s.rdb.LRange(ctx, transactionsKey, start, stop-1).Result()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var transactions []*models.Tx
 	for _, r := range res {
 		var tx models.Tx
 		if err := json.Unmarshal([]byte(r), &tx); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		transactions = append(transactions, &tx)
 	}
 
-	return transactions, nil
+	total := int64(0)
+	resL := s.rdb.LLen(ctx, transactionsKey)
+	if resL.Err() != nil {
+		return nil, 0, err
+	}
+	total, err = resL.Result()
+	if resL.Err() != nil {
+		return nil, 0, err
+	}
+
+	return transactions, total, nil
 }
 
 func (s *Cache) PublishBlock(ctx context.Context, info *models.Block) error {
@@ -124,26 +134,33 @@ func (s *Cache) AddBlock(ctx context.Context, info *model.BlockInfo) error {
 	return nil
 }
 
-func (s *Cache) GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, error) {
+func (s *Cache) GetBlocks(ctx context.Context, start, stop int64) ([]*model.BlockInfo, int64, error) {
 	if stop > maxBlocksCacheSize {
 		stop = maxBlocksCacheSize
 	}
 
-	res, err := s.rdb.LRange(ctx, blocksKey, start, stop).Result()
+	res, err := s.rdb.LRange(ctx, blocksKey, start, stop-1).Result()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var blcs []*model.BlockInfo
 	for _, r := range res {
 		var tx model.BlockInfo
 		if err := json.Unmarshal([]byte(r), &tx); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		blcs = append(blcs, &tx)
 	}
 
-	return blcs, nil
+	total := int64(0)
+	resL := s.rdb.LLen(ctx, blocksKey)
+	if resL.Err() != nil {
+		return nil, total, resL.Err()
+	}
+	total = resL.Val()
+
+	return blcs, total, nil
 }
 
 func (s *Cache) AddTotals(ctx context.Context, info *model.AggregatedInfo) error {
