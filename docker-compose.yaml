@@ -41,6 +41,7 @@ services:
   mongodb:
     image: mongo:5.0.2
     container_name: mongodb
+    shm_size: 1g
     environment:
       - MONGO_INITDB_DATABASE=search_indexer
       - MONGO_INITDB_ROOT_USERNAME=admin

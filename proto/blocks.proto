@@ -274,6 +274,7 @@ message TotalWallets {
 message SearchResults {
   string hash = 1;
   string hash_type = 2;
+  string block_height = 3;
 }
 
 message SearchHashByTextRequest{
