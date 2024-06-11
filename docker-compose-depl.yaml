@@ -20,9 +20,6 @@ services:
       - "9002:9002/tcp"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
     links:
       - ${POSTGRES_CONTAINER}
     networks:
@@ -46,8 +43,8 @@ services:
       --probe.account-prefix celestia \
       --probe.chain-id mocha-4 \
       --probe.chain-name celestia \
-      --database.host postgres \
-      --database.database postgres \
+      --database.host ${POSTGRES_CONTAINER} \
+      --database.database db_name \
       --database.user taxuser \
       --database.password password \
       --server.port 9002 \
