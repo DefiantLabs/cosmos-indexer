@@ -38,7 +38,15 @@ func (suite *SearchRepositorySuite) TestCreateBlock() {
 		"block", 778391)
 	suite.Assert().NoError(err)
 
-	result, err := suite.repository.BlockByHeight(ctx, 91)
+	result, err := suite.repository.BlockByHeight(ctx, int64(91))
+	suite.Assert().NoError(err)
+	suite.Assert().Len(result, 1)
+	suite.Assert().Equal(result[0].Type, "block")
+	suite.Assert().Equal(result[0].TxHash, "Qd74FlZyrasFfT97l3KLoEiKAu4bb7zPwQ30N+ZrYbI=")
+	suite.Assert().Equal(result[0].BlockHeight, "778391")
+
+	// full block search
+	result, err = suite.repository.BlockByHeight(ctx, int64(778391))
 	suite.Assert().NoError(err)
 	suite.Assert().Len(result, 1)
 	suite.Assert().Equal(result[0].Type, "block")

@@ -376,8 +376,9 @@ func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashBy
 	data := make([]*pb.SearchResults, 0)
 	for _, s := range res {
 		data = append(data, &pb.SearchResults{
-			Hash:     s.TxHash,
-			HashType: s.Type,
+			Hash:        s.TxHash,
+			HashType:    s.Type,
+			BlockHeight: s.BlockHeight,
 		})
 	}
 
@@ -388,8 +389,9 @@ func (r *blocksServer) SearchHashByText(ctx context.Context, in *pb.SearchHashBy
 			res, err = r.srvS.SearchByBlock(ctx, int64(height))
 			for _, s := range res {
 				data = append(data, &pb.SearchResults{
-					Hash:     s.TxHash,
-					HashType: "block_by_height",
+					Hash:        s.TxHash,
+					HashType:    s.Type,
+					BlockHeight: s.BlockHeight,
 				})
 			}
 		}
