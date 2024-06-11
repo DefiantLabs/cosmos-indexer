@@ -20,8 +20,6 @@ services:
       - "9002:9002/tcp"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-    links:
-      - postgres
     networks:
       vpcbr-2:
         ipv4_address: 10.5.0.7
@@ -43,7 +41,7 @@ services:
       --probe.account-prefix celestia \
       --probe.chain-id mocha-4 \
       --probe.chain-name celestia \
-      --database.host postgres \
+      --database.host ${POSTGRES_CONTAINER} \
       --database.database db_name \
       --database.user taxuser \
       --database.password password \
