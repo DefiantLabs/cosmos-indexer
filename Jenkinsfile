@@ -19,11 +19,11 @@ pipeline {
                 checkout scm
             }
         }
-//        stage('Build Docker Image') {
-//            steps {
-//                sh "docker build -t ${env.IMAGE_NAME} ."
-//            }
-//        }
+        stage('Build Docker Image') {
+            steps {
+                buildApplication()
+            }
+        }
         stage('Deploy') {
             agent { label "jenkins-agent-2" }
             steps {
@@ -36,6 +36,10 @@ pipeline {
             cleanUp()
         }
     }
+}
+
+void buildApplication() {
+    sh "docker build -t ${env.IMAGE_NAME} --build-arg TARGETPLATFORM=linux/amd64 ."
 }
 
 void deployApplication() {
@@ -116,8 +120,37 @@ void runApplication() {
     if (appStatus.contains("true")) {
         sh script: "docker rm -fv ${env.DOCKER_APP}", label: "Remove ${env.DOCKER_APP} container"
     }
-    sh "perl -pi -e 's/pg_container/${env.POSTGRES_CONTAINER}/g; s/image/${env.IMAGE_NAME}/g' .env"
-    sh "docker-compose -f docker-compose-depl.yaml up -d"
+    sh """
+        docker run -d --name ${env.DOCKER_APP} \
+            --restart unless-stopped \
+            -p 9002:9002/tcp \
+            --network ${env.DOCKER_NET_NAME} \
+            --ip 10.5.0.7 \
+            --link ${env.POSTGRES_CONTAINER} \
+            -v /etc/localtime:/etc/localtime:ro \
+            ${env.IMAGE_NAME} \
+            /bin/sh -c "/bin/cosmos-indexer index \
+              --log.pretty = true \
+              --log.level = info \
+              --base.start-block 1386440 \
+              --base.end-block -1 \
+              --base.throttling 2.005 \
+              --base.rpc-workers 1 \
+              --base.index-transactions true \
+              --base.index-block-events true \
+              --probe.rpc https://celestia-rpc.publicnode.com:443  \
+              --probe.account-prefix celestia \
+              --probe.chain-id mocha-4 \
+              --probe.chain-name celestia \
+              --database.host ${env.POSTGRES_CONTAINER} \
+              --database.database postgres \
+              --database.user taxuser \
+              --database.password password \
+              --server.port 9002 \
+              --redis.addr redis:6379 \
+              --mongo.addr mongodb://admin:password@mongodb:27017 \
+              --mongo.db search_indexer"
+    """
 }
 
 void cleanUp() {
