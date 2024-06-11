@@ -9,6 +9,7 @@ x-logging: &logging
 
 services:
   indexer:
+    pull_policy: "never"
     restart: "always"
     image: ${IMAGE_NAME}
     container_name: cosmos-indexer
