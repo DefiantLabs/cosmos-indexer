@@ -14,7 +14,8 @@ pipeline {
                     env.DOCKER_NET_NAME = "vpcbr"
                     env.POSTGRES_CONTAINER = "${env.DOCKER_APP}_postgres"
                     env.REDIS_CONTAINER = "redis"
-                    env.IMAGE_NAME = "${env.DOCKER_APP}:${env.BUILD_NUMBER}"
+                    env.GIT_TAG = sh(returnStdout: true, script: "git tag --contains | head -1").trim()
+                    env.IMAGE_NAME = "${env.DOCKER_APP}:${env.GIT_TAG}"
                 }
                 checkout scm
             }
