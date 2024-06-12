@@ -112,7 +112,7 @@ func (r *blocksServer) Transactions(ctx context.Context, in *pb.TransactionsRequ
 }
 
 func (r *blocksServer) CacheTransactions(ctx context.Context, in *pb.TransactionsRequest) (*pb.TransactionsResponse, error) {
-	transactions, err := r.cache.GetTransactions(ctx, in.Limit.Offset, in.Limit.Limit)
+	transactions, total, err := r.cache.GetTransactions(ctx, in.Limit.Offset, in.Limit.Limit)
 	if err != nil {
 		return &pb.TransactionsResponse{}, err
 	}
@@ -124,7 +124,7 @@ func (r *blocksServer) CacheTransactions(ctx context.Context, in *pb.Transaction
 	}
 
 	return &pb.TransactionsResponse{Tx: res,
-		Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset}}, nil
+		Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
 
 func (r *blocksServer) TotalBlocks(ctx context.Context, in *pb.TotalBlocksRequest) (*pb.TotalBlocksResponse, error) {
@@ -159,7 +159,7 @@ func (r *blocksServer) GetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (
 }
 
 func (r *blocksServer) CacheGetBlocks(ctx context.Context, in *pb.GetBlocksRequest) (*pb.GetBlocksResponse, error) {
-	blocks, err := r.cache.GetBlocks(ctx, in.Limit.Offset, in.Limit.Limit)
+	blocks, total, err := r.cache.GetBlocks(ctx, in.Limit.Offset, in.Limit.Limit)
 	if err != nil {
 		return &pb.GetBlocksResponse{}, err
 	}
@@ -168,7 +168,7 @@ func (r *blocksServer) CacheGetBlocks(ctx context.Context, in *pb.GetBlocksReque
 	for _, bl := range blocks {
 		res = append(res, r.blockToProto(bl))
 	}
-	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset}}, nil
+	return &pb.GetBlocksResponse{Blocks: res, Result: &pb.Result{Limit: in.Limit.Limit, Offset: in.Limit.Offset, All: total}}, nil
 }
 
 func (r *blocksServer) blockToProto(bl *model.BlockInfo) *pb.Block {
