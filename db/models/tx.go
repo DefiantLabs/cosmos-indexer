@@ -12,6 +12,7 @@ type Tx struct {
 	Code            uint32
 	BlockID         uint
 	Block           Block
+	Memo            string
 	SignerAddresses []Address `gorm:"many2many:tx_signer_addresses;"`
 	Fees            []Fee
 }
