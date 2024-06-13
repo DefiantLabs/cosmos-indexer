@@ -39,7 +39,6 @@ func (c *IBCRelayerTrackingParser) Identifier() string {
 }
 
 func (c *IBCRelayerTrackingParser) ParseMessage(cosmosMsg stdTypes.Msg, log *indexerTxTypes.LogMessage, cfg config.IndexConfig) (*any, error) {
-
 	messageType := ""
 	signer := ""
 
@@ -73,7 +72,6 @@ func (c *IBCRelayerTrackingParser) ParseMessage(cosmosMsg stdTypes.Msg, log *ind
 }
 
 func (c *IBCRelayerTrackingParser) IndexMessage(dataset *any, db *gorm.DB, message models.Message, messageEvents []parsers.MessageEventWithAttributes, cfg config.IndexConfig) error {
-
 	relayerTransaction, ok := (*dataset).(RelayerTransaction)
 
 	if !ok {
@@ -86,7 +84,6 @@ func (c *IBCRelayerTrackingParser) IndexMessage(dataset *any, db *gorm.DB, messa
 
 	// Check if the relayer transaction already exists and delete it, in case we are reindexing an already indexed block
 	err := db.Delete(&RelayerTransaction{}, "signer = ? AND height = ?", relayerTransaction.Signer, relayerTransaction.Height).Error
-
 	if err != nil {
 		return fmt.Errorf("failed to delete existing relayer transaction. Err: %v", err)
 	}
