@@ -78,7 +78,7 @@ func safeCleanupSetupExit(indexer *indexerPackage.Indexer) {
 // setupIndex loads the configuration from file and command line flags, validates the configuration, and sets up the logger and database connection.
 func setupIndex(cmd *cobra.Command, args []string) error {
 	if indexer.PostSetupDatasetChannel == nil {
-		indexer.PostSetupDatasetChannel = make(chan *indexerPackage.PostSetupDataset)
+		indexer.PostSetupDatasetChannel = make(chan *indexerPackage.PostSetupDataset, 1)
 	}
 
 	BindFlags(cmd, viperConf)
