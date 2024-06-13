@@ -170,6 +170,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		}
 
 		processedTx.Tx.Fees = fees
+		processedTx.Tx.Memo = txFull.Body.Memo
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
@@ -310,6 +311,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		}
 
 		processedTx.Tx.Fees = fees
+		processedTx.Tx.Memo = currTx.Body.Memo
 
 		currTxDbWrappers[txIdx] = processedTx
 	}
