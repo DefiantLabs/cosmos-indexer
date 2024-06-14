@@ -2,13 +2,13 @@ package core
 
 import (
 	"errors"
-	probeClient "github.com/DefiantLabs/probe/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
+	probeClient "github.com/nodersteam/probe/client"
 	"github.com/rs/zerolog/log"
 )
 
-// Provides an in-app tx decoder.
+// InAppTxDecoder Provides an in-app tx decoder.
 // The primary use-case for this function is to allow fallback decoding if a TX fails to decode after RPC requests.
 // This can happen in a number of scenarios, but mainly due to missing proto definitions.
 // We can attempt a personal decode of the TX, and see if we can continue indexing based on in-app conditions (such as message type filters).

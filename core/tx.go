@@ -10,7 +10,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -22,6 +21,7 @@ import (
 	"github.com/nodersteam/cosmos-indexer/db/models"
 	"github.com/nodersteam/cosmos-indexer/filter"
 	"github.com/nodersteam/cosmos-indexer/util"
+	"github.com/nodersteam/probe/client"
 	"gorm.io/gorm"
 )
 
@@ -156,9 +156,11 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 					Events:       toEvents(msgEvents),
 				}
 				currLogMsgs = append(currLogMsgs, currTxLog)
-			} else {
-				return nil, blockTime, fmt.Errorf("tx message could not be processed")
 			}
+			// TODO understand why it's not working here
+			//else {
+			//	return nil, blockTime, fmt.Errorf("tx message could not be processed")
+			//}
 		}
 
 		txBody.Messages = currMessages

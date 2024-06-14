@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/DefiantLabs/probe/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/nodersteam/cosmos-indexer/config"
 	dbTypes "github.com/nodersteam/cosmos-indexer/db"
 	"github.com/nodersteam/cosmos-indexer/rpc"
+	"github.com/nodersteam/probe/client"
 	"gorm.io/gorm"
 )
 

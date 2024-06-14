@@ -13,7 +13,7 @@ ifeq (,$(VERSION))
 endif
 
 # default value, overide with: make -e FQCN="foo"
-FQCN = ghcr.io/defiantlabs/cosmos-indexer
+FQCN = ghcr.io/nodersteam/cosmos-indexer
 
 grpc_gen:
 	protoc proto/*.proto \
