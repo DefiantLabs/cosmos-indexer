@@ -110,12 +110,9 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 		// We can entirely ignore failed TXs in downstream parsers, because according to the Cosmos specification, a single failed message in a TX fails the whole TX
 		if txResult.Code == 0 {
 			logs, err = types.ParseABCILogs(txResult.Log)
-		} else {
-			err = nil
-		}
-
-		if err != nil {
-			return nil, blockTime, fmt.Errorf("logs could not be parsed")
+			if err != nil {
+				return nil, blockTime, fmt.Errorf("logs could not be parsed")
+			}
 		}
 
 		txHash := tendermintTx.Hash()
@@ -126,6 +123,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 		for msgIdx := range txFull.Body.Messages {
 			shouldIndex, err := messageTypeShouldIndex(txFull.Body.Messages[msgIdx].TypeUrl, messageTypeFilters)
 			if err != nil {
+				config.Log.Error("messageTypeShouldIndex", err)
 				return nil, blockTime, err
 			}
 
@@ -187,6 +185,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 
 		processedTx, _, err := ProcessTx(db, indexerMergedTx, messagesRaw)
 		if err != nil {
+			config.Log.Error("ProcessTx", err)
 			return currTxDbWrappers, blockTime, err
 		}
 
@@ -199,6 +198,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 
 		signers, signerInfos, err := ProcessSigners(cl, txFull.AuthInfo, filteredSigners)
 		if err != nil {
+			config.Log.Error("ProcessSigners", err)
 			return currTxDbWrappers, blockTime, err
 		}
 
@@ -206,6 +206,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 
 		fees, err := ProcessFees(db, indexerTx.AuthInfo, signers)
 		if err != nil {
+			config.Log.Error("ProcessFees", err)
 			return currTxDbWrappers, blockTime, err
 		}
 
@@ -240,7 +241,7 @@ func ProcessRPCBlockByHeightTXs(db *gorm.DB, cl *client.ChainClient, messageType
 			Info:      indexerTxResp.Info,
 		}
 
-		if txFull.AuthInfo != nil {
+		if txFull.AuthInfo != nil && txFull.AuthInfo.Fee != nil {
 			txAuthInfo := models.AuthInfo{
 				Fee: models.AuthInfoFee{
 					Granter:  txFull.AuthInfo.Fee.Granter,
@@ -537,10 +538,13 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, message
 
 			pubKey, err := cl.Codec.InterfaceRegistry.Resolve(signerInfo.PublicKey.TypeUrl)
 			if err != nil {
+				config.Log.Error("ProcessSigners cl.Codec.InterfaceRegistry.Resolve ", err)
 				return nil, nil, err
 			}
+
 			err = cl.Codec.InterfaceRegistry.UnpackAny(signerInfo.PublicKey, &pubKey)
 			if err != nil {
+				config.Log.Error("ProcessSigners cl.Codec.InterfaceRegistry.UnpackAny ", err)
 				return nil, nil, err
 			}
 
@@ -598,6 +602,12 @@ func ProcessSigners(cl *client.ChainClient, authInfo *cosmosTx.AuthInfo, message
 
 // ProcessFees Processes fees into model form, applying denoms and addresses to them
 func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []models.Address) ([]models.Fee, error) {
+	// TODO not the best way
+	if authInfo.Fee == nil {
+		fees := make([]models.Fee, 0)
+		return fees, nil
+	}
+
 	feeCoins := authInfo.Fee.Amount
 	payer := authInfo.Fee.GetPayer()
 	fees := make([]models.Fee, 0)
