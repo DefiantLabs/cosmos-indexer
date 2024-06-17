@@ -24,6 +24,8 @@ type Txs interface {
 	TransactionSigners(ctx context.Context, hash string) ([]*models.SignerInfo, error)
 	Messages(ctx context.Context, hash string) ([]*models.Message, error)
 	GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error)
+	ChartTransactionsByHour(ctx context.Context, to time.Time) (*model.TxByHourWithCount, error)
+	ChartTransactionsVolume(ctx context.Context, to time.Time) ([]*model.TxVolumeByHour, error)
 }
 
 type txs struct {
@@ -100,4 +102,12 @@ func (s *txs) Messages(ctx context.Context, hash string) ([]*models.Message, err
 
 func (s *txs) GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error) {
 	return s.txRepo.GetSenderAndReceiver(ctx, hash)
+}
+
+func (s *txs) ChartTransactionsByHour(ctx context.Context, to time.Time) (*model.TxByHourWithCount, error) {
+	return s.txRepo.ChartTransactionsByHour(ctx, to)
+}
+
+func (s *txs) ChartTransactionsVolume(ctx context.Context, to time.Time) ([]*model.TxVolumeByHour, error) {
+	return s.txRepo.ChartTransactionsVolume(ctx, to)
 }

@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
+	"github.com/shopspring/decimal"
 	"testing"
 	"time"
 
@@ -203,6 +205,10 @@ func TestTxs_TransactionSigners(t *testing.T) {
 }
 
 func TestTxs_Transactions_ByHash(t *testing.T) {
+	defer func() {
+		postgresConn.Exec(context.Background(), `delete from txes`)
+	}()
+
 	txes := `INSERT INTO txes (id, hash, code, block_id, signatures, timestamp, memo, timeout_height, extension_options, non_critical_extension_options, auth_info_id, tx_response_id)
 									VALUES
 									  (1, 'hash1', 123, 1, '{"signature1", "signature2"}', $1, 'Random memo 1', 100, '{"option1", "option2"}', '{"non_critical_option1", "non_critical_option2"}', 1, 1),
@@ -218,4 +224,97 @@ func TestTxs_Transactions_ByHash(t *testing.T) {
 	res, _, err := txsRepo.Transactions(context.Background(), 100, 0, &TxsFilter{TxHash: &txHash})
 	require.NoError(t, err)
 	require.Len(t, res, 1)
+}
+
+func TestTxs_ChartTransactionsByHour(t *testing.T) {
+	defer func() {
+		postgresConn.Exec(context.Background(), `delete from txes`)
+	}()
+
+	txes := `INSERT INTO txes (id, hash, code, block_id, signatures, timestamp, memo, timeout_height, extension_options, non_critical_extension_options, auth_info_id, tx_response_id)
+									VALUES
+									  (1, 'hash1', 123, 1, '{"signature1", "signature2"}', $1, 'Random memo 1', 100, '{"option1", "option2"}', '{"non_critical_option1", "non_critical_option2"}', 1, 1),
+									  (2, 'hash2', 456, 2, '{"signature3", "signature4"}', $2, 'Random memo 2', 200, '{"option3", "option4"}', '{"non_critical_option3", "non_critical_option4"}', 2, 2),
+									  (3, 'hash3', 789, 3, '{"signature5", "signature6"}', $3, 'Random memo 3', 300, '{"option5", "option6"}', '{"non_critical_option5", "non_critical_option6"}', 3, 3),
+									  (4, 'hash4', 101112, 4, '{"signature7", "signature8"}', $4, 'Random memo 4', 400, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (5, 'hash5', 101112, 5, '{"signature7", "signature8"}', $4, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (6, 'hash6', 101112, 5, '{"signature7", "signature8"}', $5, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4)
+									  `
+	initTime := time.Now().UTC()
+	_, err := postgresConn.Exec(context.Background(), txes,
+		initTime,
+		initTime.Add(-1*time.Hour),
+		initTime.Add(-2*time.Hour),
+		initTime.Add(-3*time.Hour),
+		initTime.Add(-35*time.Hour))
+	require.NoError(t, err)
+	txsRepo := NewTxs(postgresConn)
+	res, err := txsRepo.ChartTransactionsByHour(context.Background(), initTime.Add(5*time.Minute))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	require.Equal(t, res.Total24H, int64(5))
+	require.Equal(t, res.Total48H, int64(1))
+	require.Len(t, res.Points, 4)
+}
+
+func TestTxs_ChartTransactionsVolume(t *testing.T) {
+	defer func() {
+		postgresConn.Exec(context.Background(), `delete from txes`)
+		postgresConn.Exec(context.Background(), `delete from fees`)
+		postgresConn.Exec(context.Background(), `delete from denoms`)
+	}()
+
+	batch := pgx.Batch{}
+
+	txes := `INSERT INTO txes (id, hash, code, block_id, signatures, timestamp, memo, timeout_height, extension_options, non_critical_extension_options, auth_info_id, tx_response_id)
+									VALUES
+									  (1, 'hash1', 123, 1, '{"signature1", "signature2"}', $1, 'Random memo 1', 100, '{"option1", "option2"}', '{"non_critical_option1", "non_critical_option2"}', 1, 1),
+									  (2, 'hash2', 456, 2, '{"signature3", "signature4"}', $2, 'Random memo 2', 200, '{"option3", "option4"}', '{"non_critical_option3", "non_critical_option4"}', 2, 2),
+									  (3, 'hash3', 789, 3, '{"signature5", "signature6"}', $3, 'Random memo 3', 300, '{"option5", "option6"}', '{"non_critical_option5", "non_critical_option6"}', 3, 3),
+									  (4, 'hash4', 101112, 4, '{"signature7", "signature8"}', $4, 'Random memo 4', 400, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (5, 'hash5', 101112, 5, '{"signature7", "signature8"}', $4, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (6, 'hash6', 101112, 5, '{"signature7", "signature8"}', $5, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4)
+									  `
+	initTime := time.Now().UTC()
+	batch.Queue(txes, initTime,
+		initTime.Add(-1*time.Hour),
+		initTime.Add(-2*time.Hour),
+		initTime.Add(-3*time.Hour),
+		initTime.Add(-35*time.Hour))
+
+	denoms := `INSERT INTO denoms(id, base) VALUES (1, 'utia')`
+	batch.Queue(denoms)
+
+	fees := `INSERT INTO fees(id, tx_id, amount, denomination_id)
+							VALUES 
+								(1, 1, 1000, 1),
+								(2, 2, 2000, 1),
+								(3, 3, 100, 1),
+								(4, 4, 2000, 1),
+								(5, 5, 9, 1),
+								(6, 6, 27, 1)
+							`
+	batch.Queue(fees)
+	res := postgresConn.SendBatch(context.Background(), &batch)
+	defer func(res pgx.BatchResults) {
+		err := res.Close()
+		require.NoError(t, err)
+	}(res)
+	for i := 0; i < batch.Len(); i++ {
+		_, err := res.Exec()
+		if err != nil {
+			require.NoError(t, err)
+		}
+	}
+
+	txsRepo := NewTxs(postgresConn)
+	data, err := txsRepo.ChartTransactionsVolume(context.Background(), initTime.Add(5*time.Minute))
+	require.NoError(t, err)
+	require.Len(t, data, 4)
+
+	require.Equal(t, data[0].TxVolume, decimal.RequireFromString("2009"))
+	require.Equal(t, data[1].TxVolume, decimal.RequireFromString("100"))
+	require.Equal(t, data[2].TxVolume, decimal.RequireFromString("2000"))
+	require.Equal(t, data[3].TxVolume, decimal.RequireFromString("1000"))
 }
