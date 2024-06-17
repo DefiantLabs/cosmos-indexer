@@ -28,6 +28,8 @@ type Txs interface {
 	Messages(ctx context.Context, hash string) ([]*models.Message, error)
 	GetSenderAndReceiver(ctx context.Context, hash string) (*model.TxSenderReceiver, error)
 	GetWalletsCount(ctx context.Context) (*model.TotalWallets, error)
+	ChartTransactionsByHour(ctx context.Context, to time.Time) (*model.TxByHourWithCount, error)
+	ChartTransactionsVolume(ctx context.Context, to time.Time) ([]*model.TxVolumeByHour, error)
 }
 
 type TxsFilter struct {
@@ -41,6 +43,68 @@ type txs struct {
 
 func NewTxs(db *pgxpool.Pool) Txs {
 	return &txs{db: db}
+}
+
+func (r *txs) ChartTransactionsByHour(ctx context.Context, to time.Time) (*model.TxByHourWithCount, error) {
+	query := `
+				select count(txes.hash),  date_trunc('hour', txes.timestamp) from txes
+				where txes.timestamp >= $1 and txes.timestamp <= $2
+				group by date_trunc('hour', txes.timestamp)
+				`
+	rows, err := r.db.Query(ctx, query, to.UTC().Add(-24*time.Hour), to.UTC())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	points := make([]*model.TxsByHour, 0)
+	for rows.Next() {
+		var in model.TxsByHour
+		errScan := rows.Scan(&in.TxNum, &in.Hour)
+		if errScan != nil {
+			return nil, fmt.Errorf("repository.ChartTransactionsByHour, Scan: %v", errScan)
+		}
+		points = append(points, &in)
+	}
+
+	all24H, err := r.txCountPerPeriod(ctx, to.UTC().Add(-24*time.Hour), to.UTC())
+	if err != nil {
+		return nil, err
+	}
+
+	all48H, err := r.txCountPerPeriod(ctx, to.UTC().Add(-48*time.Hour), to.UTC().Add(-24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.TxByHourWithCount{
+		Points:   points,
+		Total24H: all24H,
+		Total48H: all48H,
+	}, nil
+}
+
+func (r *txs) ChartTransactionsVolume(ctx context.Context, to time.Time) ([]*model.TxVolumeByHour, error) {
+	query := `select SUM(fs.amount), date_trunc('hour', txes.timestamp)
+    		from txes
+    		left join fees fs on fs.tx_id = txes.id
+			left join denoms dm on fs.denomination_id = dm.id
+			where txes.timestamp between $1 AND $2
+			group by date_trunc('hour', txes.timestamp)`
+	rows, err := r.db.Query(ctx, query, to.UTC().Add(-24*time.Hour), to.UTC())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	points := make([]*model.TxVolumeByHour, 0)
+	for rows.Next() {
+		var in model.TxVolumeByHour
+		errScan := rows.Scan(&in.TxVolume, &in.Hour)
+		if errScan != nil {
+			return nil, fmt.Errorf("repository.ChartTransactionsVolume, Scan: %v", errScan)
+		}
+		points = append(points, &in)
+	}
+	return points, nil
 }
 
 func (r *txs) ChartTxByDay(ctx context.Context, from time.Time, to time.Time) ([]*model.TxsByDay, error) {
@@ -101,7 +165,7 @@ func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (allTx,
 }
 
 func (r *txs) txCountPerPeriod(ctx context.Context, from, to time.Time) (int64, error) {
-	query := `select count(*) from txes where txes.timestamp between $1 AND $2`
+	query := `select COALESCE(count(*),0) from txes where txes.timestamp between $1 AND $2`
 	row := r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
 	var res int64
 	if err := row.Scan(&res); err != nil {
@@ -111,8 +175,31 @@ func (r *txs) txCountPerPeriod(ctx context.Context, from, to time.Time) (int64, 
 }
 
 func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decimal, decimal.Decimal, error) {
-	// TODO understand in what denom to return
-	return decimal.NewFromInt(0), decimal.NewFromInt(0), nil
+	total24H, err := r.volumePerPeriod(ctx, to.Add(-24*time.Hour), to)
+	if err != nil {
+		return decimal.Zero, decimal.Zero, err
+	}
+
+	total30D, err := r.volumePerPeriod(ctx, to.Add(-(24*30)*time.Hour).UTC(), to.UTC())
+	if err != nil {
+		return decimal.Zero, decimal.Zero, err
+	}
+
+	return total24H, total30D, nil
+}
+
+func (r *txs) volumePerPeriod(ctx context.Context, from, to time.Time) (decimal.Decimal, error) {
+	query := `select COALESCE(SUM(fs.amount),0)
+    		from txes
+    		left join fees fs on fs.tx_id = txes.id
+			left join denoms dm on fs.denomination_id = dm.id
+			where txes.timestamp between $1 AND $2`
+	row := r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
+	var total decimal.Decimal
+	if err := row.Scan(&total); err != nil {
+		return decimal.Zero, err
+	}
+	return total, nil
 }
 
 func (r *txs) TransactionSigners(ctx context.Context, txHash string) ([]*models.SignerInfo, error) {

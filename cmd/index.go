@@ -27,7 +27,7 @@ import (
 	blocks "github.com/nodersteam/cosmos-indexer/proto"
 	"google.golang.org/grpc"
 
-	"github.com/DefiantLabs/probe/client"
+	"github.com/nodersteam/probe/client"
 
 	"github.com/nodersteam/cosmos-indexer/config"
 	"github.com/nodersteam/cosmos-indexer/core"
@@ -719,10 +719,10 @@ func (idxr *Indexer) processBlocks(wg *sync.WaitGroup,
 			var err error
 
 			if blockData.GetTxsResponse != nil {
-				config.Log.Debug("Processing TXs from RPC TX Search response")
+				config.Log.Info("Processing TXs from RPC TX Search response")
 				txDBWrappers, _, err = core.ProcessRPCTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.GetTxsResponse)
 			} else if blockData.BlockResultsData != nil {
-				config.Log.Debug("Processing TXs from BlockResults search response")
+				config.Log.Info("Processing TXs from BlockResults search response")
 				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(idxr.db, idxr.cl, idxr.messageTypeFilters, blockData.BlockData, blockData.BlockResultsData)
 			}
 

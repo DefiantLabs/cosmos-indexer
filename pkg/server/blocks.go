@@ -4,8 +4,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/nodersteam/cosmos-indexer/pkg/repository"
 
@@ -407,4 +408,43 @@ func (r *blocksServer) BlockInfoByHash(ctx context.Context, in *pb.BlockInfoByHa
 	}
 
 	return &pb.BlockInfoByHashResponse{Info: r.blockToProto(res)}, nil
+}
+
+func (r *blocksServer) ChartTransactionsByHour(ctx context.Context, in *pb.ChartTransactionsByHourRequest) (*pb.ChartTransactionsByHourResponse, error) {
+	res, err := r.srvTx.ChartTransactionsByHour(ctx, in.To.AsTime())
+	if err != nil {
+		return &pb.ChartTransactionsByHourResponse{}, err
+	}
+	return &pb.ChartTransactionsByHourResponse{
+		Total_24H: res.Total24H,
+		Total_48H: res.Total48H,
+		Points:    r.toPointsPb(res.Points),
+	}, nil
+}
+
+func (r *blocksServer) toPointsPb(in []*model.TxsByHour) []*pb.TxsByHour {
+	data := make([]*pb.TxsByHour, 0)
+	for _, tx := range in {
+		data = append(data, &pb.TxsByHour{
+			TxNum: int64(tx.TxNum),
+			Hour:  timestamppb.New(tx.Hour),
+		})
+	}
+	return data
+}
+
+func (r *blocksServer) ChartTransactionsVolume(ctx context.Context, in *pb.ChartTransactionsVolumeRequest) (*pb.ChartTransactionsVolumeResponse, error) {
+	res, err := r.srvTx.ChartTransactionsVolume(ctx, in.To.AsTime())
+	if err != nil {
+		return &pb.ChartTransactionsVolumeResponse{}, err
+	}
+
+	data := make([]*pb.TxsVolumeByHour, 0)
+	for _, tx := range res {
+		data = append(data, &pb.TxsVolumeByHour{
+			TxVolume: tx.TxVolume.String(),
+			Hour:     timestamppb.New(tx.Hour),
+		})
+	}
+	return &pb.ChartTransactionsVolumeResponse{Points: data}, nil
 }

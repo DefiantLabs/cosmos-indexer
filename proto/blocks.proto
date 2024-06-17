@@ -24,6 +24,8 @@ service BlocksService {
   rpc CacheGetBlocks(GetBlocksRequest) returns (GetBlocksResponse) {}
   rpc CacheAggregated(CacheAggregatedRequest) returns (CacheAggregatedResponse) {}
   rpc SearchHashByText(SearchHashByTextRequest) returns (SearchHashByTextResponse) {}
+  rpc ChartTransactionsByHour(ChartTransactionsByHourRequest) returns (ChartTransactionsByHourResponse) {}
+  rpc ChartTransactionsVolume(ChartTransactionsVolumeRequest) returns (ChartTransactionsVolumeResponse) {}
 }
 
 
@@ -291,4 +293,32 @@ message BlockInfoByHashRequest {
 
 message BlockInfoByHashResponse {
   Block info = 1;
+}
+
+message ChartTransactionsByHourRequest{
+  google.protobuf.Timestamp to = 1;
+}
+
+message TxsByHour {
+  int64 tx_num = 1;
+  google.protobuf.Timestamp hour = 2;
+}
+
+message ChartTransactionsByHourResponse{
+  repeated TxsByHour points = 1;
+  int64 total_24H = 2;
+  int64 total_48H = 3;
+}
+
+message ChartTransactionsVolumeRequest{
+  google.protobuf.Timestamp to = 1;
+}
+
+message TxsVolumeByHour {
+  string tx_volume = 1;
+  google.protobuf.Timestamp hour = 2;
+}
+
+message ChartTransactionsVolumeResponse{
+  repeated TxsVolumeByHour points = 1;
 }

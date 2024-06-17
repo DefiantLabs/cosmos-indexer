@@ -161,7 +161,7 @@ void runApplication() {
               --base.index-block-events true \
               --probe.rpc https://celestia-rpc.publicnode.com:443  \
               --probe.account-prefix celestia \
-              --probe.chain-id mocha-4 \
+              --probe.chain-id celestia \
               --probe.chain-name celestia \
               --database.host ${env.POSTGRES_CONTAINER} \
               --database.database postgres \

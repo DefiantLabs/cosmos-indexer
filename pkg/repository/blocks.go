@@ -50,13 +50,15 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (
 		return nil, fmt.Errorf("exec %v", err)
 	}
 
-	queryTotalFees := `select COALESCE(sum(amount),0) from fees where tx_id IN (select id from txes where block_id=$1)`
-	var totalFees decimal.Decimal
-	err = r.db.QueryRow(ctx, queryTotalFees, blockID).Scan(&totalFees)
+	o.TotalFees, err = r.blockFees(ctx, o.BlockHeight)
 	if err != nil {
-		return nil, fmt.Errorf("exec total fees %v", err)
+		return nil, err
 	}
-	o.TotalFees = totalFees
+
+	o.GasUsed, o.GasWanted, err = r.blockGas(ctx, o.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
 
 	allTx, err := r.countAllTxs(ctx, blockID)
 	if err != nil {
@@ -86,11 +88,15 @@ func (r *blocks) GetBlockInfoByHash(ctx context.Context, hash string) (*model.Bl
 		return nil, fmt.Errorf("exec %v", err)
 	}
 
-	totalFees, err := r.totalBlockFees(ctx, blockID)
+	o.TotalFees, err = r.blockFees(ctx, o.BlockHeight)
 	if err != nil {
 		return nil, fmt.Errorf("exec total fees %v", err)
 	}
-	o.TotalFees = totalFees
+
+	o.GasUsed, o.GasWanted, err = r.blockGas(ctx, o.BlockHeight)
+	if err != nil {
+		return nil, fmt.Errorf("exec total gas %v", err)
+	}
 
 	allTx, err := r.countAllTxs(ctx, blockID)
 	if err != nil {
@@ -101,7 +107,7 @@ func (r *blocks) GetBlockInfoByHash(ctx context.Context, hash string) (*model.Bl
 	return o, nil
 }
 
-func (r *blocks) totalBlockFees(ctx context.Context, blockID int64) (decimal.Decimal, error) {
+func (r *blocks) totalBlockFeesByBlockID(ctx context.Context, blockID int64) (decimal.Decimal, error) {
 	queryTotalFees := `select COALESCE(sum(amount),0) from fees where tx_id IN (select id from txes where block_id=$1)`
 	var totalFees decimal.Decimal
 	err := r.db.QueryRow(ctx, queryTotalFees, blockID).Scan(&totalFees)
@@ -279,14 +285,9 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 			return nil, 0, fmt.Errorf("repository.Blocks, Scan: %v", errScan)
 		}
 
-		queryFees := `select blocks.height, sum(COALESCE(fees.amount,0)) from blocks
-                 left join txes on blocks.id = txes.block_id
-                 left join fees on txes.id = fees.tx_id
-                 where blocks.height = $1
-				 group by blocks.height`
-		rowFees := r.db.QueryRow(ctx, queryFees, in.BlockHeight)
-		if err = rowFees.Scan(&in.BlockHeight, &in.TotalFees); err != nil {
-			return nil, 0, fmt.Errorf("rowFees.Scan, Scan: %v", errScan)
+		in.TotalFees, err = r.blockFees(ctx, in.BlockHeight)
+		if err != nil {
+			return nil, 0, err
 		}
 
 		allTx, err := r.countAllTxs(ctx, int64(blockID))
@@ -295,15 +296,11 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 		}
 		in.TotalTx = allTx
 
-		queryGas := `select blocks.height, sum(COALESCE(tx_responses.gas_wanted,0)), sum(COALESCE(tx_responses.gas_used,0)) from blocks
-						left join txes on blocks.id = txes.block_id
-						left join tx_responses on txes.tx_response_id = tx_responses.id
-						where blocks.height = $1
-						group by blocks.height`
-		rowQueryGas := r.db.QueryRow(ctx, queryGas, in.BlockHeight)
-		if err = rowQueryGas.Scan(&in.BlockHeight, &in.GasUsed, &in.GasWanted); err != nil {
-			return nil, 0, fmt.Errorf("rowQueryGas.Scan, Scan: %v", errScan)
+		in.GasUsed, in.GasWanted, err = r.blockGas(ctx, in.BlockHeight)
+		if err != nil {
+			return nil, 0, err
 		}
+
 		data = append(data, &in)
 	}
 
@@ -315,6 +312,42 @@ func (r *blocks) Blocks(ctx context.Context, limit int64, offset int64) ([]*mode
 	}
 
 	return data, all, nil
+}
+
+func (r *blocks) blockFees(ctx context.Context, height int64) (decimal.Decimal, error) {
+	queryFees := `select blocks.height, sum(COALESCE(fees.amount,0)) from blocks
+                 left join txes on blocks.id = txes.block_id
+                 left join fees on txes.id = fees.tx_id
+                 where blocks.height = $1
+				 group by blocks.height`
+	rowFees := r.db.QueryRow(ctx, queryFees, height)
+
+	var blockHeight int64
+	var totalFees decimal.Decimal
+
+	if err := rowFees.Scan(&blockHeight, &totalFees); err != nil {
+		return decimal.Zero, fmt.Errorf("rowFees.Scan, Scan: %v", err)
+	}
+	return totalFees, nil
+}
+
+func (r *blocks) blockGas(ctx context.Context, height int64) (decimal.Decimal, decimal.Decimal, error) {
+	queryGas := `select blocks.height, sum(COALESCE(tx_responses.gas_wanted,0)), sum(COALESCE(tx_responses.gas_used,0)) from blocks
+						left join txes on blocks.id = txes.block_id
+						left join tx_responses on txes.tx_response_id = tx_responses.id
+						where blocks.height = $1
+						group by blocks.height`
+	rowQueryGas := r.db.QueryRow(ctx, queryGas, height)
+
+	var blockHeight int64
+	var gasUsed decimal.Decimal
+	var gasWanted decimal.Decimal
+
+	if err := rowQueryGas.Scan(&blockHeight, &gasUsed, &gasWanted); err != nil {
+		return decimal.Zero, decimal.Zero, fmt.Errorf("rowQueryGas.Scan, Scan: %v", err)
+	}
+
+	return gasUsed, gasWanted, nil
 }
 
 func (r *blocks) BlockSignatures(ctx context.Context, height int64, limit int64, offset int64) ([]*model.BlockSigners, int64, error) {

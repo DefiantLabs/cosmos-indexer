@@ -19,23 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	BlocksService_BlockInfo_FullMethodName          = "/blocks.BlocksService/BlockInfo"
-	BlocksService_BlockInfoByHash_FullMethodName    = "/blocks.BlocksService/BlockInfoByHash"
-	BlocksService_BlockValidators_FullMethodName    = "/blocks.BlocksService/BlockValidators"
-	BlocksService_TxChartByDay_FullMethodName       = "/blocks.BlocksService/TxChartByDay"
-	BlocksService_TxByHash_FullMethodName           = "/blocks.BlocksService/TxByHash"
-	BlocksService_TotalTransactions_FullMethodName  = "/blocks.BlocksService/TotalTransactions"
-	BlocksService_Transactions_FullMethodName       = "/blocks.BlocksService/Transactions"
-	BlocksService_TotalBlocks_FullMethodName        = "/blocks.BlocksService/TotalBlocks"
-	BlocksService_GetBlocks_FullMethodName          = "/blocks.BlocksService/GetBlocks"
-	BlocksService_BlockSignatures_FullMethodName    = "/blocks.BlocksService/BlockSignatures"
-	BlocksService_TxsByBlock_FullMethodName         = "/blocks.BlocksService/TxsByBlock"
-	BlocksService_TransactionRawLog_FullMethodName  = "/blocks.BlocksService/TransactionRawLog"
-	BlocksService_TransactionSigners_FullMethodName = "/blocks.BlocksService/TransactionSigners"
-	BlocksService_CacheTransactions_FullMethodName  = "/blocks.BlocksService/CacheTransactions"
-	BlocksService_CacheGetBlocks_FullMethodName     = "/blocks.BlocksService/CacheGetBlocks"
-	BlocksService_CacheAggregated_FullMethodName    = "/blocks.BlocksService/CacheAggregated"
-	BlocksService_SearchHashByText_FullMethodName   = "/blocks.BlocksService/SearchHashByText"
+	BlocksService_BlockInfo_FullMethodName               = "/blocks.BlocksService/BlockInfo"
+	BlocksService_BlockInfoByHash_FullMethodName         = "/blocks.BlocksService/BlockInfoByHash"
+	BlocksService_BlockValidators_FullMethodName         = "/blocks.BlocksService/BlockValidators"
+	BlocksService_TxChartByDay_FullMethodName            = "/blocks.BlocksService/TxChartByDay"
+	BlocksService_TxByHash_FullMethodName                = "/blocks.BlocksService/TxByHash"
+	BlocksService_TotalTransactions_FullMethodName       = "/blocks.BlocksService/TotalTransactions"
+	BlocksService_Transactions_FullMethodName            = "/blocks.BlocksService/Transactions"
+	BlocksService_TotalBlocks_FullMethodName             = "/blocks.BlocksService/TotalBlocks"
+	BlocksService_GetBlocks_FullMethodName               = "/blocks.BlocksService/GetBlocks"
+	BlocksService_BlockSignatures_FullMethodName         = "/blocks.BlocksService/BlockSignatures"
+	BlocksService_TxsByBlock_FullMethodName              = "/blocks.BlocksService/TxsByBlock"
+	BlocksService_TransactionRawLog_FullMethodName       = "/blocks.BlocksService/TransactionRawLog"
+	BlocksService_TransactionSigners_FullMethodName      = "/blocks.BlocksService/TransactionSigners"
+	BlocksService_CacheTransactions_FullMethodName       = "/blocks.BlocksService/CacheTransactions"
+	BlocksService_CacheGetBlocks_FullMethodName          = "/blocks.BlocksService/CacheGetBlocks"
+	BlocksService_CacheAggregated_FullMethodName         = "/blocks.BlocksService/CacheAggregated"
+	BlocksService_SearchHashByText_FullMethodName        = "/blocks.BlocksService/SearchHashByText"
+	BlocksService_ChartTransactionsByHour_FullMethodName = "/blocks.BlocksService/ChartTransactionsByHour"
+	BlocksService_ChartTransactionsVolume_FullMethodName = "/blocks.BlocksService/ChartTransactionsVolume"
 )
 
 // BlocksServiceClient is the client API for BlocksService service.
@@ -59,6 +61,8 @@ type BlocksServiceClient interface {
 	CacheGetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 	CacheAggregated(ctx context.Context, in *CacheAggregatedRequest, opts ...grpc.CallOption) (*CacheAggregatedResponse, error)
 	SearchHashByText(ctx context.Context, in *SearchHashByTextRequest, opts ...grpc.CallOption) (*SearchHashByTextResponse, error)
+	ChartTransactionsByHour(ctx context.Context, in *ChartTransactionsByHourRequest, opts ...grpc.CallOption) (*ChartTransactionsByHourResponse, error)
+	ChartTransactionsVolume(ctx context.Context, in *ChartTransactionsVolumeRequest, opts ...grpc.CallOption) (*ChartTransactionsVolumeResponse, error)
 }
 
 type blocksServiceClient struct {
@@ -222,6 +226,24 @@ func (c *blocksServiceClient) SearchHashByText(ctx context.Context, in *SearchHa
 	return out, nil
 }
 
+func (c *blocksServiceClient) ChartTransactionsByHour(ctx context.Context, in *ChartTransactionsByHourRequest, opts ...grpc.CallOption) (*ChartTransactionsByHourResponse, error) {
+	out := new(ChartTransactionsByHourResponse)
+	err := c.cc.Invoke(ctx, BlocksService_ChartTransactionsByHour_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blocksServiceClient) ChartTransactionsVolume(ctx context.Context, in *ChartTransactionsVolumeRequest, opts ...grpc.CallOption) (*ChartTransactionsVolumeResponse, error) {
+	out := new(ChartTransactionsVolumeResponse)
+	err := c.cc.Invoke(ctx, BlocksService_ChartTransactionsVolume_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlocksServiceServer is the server API for BlocksService service.
 // All implementations must embed UnimplementedBlocksServiceServer
 // for forward compatibility
@@ -243,6 +265,8 @@ type BlocksServiceServer interface {
 	CacheGetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	CacheAggregated(context.Context, *CacheAggregatedRequest) (*CacheAggregatedResponse, error)
 	SearchHashByText(context.Context, *SearchHashByTextRequest) (*SearchHashByTextResponse, error)
+	ChartTransactionsByHour(context.Context, *ChartTransactionsByHourRequest) (*ChartTransactionsByHourResponse, error)
+	ChartTransactionsVolume(context.Context, *ChartTransactionsVolumeRequest) (*ChartTransactionsVolumeResponse, error)
 	mustEmbedUnimplementedBlocksServiceServer()
 }
 
@@ -300,6 +324,12 @@ func (UnimplementedBlocksServiceServer) CacheAggregated(context.Context, *CacheA
 }
 func (UnimplementedBlocksServiceServer) SearchHashByText(context.Context, *SearchHashByTextRequest) (*SearchHashByTextResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchHashByText not implemented")
+}
+func (UnimplementedBlocksServiceServer) ChartTransactionsByHour(context.Context, *ChartTransactionsByHourRequest) (*ChartTransactionsByHourResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChartTransactionsByHour not implemented")
+}
+func (UnimplementedBlocksServiceServer) ChartTransactionsVolume(context.Context, *ChartTransactionsVolumeRequest) (*ChartTransactionsVolumeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChartTransactionsVolume not implemented")
 }
 func (UnimplementedBlocksServiceServer) mustEmbedUnimplementedBlocksServiceServer() {}
 
@@ -620,6 +650,42 @@ func _BlocksService_SearchHashByText_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlocksService_ChartTransactionsByHour_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChartTransactionsByHourRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).ChartTransactionsByHour(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_ChartTransactionsByHour_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).ChartTransactionsByHour(ctx, req.(*ChartTransactionsByHourRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlocksService_ChartTransactionsVolume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChartTransactionsVolumeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlocksServiceServer).ChartTransactionsVolume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlocksService_ChartTransactionsVolume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlocksServiceServer).ChartTransactionsVolume(ctx, req.(*ChartTransactionsVolumeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlocksService_ServiceDesc is the grpc.ServiceDesc for BlocksService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -694,6 +760,14 @@ var BlocksService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchHashByText",
 			Handler:    _BlocksService_SearchHashByText_Handler,
+		},
+		{
+			MethodName: "ChartTransactionsByHour",
+			Handler:    _BlocksService_ChartTransactionsByHour_Handler,
+		},
+		{
+			MethodName: "ChartTransactionsVolume",
+			Handler:    _BlocksService_ChartTransactionsVolume_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

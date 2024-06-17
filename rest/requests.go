@@ -3,12 +3,9 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nodersteam/cosmos-indexer/cosmos/modules/tx"
 	"io"
 	"net/http"
-	"net/url"
-
-	"github.com/nodersteam/cosmos-indexer/cosmos/modules/denoms"
-	"github.com/nodersteam/cosmos-indexer/cosmos/modules/tx"
 )
 
 var apiEndpoints = map[string]string{
@@ -125,6 +122,7 @@ func checkResponseErrorCode(requestEndpoint string, resp *http.Response) error {
 	return nil
 }
 
+/*
 func GetIBCDenomTraces(host string) (result denoms.GetDenomTracesResponse, err error) {
 	result, err = getDenomTraces(host, "")
 	if err != nil {
@@ -172,4 +170,4 @@ func getDenomTraces(host string, paginationKey string) (result denoms.GetDenomTr
 	}
 
 	return result, nil
-}
+}*/
