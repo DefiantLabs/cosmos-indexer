@@ -165,7 +165,7 @@ func (r *txs) TransactionsPerPeriod(ctx context.Context, to time.Time) (allTx,
 }
 
 func (r *txs) txCountPerPeriod(ctx context.Context, from, to time.Time) (int64, error) {
-	query := `select count(*) from txes where txes.timestamp between $1 AND $2`
+	query := `select COALESCE(count(*),0) from txes where txes.timestamp between $1 AND $2`
 	row := r.db.QueryRow(ctx, query, from.UTC(), to.UTC())
 	var res int64
 	if err := row.Scan(&res); err != nil {
@@ -189,7 +189,7 @@ func (r *txs) VolumePerPeriod(ctx context.Context, to time.Time) (decimal.Decima
 }
 
 func (r *txs) volumePerPeriod(ctx context.Context, from, to time.Time) (decimal.Decimal, error) {
-	query := `select SUM(fs.amount)
+	query := `select COALESCE(SUM(fs.amount),0)
     		from txes
     		left join fees fs on fs.tx_id = txes.id
 			left join denoms dm on fs.denomination_id = dm.id
