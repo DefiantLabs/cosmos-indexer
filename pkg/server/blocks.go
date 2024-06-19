@@ -33,7 +33,7 @@ func NewBlocksServer(srv service.Blocks, srvTx service.Txs, srvS service.Search,
 }
 
 func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest) (*pb.GetBlockInfoResponse, error) {
-	res, err := r.srv.BlockInfo(ctx, in.BlockNumber, in.ChainId)
+	res, err := r.srv.BlockInfo(ctx, in.BlockNumber)
 	if err != nil {
 		return &pb.GetBlockInfoResponse{}, err
 	}
@@ -43,7 +43,7 @@ func (r *blocksServer) BlockInfo(ctx context.Context, in *pb.GetBlockInfoRequest
 }
 
 func (r *blocksServer) BlockValidators(ctx context.Context, in *pb.GetBlockValidatorsRequest) (*pb.GetBlockValidatorsResponse, error) {
-	res, err := r.srv.BlockValidators(ctx, in.BlockNumber, in.ChainId)
+	res, err := r.srv.BlockValidators(ctx, in.BlockNumber)
 	if err != nil {
 		return &pb.GetBlockValidatorsResponse{}, err
 	}

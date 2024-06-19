@@ -15,9 +15,9 @@ import (
 )
 
 type Blocks interface {
-	GetBlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error)
+	GetBlockInfo(ctx context.Context, block int32) (*model.BlockInfo, error)
 	GetBlockInfoByHash(ctx context.Context, hash string) (*model.BlockInfo, error)
-	GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error)
+	GetBlockValidators(ctx context.Context, block int32) ([]string, error)
 	TotalBlocks(ctx context.Context, to time.Time) (*model.TotalBlocks, error)
 	Blocks(ctx context.Context, limit int64, offset int64) ([]*model.BlockInfo, int64, error)
 	BlockSignatures(ctx context.Context, height int64, limit int64, offset int64) ([]*model.BlockSigners, int64, error)
@@ -31,16 +31,16 @@ func NewBlocks(db *pgxpool.Pool) Blocks {
 	return &blocks{db: db}
 }
 
-func (r *blocks) GetBlockInfo(ctx context.Context, block int32, chainID int32) (*model.BlockInfo, error) {
+func (r *blocks) GetBlockInfo(ctx context.Context, block int32) (*model.BlockInfo, error) {
 	query := `
 				SELECT bl.id, bl.height, addr.address as proposed_validator, bl.time_stamp, bl.block_hash
 				from blocks bl 
 				LEFT JOIN addresses addr on bl.proposer_cons_address_id = addr.id
-				where bl.chain_id=$1 and bl.height = $2
+				where bl.height = $1
 				`
 	o := new(model.BlockInfo)
 	var blockID int64
-	err := r.db.QueryRow(ctx, query, chainID, block).Scan(
+	err := r.db.QueryRow(ctx, query, block).Scan(
 		&blockID,
 		&o.BlockHeight,
 		&o.ProposedValidatorAddress,
@@ -127,16 +127,16 @@ func (r *blocks) countAllTxs(ctx context.Context, blockID int64) (int64, error) 
 	return allTx, nil
 }
 
-func (r *blocks) GetBlockValidators(ctx context.Context, block int32, chainID int32) ([]string, error) {
+func (r *blocks) GetBlockValidators(ctx context.Context, block int32) ([]string, error) {
 	query := `
 				SELECT addr.address
 				FROM blocks bl
 				INNER JOIN txes tx on bl.id = tx.block_id
 				INNER JOIN tx_signer_addresses signs on tx.id = signs.tx_id
 				INNER JOIN addresses addr on signs.address_id = addr.id
-				where bl.height = $1 and bl.chain_id = $2
+				where bl.height = $1
 				`
-	rows, err := r.db.Query(ctx, query, block, chainID)
+	rows, err := r.db.Query(ctx, query, block)
 	if err != nil {
 		return nil, err
 	}
