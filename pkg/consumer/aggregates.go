@@ -52,6 +52,12 @@ func (s *aggregatesConsumer) storeAggregated(ctx context.Context) error {
 		return err
 	}
 
+	res.Volume24H, res.Volume30D, err = s.txs.VolumePerPeriod(ctx, time.Now().UTC())
+	if err != nil {
+		log.Err(err).Msg("failed to fetch transactions volume per period")
+		return err
+	}
+
 	wallets, err := s.txs.GetWalletsCount(ctx)
 	if err != nil {
 		log.Err(err).Msg("failed to fetch GetWalletsCount")

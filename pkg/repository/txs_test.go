@@ -318,3 +318,61 @@ func TestTxs_ChartTransactionsVolume(t *testing.T) {
 	require.Equal(t, data[2].TxVolume, decimal.RequireFromString("2000"))
 	require.Equal(t, data[3].TxVolume, decimal.RequireFromString("1000"))
 }
+
+func TestTxs_VolumePerPeriod(t *testing.T) {
+	defer func() {
+		postgresConn.Exec(context.Background(), `delete from txes`)
+		postgresConn.Exec(context.Background(), `delete from fees`)
+		postgresConn.Exec(context.Background(), `delete from denoms`)
+	}()
+
+	batch := pgx.Batch{}
+
+	txes := `INSERT INTO txes (id, hash, code, block_id, signatures, timestamp, memo, timeout_height, extension_options, non_critical_extension_options, auth_info_id, tx_response_id)
+									VALUES
+									  (1, 'hash1', 123, 1, '{"signature1", "signature2"}', $1, 'Random memo 1', 100, '{"option1", "option2"}', '{"non_critical_option1", "non_critical_option2"}', 1, 1),
+									  (2, 'hash2', 456, 2, '{"signature3", "signature4"}', $2, 'Random memo 2', 200, '{"option3", "option4"}', '{"non_critical_option3", "non_critical_option4"}', 2, 2),
+									  (3, 'hash3', 789, 3, '{"signature5", "signature6"}', $3, 'Random memo 3', 300, '{"option5", "option6"}', '{"non_critical_option5", "non_critical_option6"}', 3, 3),
+									  (4, 'hash4', 101112, 4, '{"signature7", "signature8"}', $4, 'Random memo 4', 400, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (5, 'hash5', 101112, 5, '{"signature7", "signature8"}', $4, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4),
+									  (6, 'hash6', 101112, 5, '{"signature7", "signature8"}', $5, 'Random memo 5', 600, '{"option7", "option8"}', '{"non_critical_option7", "non_critical_option8"}', 4, 4)
+									  `
+	initTime := time.Now().UTC()
+	batch.Queue(txes, initTime,
+		initTime.Add(-1*time.Hour),
+		initTime.Add(-2*time.Hour),
+		initTime.Add(-3*time.Hour),
+		initTime.Add(-35*time.Hour))
+
+	denoms := `INSERT INTO denoms(id, base) VALUES (1, 'utia')`
+	batch.Queue(denoms)
+
+	fees := `INSERT INTO fees(id, tx_id, amount, denomination_id)
+							VALUES 
+								(1, 1, 1000, 1),
+								(2, 2, 2000, 1),
+								(3, 3, 100, 1),
+								(4, 4, 2000, 1),
+								(5, 5, 9, 1),
+								(6, 6, 27, 1)
+							`
+	batch.Queue(fees)
+	res := postgresConn.SendBatch(context.Background(), &batch)
+	defer func(res pgx.BatchResults) {
+		err := res.Close()
+		require.NoError(t, err)
+	}(res)
+	for i := 0; i < batch.Len(); i++ {
+		_, err := res.Exec()
+		if err != nil {
+			require.NoError(t, err)
+		}
+	}
+
+	txsRepo := NewTxs(postgresConn)
+	total24H, total30D, err := txsRepo.VolumePerPeriod(context.Background(),
+		initTime.Add(5*time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, total24H, decimal.RequireFromString("5109"))
+	require.Equal(t, total30D, decimal.RequireFromString("5136"))
+}
