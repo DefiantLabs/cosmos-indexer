@@ -4,8 +4,7 @@ import (
 	"context"
 	txv1beta1 "cosmossdk.io/api/cosmos/tx/v1beta1"
 	"encoding/base64"
-	"errors"
-	celblob "github.com/celestiaorg/go-square/blob"
+	//celblob "github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cosmosTx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/nodersteam/cosmos-indexer/config"
@@ -90,6 +89,7 @@ func unmarshalCosmosTx(txbytes []byte) ([]*anypb.Any, error) {
 	return body.Messages, nil
 }
 
+/*
 func unmarshalCelestiaBlobTx(txbytes []byte) (*celblob.BlobTx, error) {
 	blobTx, success := celblob.UnmarshalBlobTx(txbytes)
 	if !success {
@@ -97,3 +97,4 @@ func unmarshalCelestiaBlobTx(txbytes []byte) (*celblob.BlobTx, error) {
 	}
 	return blobTx, nil
 }
+*/

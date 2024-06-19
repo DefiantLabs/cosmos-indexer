@@ -10,6 +10,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -21,7 +22,6 @@ import (
 	"github.com/nodersteam/cosmos-indexer/db/models"
 	"github.com/nodersteam/cosmos-indexer/filter"
 	"github.com/nodersteam/cosmos-indexer/util"
-	"github.com/nodersteam/probe/client"
 	"gorm.io/gorm"
 )
 
@@ -319,14 +319,26 @@ func ProcessRPCTXs(db *gorm.DB, cl *client.ChainClient, messageTypeFilters []fil
 			// Attempt to unpack the message individually.
 			if currMsg == nil {
 				var currMsgUnpack types.Msg
-				err := cl.Codec.InterfaceRegistry.UnpackAny(currTx.Body.Messages[msgIdx], &currMsgUnpack)
+
+				err = cl.Codec.InterfaceRegistry.UnpackAny(currTx.Body.Messages[msgIdx], &currMsgUnpack)
 				if err != nil || currMsgUnpack == nil {
-					return nil, blockTime, fmt.Errorf("tx message could not be processed. Unpacking protos failed and CachedValue is not present. TX Hash: %s, Msg type: %s, Msg index: %d, Code: %d",
+					config.Log.Errorf(fmt.Sprintf("tx message could not be processed. "+
+						"Unpacking protos failed and CachedValue is not present. "+
+						"TX Hash: %s, Msg type: %s, Msg index: %d, Code: %d, Error: %s. Ignoring....",
 						currTxResp.TxHash,
 						currTx.Body.Messages[msgIdx].TypeUrl,
 						msgIdx,
 						currTxResp.Code,
-					)
+						err.Error(),
+					))
+					continue
+					/*
+						return nil, blockTime, fmt.Errorf("tx message could not be processed. Unpacking protos failed and CachedValue is not present. TX Hash: %s, Msg type: %s, Msg index: %d, Code: %d",
+							currTxResp.TxHash,
+							currTx.Body.Messages[msgIdx].TypeUrl,
+							msgIdx,
+							currTxResp.Code,
+						)*/
 				}
 				currMsg = currMsgUnpack
 			}

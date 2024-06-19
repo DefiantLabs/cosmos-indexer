@@ -27,7 +27,7 @@ import (
 	blocks "github.com/nodersteam/cosmos-indexer/proto"
 	"google.golang.org/grpc"
 
-	"github.com/nodersteam/probe/client"
+	"github.com/DefiantLabs/probe/client"
 
 	"github.com/nodersteam/cosmos-indexer/config"
 	"github.com/nodersteam/cosmos-indexer/core"
