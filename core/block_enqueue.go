@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DefiantLabs/probe/client"
 	"github.com/nodersteam/cosmos-indexer/config"
 	dbTypes "github.com/nodersteam/cosmos-indexer/db"
 	"github.com/nodersteam/cosmos-indexer/db/models"
 	"github.com/nodersteam/cosmos-indexer/rpc"
 	"github.com/nodersteam/cosmos-indexer/util"
-	"github.com/nodersteam/probe/client"
 	"gorm.io/gorm"
 )
 

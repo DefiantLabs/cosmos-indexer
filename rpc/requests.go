@@ -5,11 +5,11 @@ import (
 
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 
+	probeClient "github.com/DefiantLabs/probe/client"
+	probeQuery "github.com/DefiantLabs/probe/query"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/nodersteam/cosmos-indexer/config"
-	probeClient "github.com/nodersteam/probe/client"
-	probeQuery "github.com/nodersteam/probe/query"
 )
 
 var apiEndpoints = map[string]string{
