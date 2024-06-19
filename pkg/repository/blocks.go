@@ -36,7 +36,7 @@ func (r *blocks) GetBlockInfo(ctx context.Context, block int32) (*model.BlockInf
 				SELECT bl.id, bl.height, addr.address as proposed_validator, bl.time_stamp, bl.block_hash
 				from blocks bl 
 				LEFT JOIN addresses addr on bl.proposer_cons_address_id = addr.id
-				where bl.height = $2
+				where bl.height = $1
 				`
 	o := new(model.BlockInfo)
 	var blockID int64
