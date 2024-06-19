@@ -85,6 +85,8 @@ void runPostgres() {
         sh """
             docker run -d --name ${env.POSTGRES_CONTAINER} \
                 --restart unless-stopped \
+                --shm-size=1g \
+                -v indexer_postgres:/var/lib/postgresql/data \
                 -v /etc/localtime:/etc/localtime:ro \
                 -e POSTGRES_USER=taxuser \
                 -e POSTGRES_PASSWORD=password \
