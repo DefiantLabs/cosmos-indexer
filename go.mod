@@ -1,13 +1,13 @@
 module github.com/DefiantLabs/cosmos-indexer
 
-go 1.22.1
+go 1.19
 
 require (
-	github.com/CosmWasm/wasmd v0.45.0
-	github.com/DefiantLabs/probe v0.0.0-20240814015335-e7b356b08130
+	github.com/CosmWasm/wasmd v0.40.0
+	github.com/DefiantLabs/probe v0.0.0-20240814032256-d5dc546a54ca
 	github.com/cometbft/cometbft v0.37.4
-	github.com/cosmos/cosmos-sdk v0.47.10
-	github.com/cosmos/ibc-go/v7 v7.4.1
+	github.com/cosmos/cosmos-sdk v0.47.7
+	github.com/cosmos/ibc-go/v7 v7.3.1
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/rs/zerolog v1.32.0
 	github.com/shopspring/decimal v1.3.1
@@ -26,7 +26,7 @@ require (
 	cloud.google.com/go/iam v1.1.5 // indirect
 	cloud.google.com/go/storage v1.30.1 // indirect
 	cosmossdk.io/api v0.3.1 // indirect
-	cosmossdk.io/core v0.6.1 // indirect
+	cosmossdk.io/core v0.5.1 // indirect
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
 	cosmossdk.io/errors v1.0.1 // indirect
 	cosmossdk.io/log v1.3.1 // indirect
@@ -34,10 +34,10 @@ require (
 	cosmossdk.io/tools/rosetta v0.2.1 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
-	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
-	github.com/CosmWasm/wasmvm v1.5.4 // indirect
+	github.com/CosmWasm/wasmvm v1.2.3 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -46,7 +46,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
@@ -159,10 +159,10 @@ require (
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.16.0 // indirect
+	github.com/prometheus/client_golang v1.15.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
-	github.com/prometheus/procfs v0.10.1 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
