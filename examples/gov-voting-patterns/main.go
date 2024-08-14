@@ -116,14 +116,12 @@ func (c *MsgVoteParser) IndexMessage(dataset *any, db *gorm.DB, message models.M
 	var err error
 	var voter models.Address
 	voter, err = dbTypes.FindOrCreateAddressByAddress(db, vote.Address.Address)
-
 	if err != nil {
 		return err
 	}
 
 	var proposal Proposal
 	err = db.Where(&Proposal{ProposalID: vote.Proposal.ProposalID}).FirstOrCreate(&proposal).Error
-
 	if err != nil {
 		return err
 	}
@@ -209,7 +207,6 @@ func (c *MsgSubmitProposalParser) IndexMessage(dataset *any, db *gorm.DB, messag
 	var proposer models.Address
 
 	proposer, err = dbTypes.FindOrCreateAddressByAddress(db, proposal.ProposerAddress.Address)
-
 	if err != nil {
 		return err
 	}

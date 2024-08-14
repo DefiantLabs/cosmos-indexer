@@ -199,7 +199,6 @@ func ParseTXMessageTypeConfig(messageTypeConfigs []json.RawMessage) ([]filter.Me
 		}
 
 		err = validateMessageTypeFilterConfig(newFilter)
-
 		if err != nil {
 			parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 			return nil, parserError
@@ -227,7 +226,6 @@ func ParseTXMessageTypeConfig(messageTypeConfigs []json.RawMessage) ([]filter.Me
 			}
 
 			newFilter, err = filter.NewRegexMessageTypeFilter(newFilter.MessageTypeRegexPattern, newFilter.ShouldIgnore)
-
 			if err != nil {
 				parserError := fmt.Errorf("error parsing filter at index %d: %s", index, err)
 				return nil, parserError

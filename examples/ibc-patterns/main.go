@@ -191,21 +191,18 @@ func determinePacketType(packetData []byte) (IBCTransactionType, error) {
 
 	var tokenTransfer TokenTransfer
 	err = json.Unmarshal(packetData, &tokenTransfer)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
 
 	var vscMatured VSCMatured
 	err = json.Unmarshal(packetData, &vscMatured)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
 
 	var slash Slash
 	err = json.Unmarshal(packetData, &slash)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
@@ -261,7 +258,6 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 	}
 
 	err = db.Where(&chainPath).FirstOrCreate(&chainPath).Error
-
 	if err != nil {
 		return err
 	}

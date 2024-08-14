@@ -125,7 +125,6 @@ func (c *MsgDelegateUndelegateParser) IndexMessage(dataset *any, db *gorm.DB, me
 		Columns:   []clause.Column{{Name: "validator_address_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"validator_address_id"}),
 	}).Create(&validator).Error
-
 	if err != nil {
 		return err
 	}
@@ -157,8 +156,7 @@ func loadDelegationValues(initialDelegationEvent *DelegationEvent, message model
 
 // This defines the custom message parser for the undelegation message type
 // It implements the MessageParser interface
-type MsgUndelegateParser struct {
-}
+type MsgUndelegateParser struct{}
 
 // These are the indexer's custom models
 // They are used to store the parsed data in the database

@@ -23,7 +23,7 @@ Before you can start indexing a chain, you need to set up the application's depe
 The application requires a PostgreSQL server with an established database and an owner user/role with password login. Here's a simple example of setting up a containerized database locally [here](https://towardsdatascience.com/local-development-set-up-of-postgresql-with-docker-c022632f13ea).
 
 #### Go
-The application is written in Go, so you need to build it from source. This requires a system installation of at minimum Go 1.19. Instructions for installing and configuring Go can be found [here](https://go.dev/doc/install).
+The application is written in Go, so you need to build it from source. This requires a system installation of at minimum Go 1.22. Instructions for installing and configuring Go can be found [here](https://go.dev/doc/install).
 
 ## Indexing and Querying
 

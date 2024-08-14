@@ -31,7 +31,6 @@ func (indexer *Indexer) RegisterCustomBeginBlockEventParser(eventKey string, par
 		parser,
 		models.BeginBlockEvent,
 	)
-
 	if err != nil {
 		config.Log.Fatal("Error registering BeginBlock custom parser", err)
 	}
@@ -46,7 +45,6 @@ func (indexer *Indexer) RegisterCustomEndBlockEventParser(eventKey string, parse
 		parser,
 		models.EndBlockEvent,
 	)
-
 	if err != nil {
 		config.Log.Fatal("Error registering EndBlock custom parser", err)
 	}

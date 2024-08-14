@@ -147,7 +147,6 @@ func setupIndex(cmd *cobra.Command, args []string) error {
 			indexer.BlockEventFilterRegistries.EndBlockEventFilterRegistry.RollingWindowEventFilters,
 			fileMessageTypeFilters,
 			err = config.ParseJSONFilterConfig(b)
-
 		if err != nil {
 			safeCleanupSetupExit(&indexer)
 			config.Log.Fatal("Failed to parse block event filter config", err)
@@ -237,7 +236,6 @@ func setupIndexer() *indexerPackage.Indexer {
 			Config:      *indexer.Config,
 			DB:          indexer.DB,
 		})
-
 		if err != nil {
 			config.Log.Fatal("Failed to run post setup custom function", err)
 		}
@@ -344,7 +342,6 @@ func index(cmd *cobra.Command, args []string) {
 			DB:     indexer.DB,
 			DryRun: indexer.DryRun,
 		})
-
 		if err != nil {
 			config.Log.Fatal("Failed to run pre-exit custom function", err)
 		}

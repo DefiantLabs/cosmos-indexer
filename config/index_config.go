@@ -81,7 +81,6 @@ func (conf *IndexConfig) Validate() error {
 	probeConf := conf.Probe
 
 	probeConf, err = validateProbeConf(probeConf)
-
 	if err != nil {
 		return err
 	}
@@ -89,7 +88,6 @@ func (conf *IndexConfig) Validate() error {
 	conf.Probe = probeConf
 
 	err = validateThrottlingConf(conf.Base.throttlingBase)
-
 	if err != nil {
 		return err
 	}

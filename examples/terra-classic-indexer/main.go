@@ -24,5 +24,4 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to execute. Err: %v", err)
 	}
-
 }
