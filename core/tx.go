@@ -89,6 +89,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		txHash := tendermintTx.Hash()
 
 		var messagesRaw [][]byte
+		var messageTypeURLs []string
 
 		// Get the Messages and Message Logs
 		for msgIdx := range txFull.Body.Messages {
@@ -97,6 +98,8 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 			if err != nil {
 				return nil, blockTime, err
 			}
+
+			messageTypeURLs = append(messageTypeURLs, txFull.Body.Messages[msgIdx].TypeUrl)
 
 			if !shouldIndex {
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
@@ -145,7 +148,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *txFull.AuthInfo
 
-		processedTx, _, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, customParsers)
+		processedTx, _, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, messageTypeURLs, customParsers)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -195,6 +198,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		var currMessages []types.Msg
 		var currLogMsgs []txtypes.LogMessage
 		var messagesRaw [][]byte
+		var messageTypeURLs []string
 
 		currTx := txEventResp.Txs[txIdx]
 		currTxResp := txEventResp.TxResponses[txIdx]
@@ -217,6 +221,8 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 			if err != nil {
 				return nil, blockTime, err
 			}
+
+			messageTypeURLs = append(messageTypeURLs, currTx.Body.Messages[msgIdx].TypeUrl)
 
 			if !shouldIndex {
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
@@ -278,7 +284,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		indexerMergedTx.Tx = indexerTx
 		indexerMergedTx.Tx.AuthInfo = *currTx.AuthInfo
 
-		processedTx, txTime, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, customParsers)
+		processedTx, txTime, err := ProcessTx(cfg, db, indexerMergedTx, messagesRaw, messageTypeURLs, customParsers)
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
@@ -353,7 +359,7 @@ func messageTypeShouldIndex(messageType string, filters []filter.MessageTypeFilt
 	return true, nil
 }
 
-func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte, customParsers map[string][]parsers.MessageParser) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
+func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messagesRaw [][]byte, messageTypeURLs []string, customParsers map[string][]parsers.MessageParser) (txDBWapper dbTypes.TxDBWrapper, txTime time.Time, err error) {
 	txTime, err = time.Parse(time.RFC3339, tx.TxResponse.TimeStamp)
 	if err != nil {
 		config.Log.Error("Error parsing tx timestamp.", err)
@@ -372,7 +378,7 @@ func ProcessTx(cfg *config.IndexConfig, db *gorm.DB, tx txtypes.MergedTx, messag
 		for messageIndex, message := range tx.Tx.Body.Messages {
 			if message != nil {
 				messageLog := txtypes.GetMessageLogForIndex(tx.TxResponse.Log, messageIndex)
-				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, messageLog, uniqueEventTypes, uniqueEventAttributeKeys)
+				messageType, currMessageDBWrapper := ProcessMessage(messageIndex, message, messageTypeURLs[messageIndex], messageLog, uniqueEventTypes, uniqueEventAttributeKeys)
 				currMessageDBWrapper.Message.MessageBytes = messagesRaw[messageIndex]
 				uniqueMessageTypes[messageType] = currMessageDBWrapper.Message.MessageType
 				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Found msg of type '%v'.", tx.TxResponse.Height, tx.TxResponse.TxHash, messageType))
@@ -500,7 +506,7 @@ func ProcessFees(db *gorm.DB, authInfo cosmosTx.AuthInfo, signers []models.Addre
 	return fees, nil
 }
 
-func ProcessMessage(messageIndex int, message types.Msg, messageLog *txtypes.LogMessage, uniqueEventTypes map[string]models.MessageEventType, uniqueEventAttributeKeys map[string]models.MessageEventAttributeKey) (string, dbTypes.MessageDBWrapper) {
+func ProcessMessage(messageIndex int, message types.Msg, messageTypeURL string, messageLog *txtypes.LogMessage, uniqueEventTypes map[string]models.MessageEventType, uniqueEventAttributeKeys map[string]models.MessageEventAttributeKey) (string, dbTypes.MessageDBWrapper) {
 	var currMessage models.Message
 	var currMessageType models.MessageType
 	currMessage.MessageIndex = messageIndex
@@ -508,7 +514,7 @@ func ProcessMessage(messageIndex int, message types.Msg, messageLog *txtypes.Log
 	// Get the message log that corresponds to the current message
 	var currMessageDBWrapper dbTypes.MessageDBWrapper
 
-	currMessageType.MessageType = types.MsgTypeURL(message)
+	currMessageType.MessageType = messageTypeURL
 	currMessage.MessageType = currMessageType
 	currMessageDBWrapper.Message = currMessage
 

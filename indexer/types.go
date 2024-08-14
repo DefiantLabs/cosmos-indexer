@@ -21,8 +21,9 @@ type PostSetupDataset struct {
 }
 
 type PostSetupCustomDataset struct {
-	Config config.IndexConfig
-	DB     *gorm.DB
+	Config      config.IndexConfig
+	ChainClient *client.ChainClient
+	DB          *gorm.DB
 }
 
 type PostIndexCustomMessageDataset struct {
