@@ -204,12 +204,12 @@ func main() {
 
 	// This indexer is only concerned with delegate and undelegate messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
-	stakingDelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgDelegate$")
+	stakingDelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgDelegate$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
-	stakingUndelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgUndelegate$")
+	stakingUndelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgUndelegate$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}

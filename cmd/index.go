@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	wasmTypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/DefiantLabs/cosmos-indexer/config"
 	"github.com/DefiantLabs/cosmos-indexer/core"
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
@@ -15,6 +16,7 @@ import (
 	indexerPackage "github.com/DefiantLabs/cosmos-indexer/indexer"
 	"github.com/DefiantLabs/cosmos-indexer/probe"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 )
 
@@ -199,6 +201,9 @@ func setupIndexer() *indexerPackage.Indexer {
 	config.SetChainConfig(indexer.Config.Probe.AccountPrefix)
 
 	indexer.ChainClient = probe.GetProbeClient(indexer.Config.Probe, indexer.CustomModuleBasics)
+
+	// TODO: Move this somewhere else
+	indexer.ChainClient.Codec.ProbeInterfaceRegistry.RegisterCustomTypeURL((*sdk.Msg)(nil), "/terra.wasm.v1beta1.MsgExecuteContract", (*wasmTypes.MsgExecuteContract)(nil))
 
 	// Depending on the app configuration, wait for the chain to catch up
 	chainCatchingUp, err := rpc.IsCatchingUp(indexer.ChainClient)

@@ -338,9 +338,12 @@ func messageTypeShouldIndex(messageType string, filters []filter.MessageTypeFilt
 			if err != nil {
 				return false, err
 			}
-			if typeMatch {
+
+			// If any match is marked to ignore, always ignore
+			if typeMatch && messageTypeFilter.Ignore() {
+				return false, nil
+			} else if typeMatch {
 				matches = true
-				break
 			}
 		}
 

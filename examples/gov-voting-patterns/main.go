@@ -269,12 +269,12 @@ func main() {
 	// This indexer is only concerned with vote and proposal messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
 	// We use a regex because the message type can be different between v1 and v1beta1 of the gov module.
-	govVoteRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgVote$")
+	govVoteRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgVote$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
-	govSubmitProposalRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgSubmitProposal$")
+	govSubmitProposalRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.gov.*MsgSubmitProposal$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
