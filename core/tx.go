@@ -101,7 +101,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 			messageTypeURLs = append(messageTypeURLs, txFull.Body.Messages[msgIdx].TypeUrl)
 
 			if !shouldIndex {
-				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
+				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v' due to message type filter.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
 				currMessages = append(currMessages, nil)
 				currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
 					MessageIndex: msgIdx,
@@ -135,7 +135,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 				}
 
 				if !shouldIndex {
-					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
+					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v' due to custom message filter.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
 					currMessages = append(currMessages, nil)
 					currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
 						MessageIndex: msgIdx,
@@ -254,7 +254,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 			messageTypeURLs = append(messageTypeURLs, currTx.Body.Messages[msgIdx].TypeUrl)
 
 			if !shouldIndex {
-				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
+				config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v' due to message type filter.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
 				currMessages = append(currMessages, nil)
 				currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
 					MessageIndex: msgIdx,
@@ -300,7 +300,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 				}
 
 				if !shouldIndex {
-					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
+					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v' due to custom message filter.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
 					currMessages = append(currMessages, nil)
 					currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
 						MessageIndex: msgIdx,
