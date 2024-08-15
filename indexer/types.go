@@ -50,6 +50,7 @@ type Indexer struct {
 	CustomModuleBasics                  []module.AppModuleBasic // Used for extending the AppModuleBasics registered in the probe ChainClientient
 	BlockEventFilterRegistries          BlockEventFilterRegistries
 	MessageTypeFilters                  []filter.MessageTypeFilter
+	MessageFilters                      []filter.MessageFilter
 	CustomBeginBlockEventParserRegistry map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in BeginBlock events
 	CustomEndBlockEventParserRegistry   map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in EndBlock events
 	CustomBeginBlockParserTrackers      map[string]models.BlockEventParser    // Used for tracking block event parsers in the database

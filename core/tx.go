@@ -31,7 +31,7 @@ func getUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
-func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, messageFilters []filter.MessageFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	if len(blockResults.Block.Txs) != len(resultBlockRes.TxsResults) {
 		config.Log.Fatalf("blockResults & resultBlockRes: different length")
 	}
@@ -114,8 +114,6 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 
 			if currMsg != nil {
 				msg := currMsg.(types.Msg)
-				messagesRaw = append(messagesRaw, txFull.Body.Messages[msgIdx].Value)
-				currMessages = append(currMessages, msg)
 				msgEvents := types.StringEvents{}
 				if txResult.Code == 0 {
 					msgEvents = logs[msgIdx].Events
@@ -125,6 +123,29 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 					MessageIndex: msgIdx,
 					Events:       indexerEvents.StringEventstoNormalizedEvents(msgEvents),
 				}
+
+				// Next filter on the message itself if there are any filters
+				if len(messageFilters) != 0 {
+					for _, filter := range messageFilters {
+						shouldIndex = filter.ShouldIndex(msg, currTxLog)
+						if shouldIndex {
+							break
+						}
+					}
+				}
+
+				if !shouldIndex {
+					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", blockResults.Block.Height, tendermintHashToHex(txHash), txFull.Body.Messages[msgIdx].TypeUrl))
+					currMessages = append(currMessages, nil)
+					currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
+						MessageIndex: msgIdx,
+					})
+					messagesRaw = append(messagesRaw, nil)
+					continue
+				}
+
+				messagesRaw = append(messagesRaw, txFull.Body.Messages[msgIdx].Value)
+				currMessages = append(currMessages, msg)
 				currLogMsgs = append(currLogMsgs, currTxLog)
 			} else {
 				return nil, blockTime, fmt.Errorf("tx message could not be processed")
@@ -194,7 +215,7 @@ func tendermintHashToHex(hash []byte) string {
 }
 
 // ProcessRPCTXs - Given an RPC response, build out the more specific data used by the parser.
-func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, txEventResp *cosmosTx.GetTxsEventResponse, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, messageFilters []filter.MessageFilter, txEventResp *cosmosTx.GetTxsEventResponse, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	var currTxDbWrappers []dbTypes.TxDBWrapper
 	var blockTime *time.Time
 
@@ -263,15 +284,33 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 
 			if currMsg != nil {
 				msg := currMsg.(types.Msg)
-				currMessages = append(currMessages, msg)
-				if len(currTxResp.Logs) >= msgIdx+1 {
-					msgEvents := currTxResp.Logs[msgIdx].Events
-					currTxLog := txtypes.LogMessage{
-						MessageIndex: msgIdx,
-						Events:       indexerEvents.StringEventstoNormalizedEvents(msgEvents),
-					}
-					currLogMsgs = append(currLogMsgs, currTxLog)
+				msgEvents := currTxResp.Logs[msgIdx].Events
+				currTxLog := txtypes.LogMessage{
+					MessageIndex: msgIdx,
+					Events:       indexerEvents.StringEventstoNormalizedEvents(msgEvents),
 				}
+
+				if len(messageFilters) != 0 {
+					for _, filter := range messageFilters {
+						shouldIndex = filter.ShouldIndex(msg, currTxLog)
+						if shouldIndex {
+							break
+						}
+					}
+				}
+
+				if !shouldIndex {
+					config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping msg of type '%v'.", currTxResp.Height, currTxResp.TxHash, currTx.Body.Messages[msgIdx].TypeUrl))
+					currMessages = append(currMessages, nil)
+					currLogMsgs = append(currLogMsgs, txtypes.LogMessage{
+						MessageIndex: msgIdx,
+					})
+					messagesRaw = append(messagesRaw, nil)
+					continue
+				}
+
+				currMessages = append(currMessages, msg)
+				currLogMsgs = append(currLogMsgs, currTxLog)
 			}
 		}
 
@@ -334,7 +373,7 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		processedTx.Tx.Fees = fees
 		processedTx.Tx.Memo = currTx.Body.Memo
 
-		currTxDbWrappers[txIdx] = processedTx
+		currTxDbWrappers = append(currTxDbWrappers, processedTx)
 	}
 
 	return currTxDbWrappers, blockTime, nil

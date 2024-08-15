@@ -19,21 +19,22 @@ type IndexConfig struct {
 type indexBase struct {
 	throttlingBase
 	retryBase
-	ReindexMessageType         string `mapstructure:"reindex-message-type"`
-	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks"`
-	StartBlock                 int64  `mapstructure:"start-block"`
-	EndBlock                   int64  `mapstructure:"end-block"`
-	BlockInputFile             string `mapstructure:"block-input-file"`
-	ReIndex                    bool   `mapstructure:"reindex"`
-	RPCWorkers                 int64  `mapstructure:"rpc-workers"`
-	BlockTimer                 int64  `mapstructure:"block-timer"`
-	WaitForChain               bool   `mapstructure:"wait-for-chain"`
-	WaitForChainDelay          int64  `mapstructure:"wait-for-chain-delay"`
-	TransactionIndexingEnabled bool   `mapstructure:"index-transactions"`
-	ExitWhenCaughtUp           bool   `mapstructure:"exit-when-caught-up"`
-	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events"`
-	FilterFile                 string `mapstructure:"filter-file"`
-	Dry                        bool   `mapstructure:"dry"`
+	ReindexMessageType          string `mapstructure:"reindex-message-type"`
+	ReattemptFailedBlocks       bool   `mapstructure:"reattempt-failed-blocks"`
+	StartBlock                  int64  `mapstructure:"start-block"`
+	EndBlock                    int64  `mapstructure:"end-block"`
+	BlockInputFile              string `mapstructure:"block-input-file"`
+	ReIndex                     bool   `mapstructure:"reindex"`
+	RPCWorkers                  int64  `mapstructure:"rpc-workers"`
+	SkipBlockByHeightRPCRequest bool   `mapstructure:"skip-block-by-height-rpc-request"`
+	BlockTimer                  int64  `mapstructure:"block-timer"`
+	WaitForChain                bool   `mapstructure:"wait-for-chain"`
+	WaitForChainDelay           int64  `mapstructure:"wait-for-chain-delay"`
+	TransactionIndexingEnabled  bool   `mapstructure:"index-transactions"`
+	ExitWhenCaughtUp            bool   `mapstructure:"exit-when-caught-up"`
+	BlockEventIndexingEnabled   bool   `mapstructure:"index-block-events"`
+	FilterFile                  string `mapstructure:"filter-file"`
+	Dry                         bool   `mapstructure:"dry"`
 }
 
 // Flags for specific, deeper indexing behavior
@@ -60,6 +61,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RPCWorkers, "base.rpc-workers", 1, "the number of concurrent RPC request workers to spin up.")
+	cmd.PersistentFlags().BoolVar(&conf.Base.SkipBlockByHeightRPCRequest, "base.skip-block-by-height-rpc-request", false, "skip the /block?height=<height> RPC request and only attempt the /block_results RPC request. Sometimes pruned nodes will not have return results for the block RPC request, but still return results for the block_result request.")
 	cmd.PersistentFlags().BoolVar(&conf.Base.WaitForChain, "base.wait-for-chain", false, "wait for chain to be in sync?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.WaitForChainDelay, "base.wait-for-chain-delay", 10, "seconds to wait between each check for node to catch up to the chain")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockTimer, "base.block-timer", 10000, "print out how long it takes to process this many blocks")

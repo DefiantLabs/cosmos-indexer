@@ -18,6 +18,10 @@ func (indexer *Indexer) RegisterMessageTypeFilter(filter filter.MessageTypeFilte
 	indexer.MessageTypeFilters = append(indexer.MessageTypeFilters, filter)
 }
 
+func (indexer *Indexer) RegisterMessageFilter(filter filter.MessageFilter) {
+	indexer.MessageFilters = append(indexer.MessageFilters, filter)
+}
+
 func (indexer *Indexer) RegisterCustomModels(models []any) {
 	indexer.CustomModels = append(indexer.CustomModels, models...)
 }

@@ -83,9 +83,13 @@ func BlockRPCWorker(wg *sync.WaitGroup, blockEnqueueChan chan *EnqueueData, chai
 		}
 
 		if block.IndexTransactions {
-			txsEventResp, err := rpc.GetTxsByBlockHeight(chainClient, block.Height)
+			var txsEventResp *txTypes.GetTxsEventResponse
+			var err error
+			if !cfg.Base.SkipBlockByHeightRPCRequest {
+				txsEventResp, err = rpc.GetTxsByBlockHeight(chainClient, block.Height)
+			}
 
-			if err != nil {
+			if err != nil || cfg.Base.SkipBlockByHeightRPCRequest {
 				// Attempt to get block results to attempt an in-app codec decode of transactions.
 				if currentHeightIndexerData.BlockResultsData == nil {
 
