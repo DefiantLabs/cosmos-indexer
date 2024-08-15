@@ -39,6 +39,7 @@ type indexBase struct {
 // Flags for specific, deeper indexing behavior
 type flags struct {
 	IndexTxMessageRaw        bool `mapstructure:"index-tx-message-raw"`
+	IndexEmptyTransactions   bool `mapstructure:"index-empty-transactions"`
 	BlockEventsBase64Encoded bool `mapstructure:"block-events-base64-encoded"`
 	IndexMessageEvents       bool `mapstructure:"index-message-events"`
 }
@@ -68,6 +69,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 
 	// flags
 	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexTxMessageRaw, "flags.index-tx-message-raw", false, "if true, this will index the raw message bytes. This will significantly increase the size of the database.")
+	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexEmptyTransactions, "flags.index-empty-transactions", true, "if true, this will index transactions that have no messages. Setting this to false when filtering TX message types will result in no transactions being indexed if all message types are filtered out.")
 	cmd.PersistentFlags().BoolVar(&conf.Flags.BlockEventsBase64Encoded, "flags.block-events-base64-encoded", false, "if true, decode the block event attributes and keys as base64. Some versions of CometBFT encode the block event attributes and keys as base64 in the response from RPC.")
 	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexMessageEvents, "flags.index-message-events", true, "if true, skip indexing message events if they are uneeded. This will save space in the database.")
 }

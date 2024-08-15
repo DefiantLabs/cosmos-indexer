@@ -219,6 +219,10 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 		denomMap := make(map[string]models.Denom)
 
 		for _, tx := range txs {
+			if !indexerConfig.Flags.IndexEmptyTransactions && len(tx.Messages) == 0 {
+				continue
+			}
+
 			tx.Tx.BlockID = block.ID
 			tx.Tx.Block = block
 			uniqueTxes[tx.Tx.Hash] = tx.Tx
@@ -307,14 +311,20 @@ func IndexNewBlock(db *gorm.DB, block models.Block, txs []TxDBWrapper, indexerCo
 			return err
 		}
 
-		fullUniqueBlockMessageEventTypes, err := indexMessageEventTypes(dbTransaction, txs)
-		if err != nil {
-			return err
+		fullUniqueBlockMessageEventTypes := make(map[string]models.MessageEventType)
+		if indexerConfig.Flags.IndexMessageEvents {
+			fullUniqueBlockMessageEventTypes, err = indexMessageEventTypes(dbTransaction, txs)
+			if err != nil {
+				return err
+			}
 		}
 
-		fullUniqueBlockMessageEventAttributeKeys, err := indexMessageEventAttributeKeys(dbTransaction, txs)
-		if err != nil {
-			return err
+		fullUniqueBlockMessageEventAttributeKeys := make(map[string]models.MessageEventAttributeKey)
+		if indexerConfig.Flags.IndexMessageEvents {
+			fullUniqueBlockMessageEventAttributeKeys, err = indexMessageEventAttributeKeys(dbTransaction, txs)
+			if err != nil {
+				return err
+			}
 		}
 
 		// This complex set of loops is to ensure that foreign key relations are created and attached to downstream models before batch insertion is executed.

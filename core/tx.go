@@ -38,7 +38,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 
 	blockTime := &blockResults.Block.Time
 	blockTimeStr := blockTime.Format(time.RFC3339)
-	currTxDbWrappers := make([]dbTypes.TxDBWrapper, len(blockResults.Block.Txs))
+	var currTxDbWrappers []dbTypes.TxDBWrapper
 
 	for txIdx, tendermintTx := range blockResults.Block.Txs {
 		txResult := resultBlockRes.TxsResults[txIdx]
@@ -131,10 +131,12 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 			}
 		}
 
+		hexTxHash := tendermintHashToHex(txHash)
+
 		txBody.Messages = currMessages
 		indexerTx.Body = txBody
 		indexerTxResp := txtypes.Response{
-			TxHash:    tendermintHashToHex(txHash),
+			TxHash:    hexTxHash,
 			Height:    fmt.Sprintf("%d", blockResults.Block.Height),
 			TimeStamp: blockTimeStr,
 			RawLog:    txResult.Log,
@@ -151,6 +153,13 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
+
+		if len(processedTx.Messages) == 0 && !cfg.Flags.IndexEmptyTransactions {
+			config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping empty transaction.", blockResults.Block.Height, hexTxHash))
+			continue
+		}
+
+		config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Processing transaction with %d messages.", blockResults.Block.Height, hexTxHash, len(processedTx.Messages)))
 
 		filteredSigners := []types.AccAddress{}
 		for _, filteredMessage := range txBody.Messages {
@@ -174,7 +183,7 @@ func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client
 		processedTx.Tx.Fees = fees
 		processedTx.Tx.Memo = txFull.Body.Memo
 
-		currTxDbWrappers[txIdx] = processedTx
+		currTxDbWrappers = append(currTxDbWrappers, processedTx)
 	}
 
 	return currTxDbWrappers, blockTime, nil
@@ -186,7 +195,7 @@ func tendermintHashToHex(hash []byte) string {
 
 // ProcessRPCTXs - Given an RPC response, build out the more specific data used by the parser.
 func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, txEventResp *cosmosTx.GetTxsEventResponse, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
-	currTxDbWrappers := make([]dbTypes.TxDBWrapper, len(txEventResp.Txs))
+	var currTxDbWrappers []dbTypes.TxDBWrapper
 	var blockTime *time.Time
 
 	for txIdx := range txEventResp.Txs {
@@ -287,6 +296,13 @@ func ProcessRPCTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient,
 		if err != nil {
 			return currTxDbWrappers, blockTime, err
 		}
+
+		if len(processedTx.Messages) == 0 && !cfg.Flags.IndexEmptyTransactions {
+			config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Skipping empty transaction.", currTxResp.Height, currTxResp.TxHash))
+			continue
+		}
+
+		config.Log.Debug(fmt.Sprintf("[Block: %v] [TX: %v] Processing transaction with %d messages.", currTxResp.Height, currTxResp.TxHash, len(processedTx.Messages)))
 
 		if blockTime == nil {
 			blockTime = &txTime
