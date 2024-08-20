@@ -26,7 +26,7 @@ require (
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/CosmWasm/wasmd v0.40.0 // indirect
 	github.com/CosmWasm/wasmvm v1.2.3 // indirect
-	github.com/DefiantLabs/probe v0.0.0-20240814044509-ea5409764044 // indirect
+	github.com/DefiantLabs/probe v0.0.0-20240820043230-ffbbb1824466 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/aws/aws-sdk-go v1.44.203 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
