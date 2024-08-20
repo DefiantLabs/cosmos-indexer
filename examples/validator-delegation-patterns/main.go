@@ -125,7 +125,6 @@ func (c *MsgDelegateUndelegateParser) IndexMessage(dataset *any, db *gorm.DB, me
 		Columns:   []clause.Column{{Name: "validator_address_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"validator_address_id"}),
 	}).Create(&validator).Error
-
 	if err != nil {
 		return err
 	}
@@ -157,8 +156,7 @@ func loadDelegationValues(initialDelegationEvent *DelegationEvent, message model
 
 // This defines the custom message parser for the undelegation message type
 // It implements the MessageParser interface
-type MsgUndelegateParser struct {
-}
+type MsgUndelegateParser struct{}
 
 // These are the indexer's custom models
 // They are used to store the parsed data in the database
@@ -204,12 +202,12 @@ func main() {
 
 	// This indexer is only concerned with delegate and undelegate messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
-	stakingDelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgDelegate$")
+	stakingDelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgDelegate$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}
 
-	stakingUndelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgUndelegate$")
+	stakingUndelegateRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/cosmos\\.staking.*MsgUndelegate$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}

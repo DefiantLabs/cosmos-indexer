@@ -75,10 +75,10 @@ func (indexer *Indexer) ProcessBlocks(wg *sync.WaitGroup, failedBlockHandler cor
 
 			if blockData.GetTxsResponse != nil {
 				config.Log.Debug("Processing TXs from RPC TX Search response")
-				txDBWrappers, _, err = core.ProcessRPCTXs(indexer.Config, indexer.DB, indexer.ChainClient, indexer.MessageTypeFilters, blockData.GetTxsResponse, indexer.CustomMessageParserRegistry)
+				txDBWrappers, _, err = core.ProcessRPCTXs(indexer.Config, indexer.DB, indexer.ChainClient, indexer.MessageTypeFilters, indexer.MessageFilters, blockData.GetTxsResponse, indexer.CustomMessageParserRegistry)
 			} else if blockData.BlockResultsData != nil {
 				config.Log.Debug("Processing TXs from BlockResults search response")
-				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(indexer.Config, indexer.DB, indexer.ChainClient, indexer.MessageTypeFilters, blockData.BlockData, blockData.BlockResultsData, indexer.CustomMessageParserRegistry)
+				txDBWrappers, _, err = core.ProcessRPCBlockByHeightTXs(indexer.Config, indexer.DB, indexer.ChainClient, indexer.MessageTypeFilters, indexer.MessageFilters, blockData.BlockData, blockData.BlockResultsData, indexer.CustomMessageParserRegistry)
 			}
 
 			if err != nil {

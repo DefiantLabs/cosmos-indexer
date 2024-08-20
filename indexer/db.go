@@ -54,7 +54,6 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 				}
 
 				err = dbTypes.IndexCustomMessages(*indexer.Config, indexer.DB, indexer.DryRun, indexedDataset, indexer.CustomMessageParserTrackers)
-
 				if err != nil {
 					config.Log.Fatal(fmt.Sprintf("Error indexing custom messages for block %d", data.block.Height), err)
 				}
@@ -110,7 +109,6 @@ func (indexer *Indexer) DoDBUpdates(wg *sync.WaitGroup, txDataChan chan *DBData,
 			}
 
 			err = dbTypes.IndexCustomBlockEvents(*indexer.Config, indexer.DB, indexer.DryRun, indexedDataset, identifierLoggingString, indexer.CustomBeginBlockParserTrackers, indexer.CustomEndBlockParserTrackers)
-
 			if err != nil {
 				config.Log.Fatal(fmt.Sprintf("Error indexing custom block events for %s.", identifierLoggingString), err)
 			}

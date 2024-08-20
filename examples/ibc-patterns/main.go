@@ -191,21 +191,18 @@ func determinePacketType(packetData []byte) (IBCTransactionType, error) {
 
 	var tokenTransfer TokenTransfer
 	err = json.Unmarshal(packetData, &tokenTransfer)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
 
 	var vscMatured VSCMatured
 	err = json.Unmarshal(packetData, &vscMatured)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
 
 	var slash Slash
 	err = json.Unmarshal(packetData, &slash)
-
 	if err != nil {
 		return ibcTransactionType, err
 	}
@@ -261,7 +258,6 @@ func (c *IBCTransactionParser) IndexMessage(dataset *any, db *gorm.DB, message m
 	}
 
 	err = db.Where(&chainPath).FirstOrCreate(&chainPath).Error
-
 	if err != nil {
 		return err
 	}
@@ -288,7 +284,7 @@ func main() {
 	// This indexer is only concerned with MsgRecvPacket and MsgAcknowledgement messages, so we create regex filters to only index those messages.
 	// This significantly reduces the size of the indexed dataset, saving space and processing time.
 	// We use a regex because the message type so we can match both message types in one filter.
-	ibcRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/ibc.core.channel.v1.Msg(RecvPacket|Acknowledgement)$")
+	ibcRegexMessageTypeFilter, err := filter.NewRegexMessageTypeFilter("^/ibc.core.channel.v1.Msg(RecvPacket|Acknowledgement)$", false)
 	if err != nil {
 		log.Fatalf("Failed to create regex message type filter. Err: %v", err)
 	}

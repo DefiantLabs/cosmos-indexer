@@ -18,6 +18,10 @@ func (indexer *Indexer) RegisterMessageTypeFilter(filter filter.MessageTypeFilte
 	indexer.MessageTypeFilters = append(indexer.MessageTypeFilters, filter)
 }
 
+func (indexer *Indexer) RegisterMessageFilter(filter filter.MessageFilter) {
+	indexer.MessageFilters = append(indexer.MessageFilters, filter)
+}
+
 func (indexer *Indexer) RegisterCustomModels(models []any) {
 	indexer.CustomModels = append(indexer.CustomModels, models...)
 }
@@ -31,7 +35,6 @@ func (indexer *Indexer) RegisterCustomBeginBlockEventParser(eventKey string, par
 		parser,
 		models.BeginBlockEvent,
 	)
-
 	if err != nil {
 		config.Log.Fatal("Error registering BeginBlock custom parser", err)
 	}
@@ -46,7 +49,6 @@ func (indexer *Indexer) RegisterCustomEndBlockEventParser(eventKey string, parse
 		parser,
 		models.EndBlockEvent,
 	)
-
 	if err != nil {
 		config.Log.Fatal("Error registering EndBlock custom parser", err)
 	}

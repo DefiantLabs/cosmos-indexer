@@ -19,26 +19,28 @@ type IndexConfig struct {
 type indexBase struct {
 	throttlingBase
 	retryBase
-	ReindexMessageType         string `mapstructure:"reindex-message-type"`
-	ReattemptFailedBlocks      bool   `mapstructure:"reattempt-failed-blocks"`
-	StartBlock                 int64  `mapstructure:"start-block"`
-	EndBlock                   int64  `mapstructure:"end-block"`
-	BlockInputFile             string `mapstructure:"block-input-file"`
-	ReIndex                    bool   `mapstructure:"reindex"`
-	RPCWorkers                 int64  `mapstructure:"rpc-workers"`
-	BlockTimer                 int64  `mapstructure:"block-timer"`
-	WaitForChain               bool   `mapstructure:"wait-for-chain"`
-	WaitForChainDelay          int64  `mapstructure:"wait-for-chain-delay"`
-	TransactionIndexingEnabled bool   `mapstructure:"index-transactions"`
-	ExitWhenCaughtUp           bool   `mapstructure:"exit-when-caught-up"`
-	BlockEventIndexingEnabled  bool   `mapstructure:"index-block-events"`
-	FilterFile                 string `mapstructure:"filter-file"`
-	Dry                        bool   `mapstructure:"dry"`
+	ReindexMessageType          string `mapstructure:"reindex-message-type"`
+	ReattemptFailedBlocks       bool   `mapstructure:"reattempt-failed-blocks"`
+	StartBlock                  int64  `mapstructure:"start-block"`
+	EndBlock                    int64  `mapstructure:"end-block"`
+	BlockInputFile              string `mapstructure:"block-input-file"`
+	ReIndex                     bool   `mapstructure:"reindex"`
+	RPCWorkers                  int64  `mapstructure:"rpc-workers"`
+	SkipBlockByHeightRPCRequest bool   `mapstructure:"skip-block-by-height-rpc-request"`
+	BlockTimer                  int64  `mapstructure:"block-timer"`
+	WaitForChain                bool   `mapstructure:"wait-for-chain"`
+	WaitForChainDelay           int64  `mapstructure:"wait-for-chain-delay"`
+	TransactionIndexingEnabled  bool   `mapstructure:"index-transactions"`
+	ExitWhenCaughtUp            bool   `mapstructure:"exit-when-caught-up"`
+	BlockEventIndexingEnabled   bool   `mapstructure:"index-block-events"`
+	FilterFile                  string `mapstructure:"filter-file"`
+	Dry                         bool   `mapstructure:"dry"`
 }
 
 // Flags for specific, deeper indexing behavior
 type flags struct {
 	IndexTxMessageRaw        bool `mapstructure:"index-tx-message-raw"`
+	IndexEmptyTransactions   bool `mapstructure:"index-empty-transactions"`
 	BlockEventsBase64Encoded bool `mapstructure:"block-events-base64-encoded"`
 	IndexMessageEvents       bool `mapstructure:"index-message-events"`
 }
@@ -59,6 +61,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 	// other base setting
 	cmd.PersistentFlags().BoolVar(&conf.Base.Dry, "base.dry", false, "index the chain but don't insert data in the DB.")
 	cmd.PersistentFlags().Int64Var(&conf.Base.RPCWorkers, "base.rpc-workers", 1, "the number of concurrent RPC request workers to spin up.")
+	cmd.PersistentFlags().BoolVar(&conf.Base.SkipBlockByHeightRPCRequest, "base.skip-block-by-height-rpc-request", false, "skip the /block?height=<height> RPC request and only attempt the /block_results RPC request. Sometimes pruned nodes will not have return results for the block RPC request, but still return results for the block_result request.")
 	cmd.PersistentFlags().BoolVar(&conf.Base.WaitForChain, "base.wait-for-chain", false, "wait for chain to be in sync?")
 	cmd.PersistentFlags().Int64Var(&conf.Base.WaitForChainDelay, "base.wait-for-chain-delay", 10, "seconds to wait between each check for node to catch up to the chain")
 	cmd.PersistentFlags().Int64Var(&conf.Base.BlockTimer, "base.block-timer", 10000, "print out how long it takes to process this many blocks")
@@ -68,6 +71,7 @@ func SetupIndexSpecificFlags(conf *IndexConfig, cmd *cobra.Command) {
 
 	// flags
 	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexTxMessageRaw, "flags.index-tx-message-raw", false, "if true, this will index the raw message bytes. This will significantly increase the size of the database.")
+	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexEmptyTransactions, "flags.index-empty-transactions", true, "if true, this will index transactions that have no messages. Setting this to false when filtering TX message types will result in no transactions being indexed if all message types are filtered out.")
 	cmd.PersistentFlags().BoolVar(&conf.Flags.BlockEventsBase64Encoded, "flags.block-events-base64-encoded", false, "if true, decode the block event attributes and keys as base64. Some versions of CometBFT encode the block event attributes and keys as base64 in the response from RPC.")
 	cmd.PersistentFlags().BoolVar(&conf.Flags.IndexMessageEvents, "flags.index-message-events", true, "if true, skip indexing message events if they are uneeded. This will save space in the database.")
 }
@@ -81,7 +85,6 @@ func (conf *IndexConfig) Validate() error {
 	probeConf := conf.Probe
 
 	probeConf, err = validateProbeConf(probeConf)
-
 	if err != nil {
 		return err
 	}
@@ -89,7 +92,6 @@ func (conf *IndexConfig) Validate() error {
 	conf.Probe = probeConf
 
 	err = validateThrottlingConf(conf.Base.throttlingBase)
-
 	if err != nil {
 		return err
 	}
