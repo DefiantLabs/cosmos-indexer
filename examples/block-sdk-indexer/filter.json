@@ -1,0 +1,13 @@
+{
+    "message_type_filters": [
+      {
+        "type": "message_type_regex",
+        "message_type_regex": ".*osmosis.*",
+        "should_ignore":  true
+      },
+      {
+        "type": "message_type",
+        "message_type": "/sdk.auction.v1.MsgAuctionBid"
+      }
+    ]
+}
