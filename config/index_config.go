@@ -96,17 +96,15 @@ func (conf *IndexConfig) Validate() error {
 		return err
 	}
 
-	if !conf.Base.TransactionIndexingEnabled && !conf.Base.BlockEventIndexingEnabled {
-		return errors.New("must enable at least one of base.index-transactions or base.index-block-events")
+	err = conf.validateBlockInputValues()
+
+	if err != nil {
+		return err
 	}
 
-	// Check for required configs when base indexer is enabled
-	if conf.Base.TransactionIndexingEnabled || conf.Base.BlockEventIndexingEnabled {
-		if conf.Base.StartBlock == 0 {
-			return errors.New("base.start-block must be set when index-chain is enabled")
-		}
-		if conf.Base.EndBlock == 0 {
-			return errors.New("base.end-block must be set when index-chain is enabled")
+	if conf.Base.BlockInputFile != "" {
+		if _, err := os.Stat(conf.Base.BlockInputFile); os.IsNotExist(err) {
+			return fmt.Errorf("base.block-input-file %s does not exist", conf.Base.BlockInputFile)
 		}
 	}
 
@@ -115,6 +113,34 @@ func (conf *IndexConfig) Validate() error {
 		if _, err := os.Stat(conf.Base.FilterFile); os.IsNotExist(err) {
 			return fmt.Errorf("base.filter-file %s does not exist", conf.Base.FilterFile)
 		}
+	}
+
+	return nil
+}
+
+func (conf *IndexConfig) validateBlockInputValues() error {
+	if !conf.Base.TransactionIndexingEnabled && !conf.Base.BlockEventIndexingEnabled {
+		return errors.New("must enable at least one of base.index-transactions or base.index-block-events")
+	}
+
+	if conf.Base.BlockInputFile != "" {
+		return nil
+	}
+
+	if conf.Base.StartBlock < 0 {
+		return errors.New("start block cannot be negative")
+	}
+
+	if conf.Base.StartBlock == 0 {
+		return errors.New("must provide a positive start block or block input file")
+	}
+
+	if conf.Base.EndBlock == 0 || conf.Base.EndBlock < -1 {
+		return errors.New("must provide an end block or -1 to index indefinitely")
+	}
+
+	if conf.Base.EndBlock != -1 && conf.Base.StartBlock > conf.Base.EndBlock {
+		return errors.New("start block must be less than or equal to end block")
 	}
 
 	return nil
