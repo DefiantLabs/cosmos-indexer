@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/DefiantLabs/cosmos-indexer v0.0.0-20240613171139-077bdb0887f6
-	github.com/DefiantLabs/cosmos-indexer-modules/block-sdk v0.0.0-00010101000000-000000000000
+	github.com/DefiantLabs/cosmos-indexer-modules/block-sdk v0.0.0-20240821061722-dc2bc8664e10
 )
 
 require (
@@ -195,5 +195,3 @@ require (
 )
 
 replace github.com/DefiantLabs/cosmos-indexer => ../../
-
-replace github.com/DefiantLabs/cosmos-indexer-modules/block-sdk => ../../../cosmos-indexer-modules/block-sdk
