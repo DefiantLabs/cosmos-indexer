@@ -13,8 +13,9 @@ import (
 	"time"
 
 	"github.com/DefiantLabs/cosmos-indexer/config"
+	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
-	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	jsonrpc "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 )
@@ -140,8 +141,19 @@ func validateResponseID(id interface{}) error {
 	return nil
 }
 
-func (c *URIClient) DoBlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-	result := new(ctypes.ResultBlockResults)
+// This type **should** cover SDK v0.4x and v0.50, but updates will need to be monitored
+type CustomBlockResults struct {
+	Height                int64                     `json:"height"`
+	TxsResults            []*abci.ResponseDeliverTx `json:"txs_results"`
+	BeginBlockEvents      []abci.Event              `json:"begin_block_events"`
+	EndBlockEvents        []abci.Event              `json:"end_block_events"`
+	ValidatorUpdates      []abci.ValidatorUpdate    `json:"validator_updates"`
+	ConsensusParamUpdates *cmtproto.ConsensusParams `json:"consensus_param_updates"`
+	FinalizeBlockEvents   []abci.Event              `json:"finalize_block_events"`
+}
+
+func (c *URIClient) DoBlockResults(ctx context.Context, height *int64) (*CustomBlockResults, error) {
+	result := new(CustomBlockResults)
 	params := make(map[string]interface{})
 	if height != nil {
 		params["height"] = height
@@ -155,7 +167,7 @@ func (c *URIClient) DoBlockResults(ctx context.Context, height *int64) (*ctypes.
 	return result, nil
 }
 
-func GetBlockResult(client URIClient, height int64) (*ctypes.ResultBlockResults, error) {
+func GetBlockResult(client URIClient, height int64) (*CustomBlockResults, error) {
 	brctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
@@ -167,7 +179,7 @@ func GetBlockResult(client URIClient, height int64) (*ctypes.ResultBlockResults,
 	return bresults, nil
 }
 
-func GetBlockResultWithRetry(client URIClient, height int64, retryMaxAttempts int64, retryMaxWaitSeconds uint64) (*ctypes.ResultBlockResults, error) {
+func GetBlockResultWithRetry(client URIClient, height int64, retryMaxAttempts int64, retryMaxWaitSeconds uint64) (*CustomBlockResults, error) {
 	if retryMaxAttempts == 0 {
 		return GetBlockResult(client, height)
 	}

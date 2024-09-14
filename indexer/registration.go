@@ -16,7 +16,6 @@ func (indexer *Indexer) RegisterCustomModuleBasics(basics []module.AppModuleBasi
 }
 
 func (indexer *Indexer) RegisterCustomMsgTypesByTypeURLs(customMessageTypeURLSToTypes map[string]sdkTypes.Msg) error {
-
 	if indexer.CustomMsgTypeRegistry == nil {
 		indexer.CustomMsgTypeRegistry = make(map[string]sdkTypes.Msg)
 	}
@@ -24,9 +23,8 @@ func (indexer *Indexer) RegisterCustomMsgTypesByTypeURLs(customMessageTypeURLSTo
 	for url, msg := range customMessageTypeURLSToTypes {
 		if _, ok := indexer.CustomMsgTypeRegistry[url]; ok {
 			return fmt.Errorf("found duplicate message type with URL \"%s\", message types must be uniquely identified", url)
-		} else {
-			indexer.CustomMsgTypeRegistry[url] = msg
 		}
+		indexer.CustomMsgTypeRegistry[url] = msg
 	}
 
 	return nil

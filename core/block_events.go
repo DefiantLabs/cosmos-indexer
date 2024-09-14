@@ -10,10 +10,10 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/parsers"
-	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/DefiantLabs/cosmos-indexer/rpc"
 )
 
-func ProcessRPCBlockResults(conf config.IndexConfig, block models.Block, blockResults *ctypes.ResultBlockResults, customBeginBlockParsers map[string][]parsers.BlockEventParser, customEndBlockParsers map[string][]parsers.BlockEventParser) (*db.BlockDBWrapper, error) {
+func ProcessRPCBlockResults(conf config.IndexConfig, block models.Block, blockResults *rpc.CustomBlockResults, customBeginBlockParsers map[string][]parsers.BlockEventParser, customEndBlockParsers map[string][]parsers.BlockEventParser) (*db.BlockDBWrapper, error) {
 	var blockDBWrapper db.BlockDBWrapper
 
 	blockDBWrapper.Block = &block

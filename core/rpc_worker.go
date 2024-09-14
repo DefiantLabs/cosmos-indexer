@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -8,6 +9,7 @@ import (
 	dbTypes "github.com/DefiantLabs/cosmos-indexer/db"
 	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/probe/client"
+	abci "github.com/cometbft/cometbft/abci/types"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"gorm.io/gorm"
@@ -16,7 +18,7 @@ import (
 // Wrapper types for gathering full dataset.
 type IndexerBlockEventData struct {
 	BlockData                *ctypes.ResultBlock
-	BlockResultsData         *ctypes.ResultBlockResults
+	BlockResultsData         *rpc.CustomBlockResults
 	BlockEventRequestsFailed bool
 	GetTxsResponse           *txTypes.GetTxsEventResponse
 	TxRequestsFailed         bool
@@ -78,7 +80,16 @@ func BlockRPCWorker(wg *sync.WaitGroup, blockEnqueueChan chan *EnqueueData, chai
 				currentHeightIndexerData.BlockResultsData = nil
 				currentHeightIndexerData.BlockEventRequestsFailed = true
 			} else {
-				currentHeightIndexerData.BlockResultsData = bresults
+				bresults, err = NormalizeCustomBlockResults(bresults)
+				if err != nil {
+					config.Log.Errorf("Error normalizing block results for block %v from RPC. Err: %v", block, err)
+					err := dbTypes.UpsertFailedEventBlock(db, block.Height, chainStringID, cfg.Probe.ChainName)
+					if err != nil {
+						config.Log.Fatal("Failed to insert failed block event", err)
+					}
+				} else {
+					currentHeightIndexerData.BlockResultsData = bresults
+				}
 			}
 		}
 
@@ -106,7 +117,16 @@ func BlockRPCWorker(wg *sync.WaitGroup, blockEnqueueChan chan *EnqueueData, chai
 						// Only set failed when we can't get the block results either.
 						currentHeightIndexerData.TxRequestsFailed = true
 					} else {
-						currentHeightIndexerData.BlockResultsData = bresults
+						bresults, err = NormalizeCustomBlockResults(bresults)
+						if err != nil {
+							config.Log.Errorf("Error normalizing block results for block %v from RPC. Err: %v", block, err)
+							err := dbTypes.UpsertFailedBlock(db, block.Height, chainStringID, cfg.Probe.ChainName)
+							if err != nil {
+								config.Log.Fatal("Failed to insert failed block", err)
+							}
+						} else {
+							currentHeightIndexerData.BlockResultsData = bresults
+						}
 					}
 
 				}
@@ -117,4 +137,44 @@ func BlockRPCWorker(wg *sync.WaitGroup, blockEnqueueChan chan *EnqueueData, chai
 
 		outputChannel <- currentHeightIndexerData
 	}
+}
+
+func NormalizeCustomBlockResults(blockResults *rpc.CustomBlockResults) (*rpc.CustomBlockResults, error) {
+	if len(blockResults.FinalizeBlockEvents) != 0 {
+		beginBlockEvents := []abci.Event{}
+		endBlockEvents := []abci.Event{}
+
+		for _, event := range blockResults.FinalizeBlockEvents {
+			eventAttrs := []abci.EventAttribute{}
+			isBeginBlock := false
+			isEndBlock := false
+			for _, attr := range event.Attributes {
+				if attr.Key == "mode" {
+					if attr.Value == "BeginBlock" {
+						isBeginBlock = true
+					} else if attr.Value == "EndBlock" {
+						isEndBlock = true
+					}
+				} else {
+					eventAttrs = append(eventAttrs, attr)
+				}
+			}
+
+			switch {
+			case isBeginBlock && isEndBlock:
+				return nil, fmt.Errorf("finalize block event has both BeginBlock and EndBlock mode")
+			case !isBeginBlock && !isEndBlock:
+				return nil, fmt.Errorf("finalize block event has neither BeginBlock nor EndBlock mode")
+			case isBeginBlock:
+				beginBlockEvents = append(beginBlockEvents, abci.Event{Type: event.Type, Attributes: eventAttrs})
+			case isEndBlock:
+				endBlockEvents = append(endBlockEvents, abci.Event{Type: event.Type, Attributes: eventAttrs})
+			}
+		}
+
+		blockResults.BeginBlockEvents = append(blockResults.BeginBlockEvents, beginBlockEvents...)
+		blockResults.EndBlockEvents = append(blockResults.EndBlockEvents, endBlockEvents...)
+	}
+
+	return blockResults, nil
 }
