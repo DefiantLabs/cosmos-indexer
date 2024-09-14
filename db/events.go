@@ -44,20 +44,22 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 			uniqueBlockEventTypes = append(uniqueBlockEventTypes, value)
 		}
 
-		// Bulk find or create on unique event types
-		if err := dbTransaction.Clauses(
-			clause.Returning{
-				Columns: []clause.Column{
-					{Name: "id"}, {Name: "type"},
+		if len(uniqueBlockEventTypes) != 0 {
+			// Bulk find or create on unique event types
+			if err := dbTransaction.Clauses(
+				clause.Returning{
+					Columns: []clause.Column{
+						{Name: "id"}, {Name: "type"},
+					},
 				},
-			},
-			clause.OnConflict{
-				Columns:   []clause.Column{{Name: "type"}},
-				DoUpdates: clause.AssignmentColumns([]string{"type"}),
-			},
-		).Create(&uniqueBlockEventTypes).Error; err != nil {
-			config.Log.Error("Error creating begin block event types.", err)
-			return err
+				clause.OnConflict{
+					Columns:   []clause.Column{{Name: "type"}},
+					DoUpdates: clause.AssignmentColumns([]string{"type"}),
+				},
+			).Create(&uniqueBlockEventTypes).Error; err != nil {
+				config.Log.Error("Error creating begin block event types.", err)
+				return err
+			}
 		}
 
 		for _, value := range uniqueBlockEventTypes {
@@ -70,19 +72,21 @@ func IndexBlockEvents(db *gorm.DB, dryRun bool, blockDBWrapper *BlockDBWrapper, 
 			uniqueBlockEventAttributeKeys = append(uniqueBlockEventAttributeKeys, value)
 		}
 
-		if err := dbTransaction.Clauses(
-			clause.Returning{
-				Columns: []clause.Column{
-					{Name: "id"}, {Name: "key"},
+		if len(uniqueBlockEventAttributeKeys) != 0 {
+			if err := dbTransaction.Clauses(
+				clause.Returning{
+					Columns: []clause.Column{
+						{Name: "id"}, {Name: "key"},
+					},
 				},
-			},
-			clause.OnConflict{
-				Columns:   []clause.Column{{Name: "key"}},
-				DoUpdates: clause.AssignmentColumns([]string{"key"}),
-			},
-		).Create(&uniqueBlockEventAttributeKeys).Error; err != nil {
-			config.Log.Error("Error creating begin block event attribute keys.", err)
-			return err
+				clause.OnConflict{
+					Columns:   []clause.Column{{Name: "key"}},
+					DoUpdates: clause.AssignmentColumns([]string{"key"}),
+				},
+			).Create(&uniqueBlockEventAttributeKeys).Error; err != nil {
+				config.Log.Error("Error creating begin block event attribute keys.", err)
+				return err
+			}
 		}
 
 		for _, value := range uniqueBlockEventAttributeKeys {

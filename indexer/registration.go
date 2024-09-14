@@ -7,11 +7,29 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/parsers"
+	sdkTypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 func (indexer *Indexer) RegisterCustomModuleBasics(basics []module.AppModuleBasic) {
 	indexer.CustomModuleBasics = append(indexer.CustomModuleBasics, basics...)
+}
+
+func (indexer *Indexer) RegisterCustomMsgTypesByTypeURLs(customMessageTypeURLSToTypes map[string]sdkTypes.Msg) error {
+
+	if indexer.CustomMsgTypeRegistry == nil {
+		indexer.CustomMsgTypeRegistry = make(map[string]sdkTypes.Msg)
+	}
+
+	for url, msg := range customMessageTypeURLSToTypes {
+		if _, ok := indexer.CustomMsgTypeRegistry[url]; ok {
+			return fmt.Errorf("found duplicate message type with URL \"%s\", message types must be uniquely identified", url)
+		} else {
+			indexer.CustomMsgTypeRegistry[url] = msg
+		}
+	}
+
+	return nil
 }
 
 func (indexer *Indexer) RegisterMessageTypeFilter(filter filter.MessageTypeFilter) {
