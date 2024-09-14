@@ -15,6 +15,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/db/models"
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/parsers"
+	"github.com/DefiantLabs/cosmos-indexer/rpc"
 	"github.com/DefiantLabs/cosmos-indexer/util"
 	"github.com/DefiantLabs/probe/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -31,7 +32,7 @@ func getUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
-func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, messageFilters []filter.MessageFilter, blockResults *coretypes.ResultBlock, resultBlockRes *coretypes.ResultBlockResults, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
+func ProcessRPCBlockByHeightTXs(cfg *config.IndexConfig, db *gorm.DB, cl *client.ChainClient, messageTypeFilters []filter.MessageTypeFilter, messageFilters []filter.MessageFilter, blockResults *coretypes.ResultBlock, resultBlockRes *rpc.CustomBlockResults, customParsers map[string][]parsers.MessageParser) ([]dbTypes.TxDBWrapper, *time.Time, error) {
 	if len(blockResults.Block.Txs) != len(resultBlockRes.TxsResults) {
 		config.Log.Fatalf("blockResults & resultBlockRes: different length")
 	}
