@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.1
 
 require (
-	github.com/DefiantLabs/probe v0.0.0-20240820043230-ffbbb1824466
+	github.com/DefiantLabs/probe v1.0.0
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/cosmos/ibc-go/v7 v7.3.1

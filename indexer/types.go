@@ -8,6 +8,7 @@ import (
 	"github.com/DefiantLabs/cosmos-indexer/filter"
 	"github.com/DefiantLabs/cosmos-indexer/parsers"
 	"github.com/DefiantLabs/probe/client"
+	sdkTypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"gorm.io/gorm"
 )
@@ -51,6 +52,7 @@ type Indexer struct {
 	BlockEventFilterRegistries          BlockEventFilterRegistries
 	MessageTypeFilters                  []filter.MessageTypeFilter
 	MessageFilters                      []filter.MessageFilter
+	CustomMsgTypeRegistry               map[string]sdkTypes.Msg
 	CustomBeginBlockEventParserRegistry map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in BeginBlock events
 	CustomEndBlockEventParserRegistry   map[string][]parsers.BlockEventParser // Used for associating parsers to block event types in EndBlock events
 	CustomBeginBlockParserTrackers      map[string]models.BlockEventParser    // Used for tracking block event parsers in the database

@@ -197,7 +197,11 @@ func setupIndexer() *indexerPackage.Indexer {
 
 	config.SetChainConfig(indexer.Config.Probe.AccountPrefix)
 
-	indexer.ChainClient = probe.GetProbeClient(indexer.Config.Probe, indexer.CustomModuleBasics)
+	indexer.ChainClient, err = probe.GetProbeClient(indexer.Config.Probe, indexer.CustomModuleBasics, indexer.CustomMsgTypeRegistry)
+
+	if err != nil {
+		config.Log.Fatal("Failed to create probe client", err)
+	}
 
 	// Depending on the app configuration, wait for the chain to catch up
 	chainCatchingUp, err := rpc.IsCatchingUp(indexer.ChainClient)
