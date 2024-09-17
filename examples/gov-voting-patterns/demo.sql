@@ -1,5 +1,5 @@
-select b.height, a.address, p.proposal_id, CASE 
-        WHEN vo.option = 1 THEN 'yes' 
+select b.height, a.address, p.proposal_id, CASE
+        WHEN vo.option = 1 THEN 'yes'
         WHEN vo.option = 2 THEN 'abstain'
         WHEN vo.option = 3 THEN 'no'
         WHEN vo.option = 4 THEN 'veto'
