@@ -32,6 +32,6 @@ Depending on certain factors, such as the version of the Cosmos SDK the custom c
 
 The following sections provide details on how to use the `cosmos-indexer` codebase as an SDK to extend the supported transaction message types:
 
-* [Probe Codec Walkthrough](./custom_cosmos_module_extensions/probe_codec_walkthrough.md) - Reference documentation on the probe package and its codec for decoding JSON RPC responses and their Protobuf encoded Transaction Messages
 * [Custom Message Type Registration](./custom_cosmos_module_extensions/custom_message_type_registration.md) - Reference documentation on how to register custom message types in the indexer
-* [Cosmos Indexer Modules](./custom_cosmos_module_extensions/cosmos_indexer_modules.md) - Reference documentation on the modules provided by the `cosmos-indexer-modules` codebase for extending the supported transaction message types
+* [Cosmos Indexer Modules](./custom_cosmos_module_extensions/cosmos_indexer_modules.md) - Reference documentation on the strategy for modules provided by the `cosmos-indexer-modules` package for extending the supported transaction message types
+* [Probe Codec Walkthrough](./custom_cosmos_module_extensions/probe_codec_walkthrough.md) - Reference documentation on the probe package and its codec for decoding JSON RPC responses and their Protobuf encoded Transaction Messages
