@@ -10,7 +10,7 @@ This allows data to be passed from the blockchain to the `probe` package in a fo
 
 ## RPC Client Generation
 
-The `probe` package also provides a client generator that can be used to generate a client for a specific blockchain. The client provides methods for querying the blockchain for data, such as blocks, transactions, and events. 
+The `probe` package also provides a client generator that can be used to generate a client for a specific blockchain. The client provides methods for querying the blockchain for data, such as blocks, transactions, and events.
 
 The `ChainClient` type defined in the [client package client.go file](https://github.com/DefiantLabs/probe/blob/main/client/client.go) is used to generate the client for a specific blockchain. The client is generated using the `NewChainClient` function, which takes a `ChainClientConfig` type as an argument that contains the configuration for the client, such as RPC endpoint, chain ID and others.
 
