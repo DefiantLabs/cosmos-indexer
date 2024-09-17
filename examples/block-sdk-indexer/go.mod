@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/DefiantLabs/cosmos-indexer v0.0.0-20240613171139-077bdb0887f6
-	github.com/DefiantLabs/cosmos-indexer-modules/block-sdk v0.0.0-20240821061722-dc2bc8664e10
+	github.com/DefiantLabs/cosmos-indexer-modules/block-sdk v0.0.0-20240917021144-f5fdc1f5268a
 )
 
 require (
@@ -26,7 +26,7 @@ require (
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/CosmWasm/wasmd v0.40.0 // indirect
 	github.com/CosmWasm/wasmvm v1.2.3 // indirect
-	github.com/DefiantLabs/probe v0.0.0-20240820043230-ffbbb1824466 // indirect
+	github.com/DefiantLabs/probe v1.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/aws/aws-sdk-go v1.44.203 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
